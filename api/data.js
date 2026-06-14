@@ -15,7 +15,8 @@ function getClient() {
 
 export default async function handler(req, res) {
   const { id } = req.query;
-  if (!id || !/^[A-Z0-9]{4,12}$/.test(id)) {
+  // Accepts sync codes (e.g. "AB12CD") and Clerk user IDs (e.g. "user_2abc...").
+  if (!id || !/^[A-Za-z0-9_-]{4,64}$/.test(id)) {
     return res.status(400).json({ error: "Missing or invalid id" });
   }
 

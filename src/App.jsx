@@ -1,4 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useUser, SignInButton, UserButton } from "@clerk/clerk-react";
+
+export const CLERK_ENABLED = !!import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
 
 const FREQUENCIES = ["Monthly", "Annual", "Weekly", "Quarterly", "Bi-weekly"];
 
@@ -175,6 +178,101 @@ async function saveData(id, data) {
   });
 }
 
+function computeHealthScore(totalIncome, totalExpenses, invest, emergencyMonths) {
+  if (totalIncome <= 0) return null;
+  const net = totalIncome - totalExpenses - invest;
+  const savingsRate = net / totalIncome;
+  const investRate = invest / totalIncome;
+  const expenseRatio = totalExpenses / totalIncome;
+
+  const savingsScore  = Math.round(Math.min(1, Math.max(0, savingsRate / 0.20)) * 25);
+  const emergencyScore = Math.round(Math.min(1, emergencyMonths / 6) * 25);
+  const investScore   = Math.round(Math.min(1, Math.max(0, investRate / 0.10)) * 25);
+  const expenseScore  = Math.round(Math.min(1, Math.max(0, (0.90 - expenseRatio) / 0.40)) * 25);
+
+  return {
+    total: savingsScore + emergencyScore + investScore + expenseScore,
+    breakdown: [
+      {
+        label: "Savings Rate", score: savingsScore,
+        value: `${(savingsRate * 100).toFixed(0)}%`, target: "≥20%",
+        note: savingsScore < 25 ? `Save €${fmt(Math.max(0, totalIncome * 0.20 - net))}/mo more to reach 20% savings rate` : null,
+      },
+      {
+        label: "Emergency Fund", score: emergencyScore,
+        value: `${emergencyMonths}mo`, target: "6mo",
+        note: emergencyScore < 25 ? `Target 6 months of expenses (€${fmt(totalExpenses * 6)})` : null,
+      },
+      {
+        label: "Investment Rate", score: investScore,
+        value: `${(investRate * 100).toFixed(0)}%`, target: "≥10%",
+        note: investScore < 25 ? `Invest €${fmt(Math.max(0, totalIncome * 0.10 - invest))}/mo more to reach 10% of income` : null,
+      },
+      {
+        label: "Expense Ratio", score: expenseScore,
+        value: `${(expenseRatio * 100).toFixed(0)}%`, target: "≤50%",
+        note: expenseScore < 25 ? `Expenses are ${(expenseRatio * 100).toFixed(0)}% of income — cut €${fmt(Math.max(0, totalExpenses - totalIncome * 0.50))}/mo to reach 50%` : null,
+      },
+    ],
+  };
+}
+
+function scoreColor(s) {
+  if (s >= 80) return "#34C759";
+  if (s >= 60) return "#007AFF";
+  if (s >= 40) return "#FF9500";
+  return "#FF3B30";
+}
+
+function scoreLabel(s) {
+  if (s >= 80) return "Excellent";
+  if (s >= 60) return "Good";
+  if (s >= 40) return "Fair";
+  return "Needs Work";
+}
+
+// Bridges Clerk auth state up to App. Only rendered when Clerk is configured.
+function AuthBridge({ onAuthChange, isMobile }) {
+  const { isLoaded, isSignedIn, user } = useUser();
+
+  useEffect(() => {
+    if (!isLoaded) return;
+    onAuthChange(
+      isSignedIn
+        ? { userId: user.id, email: user.primaryEmailAddress?.emailAddress ?? null }
+        : null,
+    );
+  }, [isLoaded, isSignedIn, user, onAuthChange]);
+
+  if (!isLoaded) return null;
+
+  return (
+    <div style={{ display: "flex", alignItems: "center", alignSelf: isMobile ? "stretch" : "auto" }}>
+      {isSignedIn ? (
+        <UserButton afterSignOutUrl="/" />
+      ) : (
+        <SignInButton mode="modal">
+          <button
+            style={{
+              padding: "7px 16px",
+              borderRadius: 20,
+              border: "none",
+              cursor: "pointer",
+              fontSize: 13,
+              fontWeight: 600,
+              background: "#1C1C1E",
+              color: "#fff",
+              width: isMobile ? "100%" : "auto",
+            }}
+          >
+            Sign in
+          </button>
+        </SignInButton>
+      )}
+    </div>
+  );
+}
+
 function DonutChart({ data, total }) {
   const size = 180;
   const strokeWidth = 28;
@@ -246,10 +344,19 @@ export default function App() {
   const [syncInput, setSyncInput] = useState("");
   const [copied, setCopied] = useState(false);
   const syncPanelRef = useRef(null);
+  const [auth, setAuth] = useState(null); // { userId, email } when signed in, else null
+  const [isDirty, setIsDirty] = useState(false);
+  const autoSaveTimerRef = useRef(null);
+  const skipNextSaveRef = useRef(false);
+
+  // When signed in, data is keyed by the Clerk user id; otherwise by the sync code.
+  const dataId = auth?.userId || syncId;
+  const handleAuthChange = useCallback((a) => setAuth(a), []);
 
   const applyNewSyncId = useCallback((id) => {
     const clean = id.trim().toUpperCase();
     if (!clean) return;
+    if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
     setSyncId(clean);
     setSyncIdState(clean);
     setLoaded(false);
@@ -260,24 +367,59 @@ export default function App() {
     setEmergencyMonths(3);
     setSyncInput("");
     setShowSync(false);
+    setIsDirty(false);
   }, []);
 
   useEffect(() => {
-    loadData(syncId)
+    let cancelled = false;
+    setLoaded(false);
+    loadData(dataId)
       .then((saved) => {
+        if (cancelled) return;
+        skipNextSaveRef.current = true;
         if (saved) {
           if (saved.income) setIncome(saved.income);
           if (saved.expenses) setExpenses(saved.expenses);
           if (saved.invest != null) setInvest(saved.invest);
           if (saved.emergencyMonths != null) setEmergencyMonths(saved.emergencyMonths);
+          setLoaded(true);
+        } else if (auth?.userId) {
+          // First sign-in with no stored data yet: migrate the data that's
+          // currently in memory (from the sync code) into the user's account.
+          saveData(dataId, { income, expenses, invest, emergencyMonths })
+            .finally(() => { if (!cancelled) setLoaded(true); });
+        } else {
+          setLoaded(true);
         }
-        setLoaded(true);
       })
       .catch((err) => {
+        if (cancelled) return;
+        skipNextSaveRef.current = true;
         setLoadError(err?.message ?? "Failed to load");
         setLoaded(true);
       });
-  }, [syncId]);
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dataId]);
+
+  // Debounced auto-save: persist 2s after the last change.
+  useEffect(() => {
+    if (!loaded) return;
+    if (skipNextSaveRef.current) {
+      skipNextSaveRef.current = false;
+      return;
+    }
+    setIsDirty(true);
+    if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
+    autoSaveTimerRef.current = setTimeout(() => {
+      saveData(dataId, { income, expenses, invest, emergencyMonths }).then(() => {
+        setIsDirty(false);
+        setSavedFlag(true);
+        setTimeout(() => setSavedFlag(false), 2000);
+      });
+    }, 2000);
+    return () => { if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current); };
+  }, [loaded, income, expenses, invest, emergencyMonths, dataId]);
 
   useEffect(() => {
     if (!showSync) return;
@@ -348,11 +490,131 @@ export default function App() {
 
   const handleSave = useCallback(() => {
     if (!loaded) return;
-    saveData(syncId, { income, expenses, invest, emergencyMonths }).then(() => {
+    if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
+    saveData(dataId, { income, expenses, invest, emergencyMonths }).then(() => {
+      setIsDirty(false);
       setSavedFlag(true);
       window.setTimeout(() => setSavedFlag(false), 2000);
     });
-  }, [emergencyMonths, expenses, income, invest, loaded, syncId]);
+  }, [emergencyMonths, expenses, income, invest, loaded, dataId]);
+
+  const handleExportPDF = useCallback(() => {
+    const date = new Date().toLocaleDateString("en-GB", { year: "numeric", month: "long", day: "numeric" });
+    const tIncome = income.reduce((s, i) => s + freqToMonthly(i.amount, i.frequency), 0);
+    const tExpenses = expenses.reduce((s, e) => s + freqToMonthly(e.amount, e.frequency), 0);
+    const tInvest = invest;
+    const tSavings = tIncome - tExpenses - tInvest;
+    const score = computeHealthScore(tIncome, tExpenses, tInvest, emergencyMonths);
+
+    const expensesByCat = {};
+    for (const e of expenses) {
+      const cat = e.category || "Other";
+      if (!expensesByCat[cat]) expensesByCat[cat] = [];
+      expensesByCat[cat].push(e);
+    }
+
+    const catRows = Object.entries(expensesByCat).map(([cat, items]) => {
+      const catTotal = items.reduce((s, e) => s + freqToMonthly(e.amount, e.frequency), 0);
+      const itemRows = items.map(e => `
+        <tr>
+          <td style="padding:5px 10px;border-bottom:1px solid #f0f0f0;color:#444">${e.name}</td>
+          <td style="padding:5px 10px;border-bottom:1px solid #f0f0f0;text-align:right">€${fmt(e.amount)}</td>
+          <td style="padding:5px 10px;border-bottom:1px solid #f0f0f0;color:#888">${e.frequency}</td>
+          <td style="padding:5px 10px;border-bottom:1px solid #f0f0f0;text-align:right;color:#555">€${fmt(freqToMonthly(e.amount, e.frequency))}/mo</td>
+        </tr>`).join("");
+      return `
+        <tr style="background:#f5f5f7">
+          <td colspan="3" style="padding:8px 10px;font-weight:700;font-size:12px">${(CATEGORY_COLORS[cat] || CATEGORY_COLORS.Other).icon} ${cat}</td>
+          <td style="padding:8px 10px;text-align:right;font-weight:700;font-size:12px">€${fmt(catTotal)}/mo</td>
+        </tr>${itemRows}`;
+    }).join("");
+
+    const scoreHtml = score ? `
+      <h2 style="font-size:15px;font-weight:700;margin:28px 0 10px;padding-bottom:6px;border-bottom:2px solid #007AFF;color:#007AFF">Financial Health Score</h2>
+      <div style="display:flex;align-items:center;gap:24px;padding:16px;background:#f8f8f8;border-radius:8px">
+        <div style="text-align:center;min-width:80px">
+          <div style="font-size:52px;font-weight:800;color:${scoreColor(score.total)};line-height:1">${score.total}</div>
+          <div style="font-size:13px;font-weight:600;color:${scoreColor(score.total)};margin-top:4px">${scoreLabel(score.total)}</div>
+        </div>
+        <table style="flex:1;border-collapse:collapse;font-size:13px">
+          ${score.breakdown.map(b => `
+            <tr>
+              <td style="padding:4px 8px">${b.label}</td>
+              <td style="padding:4px 8px;color:#888">${b.value} / ${b.target}</td>
+              <td style="padding:4px 8px;text-align:right;font-weight:700;color:${scoreColor(b.score * 4)}">${b.score}/25</td>
+            </tr>`).join("")}
+        </table>
+      </div>` : "";
+
+    const ownerLine = auth?.email ? `Account: ${auth.email}` : `Sync code: ${syncId}`;
+
+    const html = `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Spending Plan — ${date}</title>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue',sans-serif;padding:40px;color:#1C1C1E;font-size:14px}
+    table{width:100%;border-collapse:collapse;font-size:13px}
+    th{text-align:left;padding:8px 10px;font-size:11px;text-transform:uppercase;color:#888;border-bottom:2px solid #e0e0e0;letter-spacing:.5px}
+    @media print{body{padding:20px}}
+  </style>
+</head>
+<body>
+  <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:24px">
+    <div>
+      <h1 style="font-size:24px;font-weight:800;margin-bottom:4px">💳 Spending Plan</h1>
+      <p style="color:#888;font-size:13px">Generated ${date} &nbsp;·&nbsp; ${ownerLine}</p>
+    </div>
+  </div>
+
+  <h2 style="font-size:15px;font-weight:700;margin:0 0 10px;padding-bottom:6px;border-bottom:2px solid #007AFF;color:#007AFF">Key Metrics</h2>
+  <div style="display:flex;gap:12px;margin-bottom:4px">
+    ${[
+      ["Monthly Income",  `€${fmt(tIncome)}`,              "#34C759"],
+      ["Monthly Expenses",`€${fmt(tExpenses)}`,            "#FF3B30"],
+      ["Investment",      `€${fmt(tInvest)}`,              "#007AFF"],
+      [tSavings >= 0 ? "Net Savings" : "Deficit", `€${fmt(Math.abs(tSavings))}`, tSavings >= 0 ? "#007AFF" : "#FF3B30"],
+    ].map(([label, value, color]) => `
+      <div style="flex:1;padding:14px;background:#f8f8f8;border-radius:8px">
+        <div style="font-size:10px;color:#888;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">${label}</div>
+        <div style="font-size:20px;font-weight:800;color:${color}">${value}</div>
+      </div>`).join("")}
+  </div>
+
+  ${scoreHtml}
+
+  <h2 style="font-size:15px;font-weight:700;margin:28px 0 10px;padding-bottom:6px;border-bottom:2px solid #34C759;color:#34C759">Income</h2>
+  <table>
+    <thead><tr><th>Source</th><th>Frequency</th><th>Amount</th><th style="text-align:right">Monthly</th></tr></thead>
+    <tbody>
+      ${income.map(i => `
+        <tr>
+          <td style="padding:6px 10px;border-bottom:1px solid #f0f0f0;font-weight:600">${i.name}</td>
+          <td style="padding:6px 10px;border-bottom:1px solid #f0f0f0;color:#888">${i.frequency}</td>
+          <td style="padding:6px 10px;border-bottom:1px solid #f0f0f0">€${fmt(i.amount)}</td>
+          <td style="padding:6px 10px;border-bottom:1px solid #f0f0f0;text-align:right;font-weight:700;color:#34C759">€${fmt(freqToMonthly(i.amount, i.frequency))}/mo</td>
+        </tr>`).join("")}
+    </tbody>
+  </table>
+
+  <h2 style="font-size:15px;font-weight:700;margin:28px 0 10px;padding-bottom:6px;border-bottom:2px solid #FF3B30;color:#FF3B30">Expenses</h2>
+  <table>
+    <thead><tr><th>Item</th><th style="text-align:right">Amount</th><th>Frequency</th><th style="text-align:right">Monthly</th></tr></thead>
+    <tbody>${catRows}</tbody>
+  </table>
+
+  <p style="margin-top:36px;font-size:11px;color:#bbb;text-align:center">For personal planning purposes only. Not financial advice.</p>
+</body>
+</html>`;
+
+    const win = window.open("", "_blank");
+    win.document.write(html);
+    win.document.close();
+    win.focus();
+    setTimeout(() => win.print(), 400);
+  }, [income, expenses, invest, emergencyMonths, syncId, auth]);
 
   const updateExpense = (id, field, value) => {
     setExpenses((current) =>
@@ -472,7 +734,7 @@ export default function App() {
               </button>
             ))}
           </div>
-          <div style={{ position: "relative" }} ref={syncPanelRef}>
+          <div style={{ position: "relative", display: auth ? "none" : "block" }} ref={syncPanelRef}>
             <button
               onClick={() => { setShowSync((v) => !v); setSyncInput(""); }}
               title="Sync across devices"
@@ -598,7 +860,7 @@ export default function App() {
               cursor: loaded ? "pointer" : "default",
               fontSize: 13,
               fontWeight: 600,
-              background: savedFlag ? "#34C759" : loaded ? "#007AFF" : "#A0C4FF",
+              background: savedFlag ? "#34C759" : !loaded ? "#A0C4FF" : isDirty ? "#FF9500" : "#007AFF",
               color: "#fff",
               transition: "all 0.3s",
               display: "flex",
@@ -608,8 +870,9 @@ export default function App() {
               alignSelf: isMobile ? "stretch" : "auto",
             }}
           >
-            {savedFlag ? "✓ Saved" : "Save"}
+            {savedFlag ? "✓ Saved" : isDirty ? "● Save" : "Save"}
           </button>
+          {CLERK_ENABLED && <AuthBridge onAuthChange={handleAuthChange} isMobile={isMobile} />}
         </div>
       </div>
 
@@ -817,6 +1080,61 @@ export default function App() {
                 </div>
               </div>
             </div>
+
+            {(() => {
+              const score = computeHealthScore(totalIncome, totalExpenses, investMonthly, emergencyMonths);
+              if (!score) return null;
+              const color = scoreColor(score.total);
+              const weakest = [...score.breakdown].filter(b => b.note).sort((a, b) => a.score - b.score)[0];
+              return (
+                <div style={{ background: "#fff", borderRadius: 18, padding: 22, boxShadow: "0 2px 12px rgba(0,0,0,0.06)", marginTop: 14 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 20, flexWrap: "wrap", gap: 12 }}>
+                    <div>
+                      <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 2 }}>Financial Health Score</div>
+                      <div style={{ fontSize: 12, color: "#8E8E93" }}>Savings rate · Emergency fund · Investment rate · Expense ratio</div>
+                    </div>
+                    <button
+                      onClick={handleExportPDF}
+                      style={{
+                        padding: "7px 14px", borderRadius: 20, border: "1.5px solid #E5E5EA",
+                        cursor: "pointer", fontSize: 13, fontWeight: 600, background: "#fff",
+                        color: "#3C3C43", display: "flex", alignItems: "center", gap: 5,
+                      }}
+                    >
+                      📄 Export PDF
+                    </button>
+                  </div>
+                  <div style={{ display: "flex", gap: 24, alignItems: "center", flexDirection: isMobile ? "column" : "row" }}>
+                    <div style={{ textAlign: "center", flexShrink: 0 }}>
+                      <div style={{ fontSize: 64, fontWeight: 800, color, lineHeight: 1, letterSpacing: "-3px" }}>{score.total}</div>
+                      <div style={{ fontSize: 14, fontWeight: 600, color, marginTop: 4 }}>{scoreLabel(score.total)}</div>
+                      <div style={{ fontSize: 11, color: "#8E8E93", marginTop: 2 }}>out of 100</div>
+                    </div>
+                    <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 12, width: "100%" }}>
+                      {score.breakdown.map((item) => (
+                        <div key={item.label}>
+                          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+                            <span style={{ fontSize: 12, fontWeight: 500, color: "#3C3C43" }}>{item.label}</span>
+                            <span style={{ fontSize: 12, color: "#8E8E93" }}>
+                              {item.value} <span style={{ color: "#C7C7CC" }}>/ {item.target}</span>
+                              <span style={{ marginLeft: 8, fontWeight: 700, color: scoreColor(item.score * 4) }}>{item.score}/25</span>
+                            </span>
+                          </div>
+                          <div style={{ background: "#F2F2F7", borderRadius: 4, height: 6, overflow: "hidden" }}>
+                            <div style={{ width: `${(item.score / 25) * 100}%`, height: "100%", background: scoreColor(item.score * 4), borderRadius: 4, transition: "width 0.6s ease" }} />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  {weakest && (
+                    <div style={{ marginTop: 16, padding: "10px 14px", background: "#FFF8F0", borderRadius: 10, fontSize: 13, color: "#3C3C43" }}>
+                      <span style={{ color: "#FF9500", fontWeight: 700 }}>↑ Biggest opportunity: </span>{weakest.note}
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
           </div>
         )}
 
