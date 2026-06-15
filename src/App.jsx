@@ -600,20 +600,39 @@ export default function App() {
           if (saved.emergencyMonths != null) setEmergencyMonths(saved.emergencyMonths);
           setLoaded(true);
         } else {
-          // Brand-new account: seed example data and run the walkthrough.
-          setIncome(EXAMPLE_INCOME);
-          setExpenses(EXAMPLE_EXPENSES);
-          setInvest(EXAMPLE_INVEST);
-          setEmergencyMonths(3);
-          saveData(userId, {
-            income: EXAMPLE_INCOME,
-            expenses: EXAMPLE_EXPENSES,
-            invest: EXAMPLE_INVEST,
-            emergencyMonths: 3,
-          }).finally(() => { if (!cancelled) setLoaded(true); });
-          let seen = false;
-          try { seen = !!localStorage.getItem(`walkthrough_done_${userId}`); } catch { /* ignore */ }
-          if (!seen) setShowWalkthrough(true);
+          // Brand-new account: check for pre-auth sync code data first.
+          let oldSyncId = null;
+          try { oldSyncId = localStorage.getItem(SYNC_KEY); } catch { /* ignore */ }
+          const tryMigrateSync = oldSyncId
+            ? loadData(oldSyncId).catch(() => null)
+            : Promise.resolve(null);
+          tryMigrateSync.then((legacy) => {
+            if (cancelled) return;
+            if (legacy && (legacy.income || legacy.expenses)) {
+              // Migrate pre-auth data into the new Clerk account.
+              skipNextSaveRef.current = true;
+              if (legacy.income) setIncome(legacy.income);
+              if (legacy.expenses) setExpenses(legacy.expenses);
+              if (legacy.invest != null) setInvest(legacy.invest);
+              if (legacy.emergencyMonths != null) setEmergencyMonths(legacy.emergencyMonths);
+              saveData(userId, legacy).finally(() => { if (!cancelled) setLoaded(true); });
+            } else {
+              // Truly new account: seed example data and run walkthrough.
+              setIncome(EXAMPLE_INCOME);
+              setExpenses(EXAMPLE_EXPENSES);
+              setInvest(EXAMPLE_INVEST);
+              setEmergencyMonths(3);
+              saveData(userId, {
+                income: EXAMPLE_INCOME,
+                expenses: EXAMPLE_EXPENSES,
+                invest: EXAMPLE_INVEST,
+                emergencyMonths: 3,
+              }).finally(() => { if (!cancelled) setLoaded(true); });
+              let seen = false;
+              try { seen = !!localStorage.getItem(`walkthrough_done_${userId}`); } catch { /* ignore */ }
+              if (!seen) setShowWalkthrough(true);
+            }
+          });
         }
       })
       .catch((err) => {
