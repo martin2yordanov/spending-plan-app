@@ -74,6 +74,27 @@ const DEFAULT_INCOME = [
   { id: 1, name: "Salary", amount: 0, frequency: "Monthly" },
 ];
 
+// Realistic sample data shown to logged-out visitors and seeded for brand-new
+// accounts on first sign-in, so the app looks alive instead of empty.
+const EXAMPLE_INCOME = [
+  { id: 1, name: "Salary", amount: 3000, frequency: "Monthly" },
+  { id: 2, name: "Side Projects", amount: 500, frequency: "Monthly" },
+];
+
+const EXAMPLE_INVEST = 250;
+
+const EXAMPLE_AMOUNTS = {
+  1: 25, 2: 70, 3: 35, 4: 20, 5: 120, 6: 30, 7: 100, 8: 50, 9: 400, 10: 600,
+  11: 120, 12: 50, 13: 180, 14: 800, 15: 40, 16: 60, 17: 50, 18: 80, 19: 400,
+  20: 60, 21: 40, 22: 30, 23: 40, 24: 2000, 25: 200, 26: 1200, 27: 400, 28: 80,
+  29: 50, 30: 60, 31: 300, 32: 50,
+};
+
+const EXAMPLE_EXPENSES = DEFAULT_EXPENSES.map((e) => ({
+  ...e,
+  amount: EXAMPLE_AMOUNTS[e.id] ?? 0,
+}));
+
 function renderMarkdown(text) {
   // Lightweight inline renderer: handles headings, bullets, bold, and paragraph breaks.
   const lines = text.split("\n");
@@ -273,6 +294,128 @@ function AuthBridge({ onAuthChange, isMobile }) {
   );
 }
 
+// First-login coachmark overlay: dims the screen and points an arrow at each
+// target element (the nav tabs), with a short how-to per step.
+function Walkthrough({ steps, onFinish }) {
+  const [index, setIndex] = useState(0);
+  const [rect, setRect] = useState(null);
+  const step = steps[index];
+
+  useEffect(() => {
+    function update() {
+      const el = step.getTarget?.();
+      const r = el ? el.getBoundingClientRect() : null;
+      setRect(r ? { top: r.top, left: r.left, width: r.width, height: r.height } : null);
+    }
+    update();
+    const id = setTimeout(update, 60); // re-measure after layout settles
+    window.addEventListener("resize", update);
+    window.addEventListener("scroll", update, true);
+    return () => {
+      clearTimeout(id);
+      window.removeEventListener("resize", update);
+      window.removeEventListener("scroll", update, true);
+    };
+  }, [step]);
+
+  const isLast = index === steps.length - 1;
+  const vw = typeof window !== "undefined" ? window.innerWidth : 360;
+
+  // Tooltip placement: below the target if we have one, else centered.
+  const tipWidth = Math.min(320, vw - 32);
+  let tipTop, tipLeft, arrow = false;
+  if (rect) {
+    tipTop = rect.top + rect.height + 16;
+    tipLeft = Math.max(16, Math.min(rect.left + rect.width / 2 - tipWidth / 2, vw - tipWidth - 16));
+    arrow = true;
+  } else {
+    tipTop = typeof window !== "undefined" ? window.innerHeight / 2 - 90 : 200;
+    tipLeft = Math.max(16, vw / 2 - tipWidth / 2);
+  }
+
+  return (
+    <div style={{ position: "fixed", inset: 0, zIndex: 9998 }}>
+      {/* Spotlight cut-out (or full dim when no target) */}
+      {rect ? (
+        <div
+          style={{
+            position: "fixed",
+            top: rect.top - 6,
+            left: rect.left - 6,
+            width: rect.width + 12,
+            height: rect.height + 12,
+            borderRadius: 14,
+            boxShadow: "0 0 0 9999px rgba(0,0,0,0.6)",
+            border: "2px solid #fff",
+            pointerEvents: "none",
+            transition: "all 0.3s ease",
+          }}
+        />
+      ) : (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)" }} />
+      )}
+
+      {/* Tooltip */}
+      <div
+        style={{
+          position: "fixed",
+          top: tipTop,
+          left: tipLeft,
+          width: tipWidth,
+          background: "#fff",
+          borderRadius: 16,
+          padding: 18,
+          boxShadow: "0 12px 40px rgba(0,0,0,0.3)",
+          zIndex: 9999,
+        }}
+      >
+        {arrow && (
+          <div
+            style={{
+              position: "absolute",
+              top: -8,
+              left: Math.max(16, Math.min((rect.left + rect.width / 2) - tipLeft - 8, tipWidth - 32)),
+              width: 16,
+              height: 16,
+              background: "#fff",
+              transform: "rotate(45deg)",
+              boxShadow: "-2px -2px 4px rgba(0,0,0,0.04)",
+            }}
+          />
+        )}
+        <div style={{ fontSize: 16, fontWeight: 700, color: "#1C1C1E", marginBottom: 6 }}>{step.title}</div>
+        <div style={{ fontSize: 13.5, lineHeight: 1.5, color: "#3C3C43", marginBottom: 16 }}>{step.text}</div>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <button
+            onClick={onFinish}
+            style={{ border: "none", background: "transparent", color: "#8E8E93", fontSize: 13, fontWeight: 500, cursor: "pointer", padding: 0 }}
+          >
+            Skip
+          </button>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <span style={{ fontSize: 12, color: "#C7C7CC" }}>{index + 1} / {steps.length}</span>
+            <button
+              onClick={() => (isLast ? onFinish() : setIndex((i) => i + 1))}
+              style={{
+                border: "none",
+                background: "#007AFF",
+                color: "#fff",
+                fontSize: 13,
+                fontWeight: 600,
+                cursor: "pointer",
+                padding: "8px 18px",
+                borderRadius: 20,
+              }}
+            >
+              {isLast ? "Got it" : "Next"}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function DonutChart({ data, total }) {
   const size = 180;
   const strokeWidth = 28;
@@ -334,9 +477,9 @@ function useIsMobile() {
 export default function App() {
   const isMobile = useIsMobile();
   const [syncId, setSyncIdState] = useState(() => getSyncId());
-  const [income, setIncome] = useState(DEFAULT_INCOME);
-  const [expenses, setExpenses] = useState(DEFAULT_EXPENSES);
-  const [invest, setInvest] = useState(0);
+  const [income, setIncome] = useState(EXAMPLE_INCOME);
+  const [expenses, setExpenses] = useState(EXAMPLE_EXPENSES);
+  const [invest, setInvest] = useState(EXAMPLE_INVEST);
   const [emergencyMonths, setEmergencyMonths] = useState(3);
   const [loaded, setLoaded] = useState(false);
   const [loadError, setLoadError] = useState(null);
@@ -346,12 +489,22 @@ export default function App() {
   const syncPanelRef = useRef(null);
   const [auth, setAuth] = useState(null); // { userId, email } when signed in, else null
   const [isDirty, setIsDirty] = useState(false);
+  const [showWalkthrough, setShowWalkthrough] = useState(false);
   const autoSaveTimerRef = useRef(null);
   const skipNextSaveRef = useRef(false);
+  const tabRefs = useRef({});
 
-  // When signed in, data is keyed by the Clerk user id; otherwise by the sync code.
-  const dataId = auth?.userId || syncId;
+  // Data is only persisted for signed-in users (keyed by Clerk user id).
+  // Logged-out visitors see read-only example data.
+  const isSignedIn = !!auth?.userId;
   const handleAuthChange = useCallback((a) => setAuth(a), []);
+
+  const finishWalkthrough = useCallback(() => {
+    setShowWalkthrough(false);
+    if (auth?.userId) {
+      try { localStorage.setItem(`walkthrough_done_${auth.userId}`, "1"); } catch { /* ignore */ }
+    }
+  }, [auth]);
 
   const applyNewSyncId = useCallback((id) => {
     const clean = id.trim().toUpperCase();
@@ -371,25 +524,47 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+    // Logged out: show example demo data, no backend reads/writes.
+    if (!auth?.userId) {
+      skipNextSaveRef.current = true;
+      setIncome(EXAMPLE_INCOME);
+      setExpenses(EXAMPLE_EXPENSES);
+      setInvest(EXAMPLE_INVEST);
+      setEmergencyMonths(3);
+      setLoadError(null);
+      setLoaded(true);
+      return;
+    }
+
     let cancelled = false;
     setLoaded(false);
-    loadData(dataId)
+    const userId = auth.userId;
+    loadData(userId)
       .then((saved) => {
         if (cancelled) return;
         skipNextSaveRef.current = true;
-        if (saved) {
+        if (saved && (saved.expenses || saved.income)) {
+          // Returning user: load their real data.
           if (saved.income) setIncome(saved.income);
           if (saved.expenses) setExpenses(saved.expenses);
           if (saved.invest != null) setInvest(saved.invest);
           if (saved.emergencyMonths != null) setEmergencyMonths(saved.emergencyMonths);
           setLoaded(true);
-        } else if (auth?.userId) {
-          // First sign-in with no stored data yet: migrate the data that's
-          // currently in memory (from the sync code) into the user's account.
-          saveData(dataId, { income, expenses, invest, emergencyMonths })
-            .finally(() => { if (!cancelled) setLoaded(true); });
         } else {
-          setLoaded(true);
+          // Brand-new account: seed example data and run the walkthrough.
+          setIncome(EXAMPLE_INCOME);
+          setExpenses(EXAMPLE_EXPENSES);
+          setInvest(EXAMPLE_INVEST);
+          setEmergencyMonths(3);
+          saveData(userId, {
+            income: EXAMPLE_INCOME,
+            expenses: EXAMPLE_EXPENSES,
+            invest: EXAMPLE_INVEST,
+            emergencyMonths: 3,
+          }).finally(() => { if (!cancelled) setLoaded(true); });
+          let seen = false;
+          try { seen = !!localStorage.getItem(`walkthrough_done_${userId}`); } catch { /* ignore */ }
+          if (!seen) setShowWalkthrough(true);
         }
       })
       .catch((err) => {
@@ -400,11 +575,11 @@ export default function App() {
       });
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dataId]);
+  }, [auth?.userId]);
 
-  // Debounced auto-save: persist 2s after the last change.
+  // Debounced auto-save: persist 2s after the last change (signed-in only).
   useEffect(() => {
-    if (!loaded) return;
+    if (!loaded || !auth?.userId) return;
     if (skipNextSaveRef.current) {
       skipNextSaveRef.current = false;
       return;
@@ -412,14 +587,14 @@ export default function App() {
     setIsDirty(true);
     if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
     autoSaveTimerRef.current = setTimeout(() => {
-      saveData(dataId, { income, expenses, invest, emergencyMonths }).then(() => {
+      saveData(auth.userId, { income, expenses, invest, emergencyMonths }).then(() => {
         setIsDirty(false);
         setSavedFlag(true);
         setTimeout(() => setSavedFlag(false), 2000);
       });
     }, 2000);
     return () => { if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current); };
-  }, [loaded, income, expenses, invest, emergencyMonths, dataId]);
+  }, [loaded, income, expenses, invest, emergencyMonths, auth?.userId]);
 
   useEffect(() => {
     if (!showSync) return;
@@ -489,14 +664,14 @@ export default function App() {
   const emergencyTarget = monthlyExpenses * emergencyMonths;
 
   const handleSave = useCallback(() => {
-    if (!loaded) return;
+    if (!loaded || !auth?.userId) return;
     if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
-    saveData(dataId, { income, expenses, invest, emergencyMonths }).then(() => {
+    saveData(auth.userId, { income, expenses, invest, emergencyMonths }).then(() => {
       setIsDirty(false);
       setSavedFlag(true);
       window.setTimeout(() => setSavedFlag(false), 2000);
     });
-  }, [emergencyMonths, expenses, income, invest, loaded, dataId]);
+  }, [emergencyMonths, expenses, income, invest, loaded, auth]);
 
   const handleExportPDF = useCallback(() => {
     const date = new Date().toLocaleDateString("en-GB", { year: "numeric", month: "long", day: "numeric" });
@@ -717,6 +892,7 @@ export default function App() {
             {["overview", "expenses", "income", "suggestions"].map((tab) => (
               <button
                 key={tab}
+                ref={(el) => { tabRefs.current[tab] = el; }}
                 onClick={() => setActiveTab(tab)}
                 style={{
                   padding: "6px 14px",
@@ -734,7 +910,7 @@ export default function App() {
               </button>
             ))}
           </div>
-          <div style={{ position: "relative", display: auth ? "none" : "block" }} ref={syncPanelRef}>
+          <div style={{ position: "relative", display: "none" }} ref={syncPanelRef}>
             <button
               onClick={() => { setShowSync((v) => !v); setSyncInput(""); }}
               title="Sync across devices"
@@ -850,31 +1026,58 @@ export default function App() {
               </div>
             )}
           </div>
-          <button
-            onClick={handleSave}
-            disabled={!loaded}
-            style={{
-              padding: "7px 16px",
-              borderRadius: 20,
-              border: "none",
-              cursor: loaded ? "pointer" : "default",
-              fontSize: 13,
-              fontWeight: 600,
-              background: savedFlag ? "#34C759" : !loaded ? "#A0C4FF" : isDirty ? "#FF9500" : "#007AFF",
-              color: "#fff",
-              transition: "all 0.3s",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: 5,
-              alignSelf: isMobile ? "stretch" : "auto",
-            }}
-          >
-            {savedFlag ? "✓ Saved" : isDirty ? "● Save" : "Save"}
-          </button>
+          {isSignedIn && (
+            <button
+              onClick={handleSave}
+              disabled={!loaded}
+              style={{
+                padding: "7px 16px",
+                borderRadius: 20,
+                border: "none",
+                cursor: loaded ? "pointer" : "default",
+                fontSize: 13,
+                fontWeight: 600,
+                background: savedFlag ? "#34C759" : !loaded ? "#A0C4FF" : isDirty ? "#FF9500" : "#007AFF",
+                color: "#fff",
+                transition: "all 0.3s",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 5,
+                alignSelf: isMobile ? "stretch" : "auto",
+              }}
+            >
+              {savedFlag ? "✓ Saved" : isDirty ? "● Save" : "Save"}
+            </button>
+          )}
           {CLERK_ENABLED && <AuthBridge onAuthChange={handleAuthChange} isMobile={isMobile} />}
         </div>
       </div>
+
+      {CLERK_ENABLED && !isSignedIn && loaded && (
+        <div
+          style={{
+            background: "#FFF8E6",
+            borderBottom: "1px solid #FFE8B0",
+            padding: isMobile ? "10px 16px" : "10px 24px",
+          }}
+        >
+          <div
+            style={{
+              maxWidth: contentWidth,
+              margin: "0 auto",
+              fontSize: 13,
+              color: "#8A6D00",
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              flexWrap: "wrap",
+            }}
+          >
+            <span>📊 You're viewing <strong>example data</strong>. Sign in to create and save your own plan.</span>
+          </div>
+        </div>
+      )}
 
       <div
         style={{
@@ -1833,6 +2036,34 @@ export default function App() {
           </div>
         )}
       </div>
+
+      {showWalkthrough && (
+        <Walkthrough
+          onFinish={finishWalkthrough}
+          steps={[
+            {
+              title: "Welcome 👋",
+              text: "Let's set up your spending plan — it takes about a minute. We've filled it with example numbers you can replace.",
+              getTarget: () => null,
+            },
+            {
+              title: "1. Add your income",
+              text: "Open the Income tab to enter your salary and any other income sources.",
+              getTarget: () => tabRefs.current.income,
+            },
+            {
+              title: "2. Add your expenses",
+              text: "Open the Expenses tab to edit your expenses by category. Tap any item to change its name, amount, or frequency — and use “+ Add Expense” for new ones.",
+              getTarget: () => tabRefs.current.expenses,
+            },
+            {
+              title: "3. See your insights",
+              text: "The Overview tab shows your savings, health score, and a PDF export. Everything you change saves automatically.",
+              getTarget: () => tabRefs.current.overview,
+            },
+          ]}
+        />
+      )}
     </div>
   );
 }
