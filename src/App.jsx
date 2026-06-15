@@ -491,6 +491,11 @@ export default function App() {
   const [showSync, setShowSync] = useState(false);
   const [syncInput, setSyncInput] = useState("");
   const [copied, setCopied] = useState(false);
+  const [showImport, setShowImport] = useState(false);
+  const [importInput, setImportInput] = useState("");
+  const [importLoading, setImportLoading] = useState(false);
+  const [importError, setImportError] = useState(null);
+  const [importSuccess, setImportSuccess] = useState(false);
   const syncPanelRef = useRef(null);
   const [auth, setAuth] = useState(null); // { userId, email } when signed in, else null
   const [isDirty, setIsDirty] = useState(false);
@@ -538,6 +543,34 @@ export default function App() {
     setShowSync(false);
     setIsDirty(false);
   }, []);
+
+  const handleImportFromOldAccount = useCallback(async () => {
+    const oldId = importInput.trim();
+    if (!oldId || !auth?.userId) return;
+    setImportLoading(true);
+    setImportError(null);
+    setImportSuccess(false);
+    try {
+      const data = await loadData(oldId);
+      if (!data || (!data.income && !data.expenses)) {
+        setImportError("No data found for that account ID. Please double-check and try again.");
+        return;
+      }
+      skipNextSaveRef.current = true;
+      if (data.income) setIncome(data.income);
+      if (data.expenses) setExpenses(data.expenses);
+      if (data.invest != null) setInvest(data.invest);
+      if (data.emergencyMonths != null) setEmergencyMonths(data.emergencyMonths);
+      await saveData(auth.userId, data);
+      setImportSuccess(true);
+      setImportInput("");
+      setTimeout(() => { setShowImport(false); setImportSuccess(false); }, 1800);
+    } catch (err) {
+      setImportError(err?.message ?? "Failed to import data");
+    } finally {
+      setImportLoading(false);
+    }
+  }, [importInput, auth?.userId]);
 
   useEffect(() => {
     // Logged out: show example demo data, no backend reads/writes.
@@ -1057,6 +1090,28 @@ export default function App() {
               </div>
             )}
           </div>
+          {isSignedIn && (
+            <button
+              onClick={() => { setShowImport(true); setImportInput(""); setImportError(null); setImportSuccess(false); }}
+              title="Import data from a previous account"
+              style={{
+                padding: "7px 14px",
+                borderRadius: 20,
+                border: "1.5px solid #E5E5EA",
+                cursor: "pointer",
+                fontSize: 13,
+                fontWeight: 600,
+                background: "#fff",
+                color: "#3C3C43",
+                display: "flex",
+                alignItems: "center",
+                gap: 5,
+                alignSelf: isMobile ? "stretch" : "auto",
+              }}
+            >
+              ↓ Import
+            </button>
+          )}
           {isSignedIn && (
             <button
               onClick={handleSave}
@@ -2132,6 +2187,71 @@ export default function App() {
           </div>
         )}
       </div>
+
+      {showImport && (
+        <div
+          style={{
+            position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            zIndex: 1000, padding: 16,
+          }}
+          onClick={(e) => { if (e.target === e.currentTarget) setShowImport(false); }}
+        >
+          <div style={{
+            background: "#fff", borderRadius: 20, padding: 28, width: "100%", maxWidth: 400,
+            boxShadow: "0 20px 60px rgba(0,0,0,0.2)",
+          }}>
+            <h3 style={{ margin: "0 0 8px", fontSize: 18, fontWeight: 700, color: "#1C1C1E" }}>
+              Import from old account
+            </h3>
+            <p style={{ margin: "0 0 18px", fontSize: 13, color: "#8E8E93", lineHeight: 1.5 }}>
+              Enter your old Clerk user ID (starts with <code style={{ fontFamily: "monospace", background: "#F2F2F7", padding: "1px 4px", borderRadius: 4 }}>user_</code>). You can find it in the Clerk dashboard or your browser&apos;s local storage under a previous session.
+            </p>
+            <input
+              value={importInput}
+              onChange={(e) => setImportInput(e.target.value)}
+              placeholder="user_xxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+              autoFocus
+              style={{
+                width: "100%", padding: "10px 12px", borderRadius: 10, fontSize: 13,
+                border: "1.5px solid #E5E5EA", outline: "none", fontFamily: "monospace",
+                boxSizing: "border-box", marginBottom: 12,
+              }}
+            />
+            {importError && (
+              <p style={{ margin: "0 0 12px", fontSize: 12, color: "#FF3B30" }}>{importError}</p>
+            )}
+            {importSuccess && (
+              <p style={{ margin: "0 0 12px", fontSize: 12, color: "#34C759", fontWeight: 600 }}>
+                ✓ Data imported successfully!
+              </p>
+            )}
+            <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
+              <button
+                onClick={() => setShowImport(false)}
+                style={{
+                  padding: "9px 18px", borderRadius: 12, border: "1.5px solid #E5E5EA",
+                  background: "#fff", color: "#3C3C43", fontSize: 14, fontWeight: 600, cursor: "pointer",
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleImportFromOldAccount}
+                disabled={!importInput.trim() || importLoading}
+                style={{
+                  padding: "9px 18px", borderRadius: 12, border: "none",
+                  background: importInput.trim() && !importLoading ? "#007AFF" : "#A0C4FF",
+                  color: "#fff", fontSize: 14, fontWeight: 600,
+                  cursor: importInput.trim() && !importLoading ? "pointer" : "default",
+                }}
+              >
+                {importLoading ? "Importing…" : "Import"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {showWalkthrough && (
         <Walkthrough
