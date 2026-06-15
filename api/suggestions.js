@@ -140,6 +140,12 @@ export default async function handler(req, res) {
   try {
     const userMessage = formatFinancialData(req.body || {});
 
+    const LANG_NAMES = { en: "English", bg: "Bulgarian", es: "Spanish" };
+    const langName = LANG_NAMES[req.body?.lang] || "English";
+    const systemPrompt = req.body?.lang && req.body.lang !== "en"
+      ? `${SYSTEM_PROMPT}\n\nIMPORTANT: Write your entire response in ${langName}. Keep the markdown section headings and the € currency symbol, but translate all prose into ${langName}.`
+      : SYSTEM_PROMPT;
+
     const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -149,7 +155,7 @@ export default async function handler(req, res) {
       body: JSON.stringify({
         model: "llama-3.3-70b-versatile",
         messages: [
-          { role: "system", content: SYSTEM_PROMPT },
+          { role: "system", content: systemPrompt },
           { role: "user", content: userMessage },
         ],
         temperature: 0.7,

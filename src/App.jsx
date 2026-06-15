@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useUser, SignInButton, UserButton } from "@clerk/clerk-react";
+import { LANGUAGES, LANG_KEY, makeT } from "./i18n";
 
 export const CLERK_ENABLED = !!import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
 
@@ -215,24 +216,28 @@ function computeHealthScore(totalIncome, totalExpenses, invest, emergencyMonths)
     total: savingsScore + emergencyScore + investScore + expenseScore,
     breakdown: [
       {
-        label: "Savings Rate", score: savingsScore,
+        labelKey: "score_savingsRate", score: savingsScore,
         value: `${(savingsRate * 100).toFixed(0)}%`, target: "≥20%",
-        note: savingsScore < 25 ? `Save €${fmt(Math.max(0, totalIncome * 0.20 - net))}/mo more to reach 20% savings rate` : null,
+        noteKey: savingsScore < 25 ? "note_savings" : null,
+        noteVars: { x: fmt(Math.max(0, totalIncome * 0.20 - net)) },
       },
       {
-        label: "Emergency Fund", score: emergencyScore,
+        labelKey: "score_emergencyFund", score: emergencyScore,
         value: `${emergencyMonths}mo`, target: "6mo",
-        note: emergencyScore < 25 ? `Target 6 months of expenses (€${fmt(totalExpenses * 6)})` : null,
+        noteKey: emergencyScore < 25 ? "note_emergency" : null,
+        noteVars: { x: fmt(totalExpenses * 6) },
       },
       {
-        label: "Investment Rate", score: investScore,
+        labelKey: "score_investmentRate", score: investScore,
         value: `${(investRate * 100).toFixed(0)}%`, target: "≥10%",
-        note: investScore < 25 ? `Invest €${fmt(Math.max(0, totalIncome * 0.10 - invest))}/mo more to reach 10% of income` : null,
+        noteKey: investScore < 25 ? "note_invest" : null,
+        noteVars: { x: fmt(Math.max(0, totalIncome * 0.10 - invest)) },
       },
       {
-        label: "Expense Ratio", score: expenseScore,
+        labelKey: "score_expenseRatio", score: expenseScore,
         value: `${(expenseRatio * 100).toFixed(0)}%`, target: "≤50%",
-        note: expenseScore < 25 ? `Expenses are ${(expenseRatio * 100).toFixed(0)}% of income — cut €${fmt(Math.max(0, totalExpenses - totalIncome * 0.50))}/mo to reach 50%` : null,
+        noteKey: expenseScore < 25 ? "note_expense" : null,
+        noteVars: { p: (expenseRatio * 100).toFixed(0), x: fmt(Math.max(0, totalExpenses - totalIncome * 0.50)) },
       },
     ],
   };
@@ -245,15 +250,15 @@ function scoreColor(s) {
   return "#FF3B30";
 }
 
-function scoreLabel(s) {
-  if (s >= 80) return "Excellent";
-  if (s >= 60) return "Good";
-  if (s >= 40) return "Fair";
-  return "Needs Work";
+function scoreLabelKey(s) {
+  if (s >= 80) return "scoreLabel_excellent";
+  if (s >= 60) return "scoreLabel_good";
+  if (s >= 40) return "scoreLabel_fair";
+  return "scoreLabel_needsWork";
 }
 
 // Bridges Clerk auth state up to App. Only rendered when Clerk is configured.
-function AuthBridge({ onAuthChange, isMobile }) {
+function AuthBridge({ onAuthChange, isMobile, signInLabel }) {
   const { isLoaded, isSignedIn, user } = useUser();
 
   useEffect(() => {
@@ -286,7 +291,7 @@ function AuthBridge({ onAuthChange, isMobile }) {
               width: isMobile ? "100%" : "auto",
             }}
           >
-            Sign in
+            {signInLabel}
           </button>
         </SignInButton>
       )}
@@ -296,7 +301,7 @@ function AuthBridge({ onAuthChange, isMobile }) {
 
 // First-login coachmark overlay: dims the screen and points an arrow at each
 // target element (the nav tabs), with a short how-to per step.
-function Walkthrough({ steps, onFinish }) {
+function Walkthrough({ steps, onFinish, labels }) {
   const [index, setIndex] = useState(0);
   const [rect, setRect] = useState(null);
   const step = steps[index];
@@ -390,7 +395,7 @@ function Walkthrough({ steps, onFinish }) {
             onClick={onFinish}
             style={{ border: "none", background: "transparent", color: "#8E8E93", fontSize: 13, fontWeight: 500, cursor: "pointer", padding: 0 }}
           >
-            Skip
+            {labels.skip}
           </button>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             <span style={{ fontSize: 12, color: "#C7C7CC" }}>{index + 1} / {steps.length}</span>
@@ -407,7 +412,7 @@ function Walkthrough({ steps, onFinish }) {
                 borderRadius: 20,
               }}
             >
-              {isLast ? "Got it" : "Next"}
+              {isLast ? labels.gotit : labels.next}
             </button>
           </div>
         </div>
@@ -490,6 +495,17 @@ export default function App() {
   const [auth, setAuth] = useState(null); // { userId, email } when signed in, else null
   const [isDirty, setIsDirty] = useState(false);
   const [showWalkthrough, setShowWalkthrough] = useState(false);
+  const [lang, setLang] = useState(() => {
+    try { return localStorage.getItem(LANG_KEY) || "en"; } catch { return "en"; }
+  });
+  const [showLangMenu, setShowLangMenu] = useState(false);
+  const langMenuRef = useRef(null);
+  const t = useMemo(() => makeT(lang), [lang]);
+  const changeLang = useCallback((code) => {
+    setLang(code);
+    setShowLangMenu(false);
+    try { localStorage.setItem(LANG_KEY, code); } catch { /* ignore */ }
+  }, []);
   const autoSaveTimerRef = useRef(null);
   const skipNextSaveRef = useRef(false);
   const tabRefs = useRef({});
@@ -606,6 +622,17 @@ export default function App() {
     document.addEventListener("mousedown", handleClick);
     return () => document.removeEventListener("mousedown", handleClick);
   }, [showSync]);
+
+  useEffect(() => {
+    if (!showLangMenu) return;
+    function handleClick(e) {
+      if (langMenuRef.current && !langMenuRef.current.contains(e.target)) {
+        setShowLangMenu(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [showLangMenu]);
   const [activeTab, setActiveTab] = useState("overview");
   const [editingIncome, setEditingIncome] = useState(null);
   const [editingExpense, setEditingExpense] = useState(null);
@@ -632,7 +659,7 @@ export default function App() {
       const res = await fetch("/api/suggestions", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ income, expenses, invest, emergencyMonths }),
+        body: JSON.stringify({ income, expenses, invest, emergencyMonths, lang }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error ?? `API ${res.status}`);
@@ -642,7 +669,7 @@ export default function App() {
     } finally {
       setSuggestionsLoading(false);
     }
-  }, [income, expenses, invest, emergencyMonths]);
+  }, [income, expenses, invest, emergencyMonths, lang]);
 
   const totalIncome = income.reduce((sum, item) => sum + freqToMonthly(item.amount, item.frequency), 0);
   const totalExpenses = expenses.reduce((sum, item) => sum + freqToMonthly(item.amount, item.frequency), 0);
@@ -694,34 +721,34 @@ export default function App() {
         <tr>
           <td style="padding:5px 10px;border-bottom:1px solid #f0f0f0;color:#444">${e.name}</td>
           <td style="padding:5px 10px;border-bottom:1px solid #f0f0f0;text-align:right">€${fmt(e.amount)}</td>
-          <td style="padding:5px 10px;border-bottom:1px solid #f0f0f0;color:#888">${e.frequency}</td>
-          <td style="padding:5px 10px;border-bottom:1px solid #f0f0f0;text-align:right;color:#555">€${fmt(freqToMonthly(e.amount, e.frequency))}/mo</td>
+          <td style="padding:5px 10px;border-bottom:1px solid #f0f0f0;color:#888">${t.freq(e.frequency)}</td>
+          <td style="padding:5px 10px;border-bottom:1px solid #f0f0f0;text-align:right;color:#555">€${fmt(freqToMonthly(e.amount, e.frequency))}${t("perMo")}</td>
         </tr>`).join("");
       return `
         <tr style="background:#f5f5f7">
-          <td colspan="3" style="padding:8px 10px;font-weight:700;font-size:12px">${(CATEGORY_COLORS[cat] || CATEGORY_COLORS.Other).icon} ${cat}</td>
-          <td style="padding:8px 10px;text-align:right;font-weight:700;font-size:12px">€${fmt(catTotal)}/mo</td>
+          <td colspan="3" style="padding:8px 10px;font-weight:700;font-size:12px">${(CATEGORY_COLORS[cat] || CATEGORY_COLORS.Other).icon} ${t.cat(cat)}</td>
+          <td style="padding:8px 10px;text-align:right;font-weight:700;font-size:12px">€${fmt(catTotal)}${t("perMo")}</td>
         </tr>${itemRows}`;
     }).join("");
 
     const scoreHtml = score ? `
-      <h2 style="font-size:15px;font-weight:700;margin:28px 0 10px;padding-bottom:6px;border-bottom:2px solid #007AFF;color:#007AFF">Financial Health Score</h2>
+      <h2 style="font-size:15px;font-weight:700;margin:28px 0 10px;padding-bottom:6px;border-bottom:2px solid #007AFF;color:#007AFF">${t("healthScore")}</h2>
       <div style="display:flex;align-items:center;gap:24px;padding:16px;background:#f8f8f8;border-radius:8px">
         <div style="text-align:center;min-width:80px">
           <div style="font-size:52px;font-weight:800;color:${scoreColor(score.total)};line-height:1">${score.total}</div>
-          <div style="font-size:13px;font-weight:600;color:${scoreColor(score.total)};margin-top:4px">${scoreLabel(score.total)}</div>
+          <div style="font-size:13px;font-weight:600;color:${scoreColor(score.total)};margin-top:4px">${t(scoreLabelKey(score.total))}</div>
         </div>
         <table style="flex:1;border-collapse:collapse;font-size:13px">
           ${score.breakdown.map(b => `
             <tr>
-              <td style="padding:4px 8px">${b.label}</td>
+              <td style="padding:4px 8px">${t(b.labelKey)}</td>
               <td style="padding:4px 8px;color:#888">${b.value} / ${b.target}</td>
               <td style="padding:4px 8px;text-align:right;font-weight:700;color:${scoreColor(b.score * 4)}">${b.score}/25</td>
             </tr>`).join("")}
         </table>
       </div>` : "";
 
-    const ownerLine = auth?.email ? `Account: ${auth.email}` : `Sync code: ${syncId}`;
+    const ownerLine = auth?.email ? auth.email : `#${syncId}`;
 
     const html = `<!DOCTYPE html>
 <html>
@@ -739,18 +766,17 @@ export default function App() {
 <body>
   <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:24px">
     <div>
-      <h1 style="font-size:24px;font-weight:800;margin-bottom:4px">💳 Spending Plan</h1>
-      <p style="color:#888;font-size:13px">Generated ${date} &nbsp;·&nbsp; ${ownerLine}</p>
+      <h1 style="font-size:24px;font-weight:800;margin-bottom:4px">💳 ${t("appTitle")}</h1>
+      <p style="color:#888;font-size:13px">${date} &nbsp;·&nbsp; ${ownerLine}</p>
     </div>
   </div>
 
-  <h2 style="font-size:15px;font-weight:700;margin:0 0 10px;padding-bottom:6px;border-bottom:2px solid #007AFF;color:#007AFF">Key Metrics</h2>
-  <div style="display:flex;gap:12px;margin-bottom:4px">
+  <div style="display:flex;gap:12px;margin:8px 0 4px">
     ${[
-      ["Monthly Income",  `€${fmt(tIncome)}`,              "#34C759"],
-      ["Monthly Expenses",`€${fmt(tExpenses)}`,            "#FF3B30"],
-      ["Investment",      `€${fmt(tInvest)}`,              "#007AFF"],
-      [tSavings >= 0 ? "Net Savings" : "Deficit", `€${fmt(Math.abs(tSavings))}`, tSavings >= 0 ? "#007AFF" : "#FF3B30"],
+      [t("card_monthlyIncome"),  `€${fmt(tIncome)}`,              "#34C759"],
+      [t("card_monthlyExpenses"),`€${fmt(tExpenses)}`,            "#FF3B30"],
+      [t("monthlyInvestment"),   `€${fmt(tInvest)}`,              "#007AFF"],
+      [tSavings >= 0 ? t("card_netSavings") : t("card_deficit"), `€${fmt(Math.abs(tSavings))}`, tSavings >= 0 ? "#007AFF" : "#FF3B30"],
     ].map(([label, value, color]) => `
       <div style="flex:1;padding:14px;background:#f8f8f8;border-radius:8px">
         <div style="font-size:10px;color:#888;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">${label}</div>
@@ -760,23 +786,23 @@ export default function App() {
 
   ${scoreHtml}
 
-  <h2 style="font-size:15px;font-weight:700;margin:28px 0 10px;padding-bottom:6px;border-bottom:2px solid #34C759;color:#34C759">Income</h2>
+  <h2 style="font-size:15px;font-weight:700;margin:28px 0 10px;padding-bottom:6px;border-bottom:2px solid #34C759;color:#34C759">${t("tab_income")}</h2>
   <table>
-    <thead><tr><th>Source</th><th>Frequency</th><th>Amount</th><th style="text-align:right">Monthly</th></tr></thead>
+    <thead><tr><th>${t("col_source")}</th><th>${t("col_frequency")}</th><th>${t("col_amount")}</th><th style="text-align:right">${t.freq("Monthly")}</th></tr></thead>
     <tbody>
       ${income.map(i => `
         <tr>
           <td style="padding:6px 10px;border-bottom:1px solid #f0f0f0;font-weight:600">${i.name}</td>
-          <td style="padding:6px 10px;border-bottom:1px solid #f0f0f0;color:#888">${i.frequency}</td>
+          <td style="padding:6px 10px;border-bottom:1px solid #f0f0f0;color:#888">${t.freq(i.frequency)}</td>
           <td style="padding:6px 10px;border-bottom:1px solid #f0f0f0">€${fmt(i.amount)}</td>
-          <td style="padding:6px 10px;border-bottom:1px solid #f0f0f0;text-align:right;font-weight:700;color:#34C759">€${fmt(freqToMonthly(i.amount, i.frequency))}/mo</td>
+          <td style="padding:6px 10px;border-bottom:1px solid #f0f0f0;text-align:right;font-weight:700;color:#34C759">€${fmt(freqToMonthly(i.amount, i.frequency))}${t("perMo")}</td>
         </tr>`).join("")}
     </tbody>
   </table>
 
-  <h2 style="font-size:15px;font-weight:700;margin:28px 0 10px;padding-bottom:6px;border-bottom:2px solid #FF3B30;color:#FF3B30">Expenses</h2>
+  <h2 style="font-size:15px;font-weight:700;margin:28px 0 10px;padding-bottom:6px;border-bottom:2px solid #FF3B30;color:#FF3B30">${t("tab_expenses")}</h2>
   <table>
-    <thead><tr><th>Item</th><th style="text-align:right">Amount</th><th>Frequency</th><th style="text-align:right">Monthly</th></tr></thead>
+    <thead><tr><th>${t("col_item")}</th><th style="text-align:right">${t("col_amount")}</th><th>${t("col_frequency")}</th><th style="text-align:right">${t.freq("Monthly")}</th></tr></thead>
     <tbody>${catRows}</tbody>
   </table>
 
@@ -789,7 +815,7 @@ export default function App() {
     win.document.close();
     win.focus();
     setTimeout(() => win.print(), 400);
-  }, [income, expenses, invest, emergencyMonths, syncId, auth]);
+  }, [income, expenses, invest, emergencyMonths, syncId, auth, t]);
 
   const updateExpense = (id, field, value) => {
     setExpenses((current) =>
@@ -886,7 +912,7 @@ export default function App() {
         >
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             <span style={{ fontSize: 22 }}>💳</span>
-            <span style={{ fontSize: 17, fontWeight: 600, letterSpacing: "-0.3px" }}>Spending Plan</span>
+            <span style={{ fontSize: 17, fontWeight: 600, letterSpacing: "-0.3px" }}>{t("appTitle")}</span>
           </div>
           <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
             {["overview", "expenses", "income", "suggestions"].map((tab) => (
@@ -906,7 +932,7 @@ export default function App() {
                   transition: "all 0.2s",
                 }}
               >
-                {tab.charAt(0).toUpperCase() + tab.slice(1)}
+                {t(`tab_${tab}`)}
               </button>
             ))}
           </div>
@@ -1047,10 +1073,75 @@ export default function App() {
                 alignSelf: isMobile ? "stretch" : "auto",
               }}
             >
-              {savedFlag ? "✓ Saved" : isDirty ? "● Save" : "Save"}
+              {savedFlag ? `✓ ${t("saved")}` : isDirty ? `● ${t("save")}` : t("save")}
             </button>
           )}
-          {CLERK_ENABLED && <AuthBridge onAuthChange={handleAuthChange} isMobile={isMobile} />}
+          <div style={{ position: "relative", alignSelf: isMobile ? "stretch" : "auto" }} ref={langMenuRef}>
+            <button
+              onClick={() => setShowLangMenu((v) => !v)}
+              title="Language"
+              style={{
+                padding: "7px 12px",
+                borderRadius: 20,
+                border: "1.5px solid #E5E5EA",
+                cursor: "pointer",
+                fontSize: 13,
+                fontWeight: 600,
+                background: showLangMenu ? "#F2F2F7" : "#fff",
+                color: "#3C3C43",
+                display: "flex",
+                alignItems: "center",
+                gap: 6,
+                width: isMobile ? "100%" : "auto",
+                justifyContent: "center",
+              }}
+            >
+              {LANGUAGES.find((l) => l.code === lang)?.flag} {lang.toUpperCase()}
+            </button>
+            {showLangMenu && (
+              <div
+                style={{
+                  position: "absolute",
+                  top: "calc(100% + 8px)",
+                  right: 0,
+                  background: "#fff",
+                  border: "1.5px solid #E5E5EA",
+                  borderRadius: 12,
+                  padding: 6,
+                  minWidth: 160,
+                  boxShadow: "0 8px 32px rgba(0,0,0,0.12)",
+                  zIndex: 200,
+                }}
+              >
+                {LANGUAGES.map((l) => (
+                  <button
+                    key={l.code}
+                    onClick={() => changeLang(l.code)}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 8,
+                      width: "100%",
+                      padding: "8px 10px",
+                      borderRadius: 8,
+                      border: "none",
+                      cursor: "pointer",
+                      fontSize: 14,
+                      fontWeight: lang === l.code ? 700 : 500,
+                      background: lang === l.code ? "#F2F2F7" : "transparent",
+                      color: "#1C1C1E",
+                      textAlign: "left",
+                    }}
+                  >
+                    <span style={{ fontSize: 16 }}>{l.flag}</span>
+                    {l.label}
+                    {lang === l.code && <span style={{ marginLeft: "auto", color: "#007AFF" }}>✓</span>}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+          {CLERK_ENABLED && <AuthBridge onAuthChange={handleAuthChange} isMobile={isMobile} signInLabel={t("signIn")} />}
         </div>
       </div>
 
@@ -1074,7 +1165,7 @@ export default function App() {
               flexWrap: "wrap",
             }}
           >
-            <span>📊 You're viewing <strong>example data</strong>. Sign in to create and save your own plan.</span>
+            <span>📊 {t("demoBanner")}</span>
           </div>
         </div>
       )}
@@ -1097,13 +1188,13 @@ export default function App() {
               }}
             >
               {[
-                { label: "Monthly Income", value: totalIncome, color: "#34C759", sub: "Total earnings" },
-                { label: "Monthly Expenses", value: totalExpenses + investMonthly, color: "#FF3B30", sub: "All outgoings" },
+                { label: t("card_monthlyIncome"), value: totalIncome, color: "#34C759", sub: t("card_totalEarnings") },
+                { label: t("card_monthlyExpenses"), value: totalExpenses + investMonthly, color: "#FF3B30", sub: t("card_allOutgoings") },
                 {
-                  label: savings >= 0 ? "Net Savings" : "Deficit",
+                  label: savings >= 0 ? t("card_netSavings") : t("card_deficit"),
                   value: Math.abs(savings),
                   color: savings >= 0 ? "#007AFF" : "#FF3B30",
-                  sub: savings >= 0 ? "After all expenses" : "Over budget",
+                  sub: savings >= 0 ? t("card_afterAll") : t("card_overBudget"),
                 },
               ].map((card) => (
                 <div
@@ -1144,7 +1235,7 @@ export default function App() {
               }}
             >
               <div style={{ background: "#fff", borderRadius: 18, padding: 22, boxShadow: "0 2px 12px rgba(0,0,0,0.06)" }}>
-                <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 16 }}>Spending by Category</div>
+                <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 16 }}>{t("spendingByCategory")}</div>
                 <div style={{ display: "flex", alignItems: "center", gap: 20, flexDirection: isMobile ? "column" : "row" }}>
                   <div style={{ position: "relative", flexShrink: 0 }}>
                     <DonutChart data={donutData} total={totalExpenses} />
@@ -1158,7 +1249,7 @@ export default function App() {
                       }}
                     >
                       <div style={{ fontSize: 18, fontWeight: 700, color: "#1C1C1E" }}>€{fmt(totalExpenses)}</div>
-                      <div style={{ fontSize: 11, color: "#8E8E93" }}>total</div>
+                      <div style={{ fontSize: 11, color: "#8E8E93" }}>{t("total")}</div>
                     </div>
                   </div>
                   <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 7, width: "100%" }}>
@@ -1174,7 +1265,7 @@ export default function App() {
               </div>
 
               <div style={{ background: "#fff", borderRadius: 18, padding: 22, boxShadow: "0 2px 12px rgba(0,0,0,0.06)" }}>
-                <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 16 }}>Category Breakdown</div>
+                <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 16 }}>{t("categoryBreakdown")}</div>
                 <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                   {categoryTotals.map((item) => {
                     const pct = totalIncome > 0 ? (item.value / totalIncome) * 100 : 0;
@@ -1182,7 +1273,7 @@ export default function App() {
                       <div key={item.name}>
                         <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4, gap: 10 }}>
                           <span style={{ fontSize: 12, fontWeight: 500, color: "#3C3C43" }}>
-                            {(CATEGORY_COLORS[item.name] || CATEGORY_COLORS.Other).icon} {item.name}
+                            {(CATEGORY_COLORS[item.name] || CATEGORY_COLORS.Other).icon} {t.cat(item.name)}
                           </span>
                           <span style={{ fontSize: 12, fontWeight: 600, textAlign: "right" }}>
                             €{fmt(item.value)} <span style={{ color: "#8E8E93", fontWeight: 400 }}>({pct.toFixed(0)}%)</span>
@@ -1208,8 +1299,8 @@ export default function App() {
 
             <div style={{ display: "grid", gridTemplateColumns: twoColGrid, gap: 14 }}>
               <div style={{ background: "#fff", borderRadius: 18, padding: 22, boxShadow: "0 2px 12px rgba(0,0,0,0.06)" }}>
-                <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 4 }}>💹 Monthly Investment</div>
-                <div style={{ fontSize: 12, color: "#8E8E93", marginBottom: 14 }}>Allocated to S&amp;P 500 ETF</div>
+                <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 4 }}>💹 {t("monthlyInvestment")}</div>
+                <div style={{ fontSize: 12, color: "#8E8E93", marginBottom: 14 }}>{t("investSub")}</div>
                 <div style={{ display: "flex", alignItems: "center", gap: 12, flexDirection: isMobile ? "column" : "row" }}>
                   <input
                     type="range"
@@ -1247,13 +1338,13 @@ export default function App() {
                   </div>
                 </div>
                 <div style={{ marginTop: 10, fontSize: 12, color: "#8E8E93" }}>
-                  Annual: <strong style={{ color: "#007AFF" }}>€{fmt(invest * 12)}</strong>
+                  {t("annual")}: <strong style={{ color: "#007AFF" }}>€{fmt(invest * 12)}</strong>
                 </div>
               </div>
 
               <div style={{ background: "#fff", borderRadius: 18, padding: 22, boxShadow: "0 2px 12px rgba(0,0,0,0.06)" }}>
-                <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 4 }}>🛡️ Emergency Fund</div>
-                <div style={{ fontSize: 12, color: "#8E8E93", marginBottom: 14 }}>Target based on months of expenses</div>
+                <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 4 }}>🛡️ {t("emergencyFund")}</div>
+                <div style={{ fontSize: 12, color: "#8E8E93", marginBottom: 14 }}>{t("emergencySub")}</div>
                 <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
                   {[3, 6, 12].map((months) => (
                     <button
@@ -1276,10 +1367,10 @@ export default function App() {
                   ))}
                 </div>
                 <div style={{ fontSize: 13, color: "#3C3C43" }}>
-                  Target: <strong style={{ fontSize: 18, color: "#FF9500" }}>€{fmt(emergencyTarget)}</strong>
+                  {t("target")}: <strong style={{ fontSize: 18, color: "#FF9500" }}>€{fmt(emergencyTarget)}</strong>
                 </div>
                 <div style={{ fontSize: 11, color: "#8E8E93", marginTop: 2 }}>
-                  {fmt(monthlyExpenses)}/mo × {emergencyMonths} months
+                  {t("perMonthMonths", { x: fmt(monthlyExpenses), n: emergencyMonths })}
                 </div>
               </div>
             </div>
@@ -1288,13 +1379,13 @@ export default function App() {
               const score = computeHealthScore(totalIncome, totalExpenses, investMonthly, emergencyMonths);
               if (!score) return null;
               const color = scoreColor(score.total);
-              const weakest = [...score.breakdown].filter(b => b.note).sort((a, b) => a.score - b.score)[0];
+              const weakest = [...score.breakdown].filter(b => b.noteKey).sort((a, b) => a.score - b.score)[0];
               return (
                 <div style={{ background: "#fff", borderRadius: 18, padding: 22, boxShadow: "0 2px 12px rgba(0,0,0,0.06)", marginTop: 14 }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 20, flexWrap: "wrap", gap: 12 }}>
                     <div>
-                      <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 2 }}>Financial Health Score</div>
-                      <div style={{ fontSize: 12, color: "#8E8E93" }}>Savings rate · Emergency fund · Investment rate · Expense ratio</div>
+                      <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 2 }}>{t("healthScore")}</div>
+                      <div style={{ fontSize: 12, color: "#8E8E93" }}>{t("healthSub")}</div>
                     </div>
                     <button
                       onClick={handleExportPDF}
@@ -1304,20 +1395,20 @@ export default function App() {
                         color: "#3C3C43", display: "flex", alignItems: "center", gap: 5,
                       }}
                     >
-                      📄 Export PDF
+                      📄 {t("exportPDF")}
                     </button>
                   </div>
                   <div style={{ display: "flex", gap: 24, alignItems: "center", flexDirection: isMobile ? "column" : "row" }}>
                     <div style={{ textAlign: "center", flexShrink: 0 }}>
                       <div style={{ fontSize: 64, fontWeight: 800, color, lineHeight: 1, letterSpacing: "-3px" }}>{score.total}</div>
-                      <div style={{ fontSize: 14, fontWeight: 600, color, marginTop: 4 }}>{scoreLabel(score.total)}</div>
-                      <div style={{ fontSize: 11, color: "#8E8E93", marginTop: 2 }}>out of 100</div>
+                      <div style={{ fontSize: 14, fontWeight: 600, color, marginTop: 4 }}>{t(scoreLabelKey(score.total))}</div>
+                      <div style={{ fontSize: 11, color: "#8E8E93", marginTop: 2 }}>{t("outOf100")}</div>
                     </div>
                     <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 12, width: "100%" }}>
                       {score.breakdown.map((item) => (
-                        <div key={item.label}>
+                        <div key={item.labelKey}>
                           <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
-                            <span style={{ fontSize: 12, fontWeight: 500, color: "#3C3C43" }}>{item.label}</span>
+                            <span style={{ fontSize: 12, fontWeight: 500, color: "#3C3C43" }}>{t(item.labelKey)}</span>
                             <span style={{ fontSize: 12, color: "#8E8E93" }}>
                               {item.value} <span style={{ color: "#C7C7CC" }}>/ {item.target}</span>
                               <span style={{ marginLeft: 8, fontWeight: 700, color: scoreColor(item.score * 4) }}>{item.score}/25</span>
@@ -1332,7 +1423,7 @@ export default function App() {
                   </div>
                   {weakest && (
                     <div style={{ marginTop: 16, padding: "10px 14px", background: "#FFF8F0", borderRadius: 10, fontSize: 13, color: "#3C3C43" }}>
-                      <span style={{ color: "#FF9500", fontWeight: 700 }}>↑ Biggest opportunity: </span>{weakest.note}
+                      <span style={{ color: "#FF9500", fontWeight: 700 }}>↑ {t("biggestOpportunity")}: </span>{t(weakest.noteKey, weakest.noteVars)}
                     </div>
                   )}
                 </div>
@@ -1361,7 +1452,7 @@ export default function App() {
                     transition: "all 0.2s",
                   }}
                 >
-                  {category !== "All" && `${CATEGORY_COLORS[category]?.icon || ""} `}{category}
+                  {category !== "All" && `${CATEGORY_COLORS[category]?.icon || ""} `}{category === "All" ? t("all") : t.cat(category)}
                 </button>
               ))}
             </div>
@@ -1382,10 +1473,10 @@ export default function App() {
                     letterSpacing: "0.5px",
                   }}
                 >
-                  <div>Item</div>
-                  <div>Category</div>
-                  <div style={{ textAlign: "right" }}>Amount</div>
-                  <div>Frequency</div>
+                  <div>{t("col_item")}</div>
+                  <div>{t("col_category")}</div>
+                  <div style={{ textAlign: "right" }}>{t("col_amount")}</div>
+                  <div>{t("col_frequency")}</div>
                   <div></div>
                 </div>
                 {filteredExpenses.map((item, index) => {
@@ -1450,7 +1541,7 @@ export default function App() {
                             }}
                           >
                             {Object.keys(CATEGORY_COLORS).map((category) => (
-                              <option key={category}>{category}</option>
+                              <option key={category} value={category}>{t.cat(category)}</option>
                             ))}
                           </select>
                         ) : (
@@ -1464,7 +1555,7 @@ export default function App() {
                               borderRadius: 6,
                             }}
                           >
-                            {colorSet.icon} {item.category}
+                            {colorSet.icon} {t.cat(item.category)}
                           </span>
                         )}
                       </div>
@@ -1489,7 +1580,7 @@ export default function App() {
                         ) : (
                           <div>
                             <div style={{ fontSize: 14, fontWeight: 600 }}>€{fmt(item.amount)}</div>
-                            <div style={{ fontSize: 11, color: "#8E8E93" }}>€{fmt(monthly)}/mo</div>
+                            <div style={{ fontSize: 11, color: "#8E8E93" }}>€{fmt(monthly)}{t("perMo")}</div>
                           </div>
                         )}
                       </div>
@@ -1509,11 +1600,11 @@ export default function App() {
                             }}
                           >
                             {FREQUENCIES.map((frequency) => (
-                              <option key={frequency}>{frequency}</option>
+                              <option key={frequency} value={frequency}>{t.freq(frequency)}</option>
                             ))}
                           </select>
                         ) : (
-                          <span style={{ fontSize: 12, color: "#8E8E93" }}>{item.frequency}</span>
+                          <span style={{ fontSize: 12, color: "#8E8E93" }}>{t.freq(item.frequency)}</span>
                         )}
                       </div>
                       <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
@@ -1573,7 +1664,7 @@ export default function App() {
                     }}
                   >
                     <input
-                      placeholder="Name"
+                      placeholder={t("ph_name")}
                       value={newExpense.name}
                       onChange={(event) => setNewExpense((current) => ({ ...current, name: event.target.value }))}
                       style={{
@@ -1592,7 +1683,7 @@ export default function App() {
                       style={{ border: "none", borderBottom: "2px solid #007AFF", background: "transparent", fontSize: 12, outline: "none" }}
                     >
                       {Object.keys(CATEGORY_COLORS).map((category) => (
-                        <option key={category}>{category}</option>
+                        <option key={category} value={category}>{t.cat(category)}</option>
                       ))}
                     </select>
                     <input
@@ -1618,7 +1709,7 @@ export default function App() {
                       style={{ border: "none", borderBottom: "2px solid #007AFF", background: "transparent", fontSize: 12, outline: "none" }}
                     >
                       {FREQUENCIES.map((frequency) => (
-                        <option key={frequency}>{frequency}</option>
+                        <option key={frequency} value={frequency}>{t.freq(frequency)}</option>
                       ))}
                     </select>
                     <button
@@ -1671,7 +1762,7 @@ export default function App() {
                       >
                         +
                       </span>
-                      Add Expense
+                      {t("addExpense")}
                     </button>
                   </div>
                 )}
@@ -1691,10 +1782,10 @@ export default function App() {
                 gap: 12,
               }}
             >
-              <span style={{ fontSize: 14, fontWeight: 600, color: "#3C3C43" }}>Total Expenses</span>
+              <span style={{ fontSize: 14, fontWeight: 600, color: "#3C3C43" }}>{t("totalExpenses")}</span>
               <span style={{ fontSize: 20, fontWeight: 700, color: "#FF3B30", textAlign: "right" }}>
                 €{fmt(totalExpenses)}
-                <span style={{ fontSize: 12, color: "#8E8E93", fontWeight: 400 }}>/mo</span>
+                <span style={{ fontSize: 12, color: "#8E8E93", fontWeight: 400 }}>{t("perMo")}</span>
               </span>
             </div>
           </div>
@@ -1718,9 +1809,9 @@ export default function App() {
                     letterSpacing: "0.5px",
                   }}
                 >
-                  <div>Source</div>
-                  <div style={{ textAlign: "right" }}>Amount</div>
-                  <div>Frequency</div>
+                  <div>{t("col_source")}</div>
+                  <div style={{ textAlign: "right" }}>{t("col_amount")}</div>
+                  <div>{t("col_frequency")}</div>
                   <div></div>
                 </div>
                 {income.map((item, index) => {
@@ -1778,7 +1869,7 @@ export default function App() {
                         ) : (
                           <div>
                             <div style={{ fontSize: 16, fontWeight: 700, color: "#34C759" }}>€{fmt(item.amount)}</div>
-                            <div style={{ fontSize: 11, color: "#8E8E93" }}>€{fmt(monthly)}/mo</div>
+                            <div style={{ fontSize: 11, color: "#8E8E93" }}>€{fmt(monthly)}{t("perMo")}</div>
                           </div>
                         )}
                       </div>
@@ -1790,11 +1881,11 @@ export default function App() {
                             style={{ border: "none", borderBottom: "2px solid #34C759", background: "transparent", fontSize: 13, outline: "none" }}
                           >
                             {FREQUENCIES.map((frequency) => (
-                              <option key={frequency}>{frequency}</option>
+                              <option key={frequency} value={frequency}>{t.freq(frequency)}</option>
                             ))}
                           </select>
                         ) : (
-                          <span style={{ fontSize: 13, color: "#8E8E93" }}>{item.frequency}</span>
+                          <span style={{ fontSize: 13, color: "#8E8E93" }}>{t.freq(item.frequency)}</span>
                         )}
                       </div>
                       <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
@@ -1853,7 +1944,7 @@ export default function App() {
                     }}
                   >
                     <input
-                      placeholder="Income source"
+                      placeholder={t("ph_incomeSource")}
                       value={newIncome.name}
                       onChange={(event) => setNewIncome((current) => ({ ...current, name: event.target.value }))}
                       style={{ border: "none", borderBottom: "2px solid #34C759", background: "transparent", fontSize: 15, fontWeight: 600, outline: "none" }}
@@ -1879,7 +1970,7 @@ export default function App() {
                       style={{ border: "none", borderBottom: "2px solid #34C759", background: "transparent", fontSize: 13, outline: "none" }}
                     >
                       {FREQUENCIES.map((frequency) => (
-                        <option key={frequency}>{frequency}</option>
+                        <option key={frequency} value={frequency}>{t.freq(frequency)}</option>
                       ))}
                     </select>
                     <button
@@ -1932,7 +2023,7 @@ export default function App() {
                       >
                         +
                       </span>
-                      Add Income Source
+                      {t("addIncome")}
                     </button>
                   </div>
                 )}
@@ -1941,9 +2032,9 @@ export default function App() {
 
             <div style={{ display: "grid", gridTemplateColumns: threeColGrid, gap: 12 }}>
               {[
-                { label: "Total Income", value: totalIncome, color: "#34C759" },
-                { label: "Total Expenses + Invest", value: totalExpenses + investMonthly, color: "#FF3B30" },
-                { label: savings >= 0 ? "Remaining" : "Deficit", value: Math.abs(savings), color: savings >= 0 ? "#007AFF" : "#FF3B30" },
+                { label: t("totalIncome"), value: totalIncome, color: "#34C759" },
+                { label: t("totalExpInvest"), value: totalExpenses + investMonthly, color: "#FF3B30" },
+                { label: savings >= 0 ? t("remaining") : t("card_deficit"), value: Math.abs(savings), color: savings >= 0 ? "#007AFF" : "#FF3B30" },
               ].map((card) => (
                 <div
                   key={card.label}
@@ -1978,9 +2069,9 @@ export default function App() {
           <div style={{ background: "#fff", borderRadius: 16, padding: 24, boxShadow: "0 1px 3px rgba(0,0,0,0.06)" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12, marginBottom: 8 }}>
               <div>
-                <h2 style={{ margin: 0, fontSize: 22, fontWeight: 700, color: "#1C1C1E" }}>AI Financial Advisor</h2>
+                <h2 style={{ margin: 0, fontSize: 22, fontWeight: 700, color: "#1C1C1E" }}>{t("advisorTitle")}</h2>
                 <p style={{ margin: "4px 0 0", fontSize: 13, color: "#8E8E93" }}>
-                  Personalized recommendations from a senior financial advisor, based on your plan.
+                  {t("advisorSub")}
                 </p>
               </div>
               <button
@@ -2001,7 +2092,7 @@ export default function App() {
                   gap: 6,
                 }}
               >
-                {suggestionsLoading ? "✨ Analyzing…" : suggestions ? "🔄 Regenerate" : "✨ Generate Suggestions"}
+                {suggestionsLoading ? `✨ ${t("analyzing")}` : suggestions ? `🔄 ${t("regenerate")}` : `✨ ${t("generate")}`}
               </button>
             </div>
 
@@ -2014,14 +2105,14 @@ export default function App() {
             {suggestionsLoading && !suggestions && (
               <div style={{ marginTop: 24, padding: 32, textAlign: "center", color: "#8E8E93", fontSize: 14 }}>
                 <div style={{ fontSize: 32, marginBottom: 12 }}>💭</div>
-                Reviewing your spending plan… this usually takes 15–30 seconds.
+                {t("advisorLoading")}
               </div>
             )}
 
             {!suggestionsLoading && !suggestions && !suggestionsError && (
               <div style={{ marginTop: 24, padding: 32, textAlign: "center", color: "#8E8E93", fontSize: 14, lineHeight: 1.6 }}>
                 <div style={{ fontSize: 32, marginBottom: 12 }}>🤔</div>
-                Click <strong>Generate Suggestions</strong> to get personalized advice on optimizing expenses and investment strategy.
+                {t("advisorEmpty")}
               </div>
             )}
 
@@ -2029,7 +2120,7 @@ export default function App() {
               <div style={{ marginTop: 20, paddingTop: 20, borderTop: "1px solid #F2F2F7" }}>
                 {renderMarkdown(suggestions)}
                 <p style={{ marginTop: 24, fontSize: 11, color: "#8E8E93", fontStyle: "italic" }}>
-                  ⚠️ Suggestions are AI-generated and for informational purposes only. Not financial advice. Consult a licensed advisor before making significant financial decisions.
+                  ⚠️ {t("disclaimer")}
                 </p>
               </div>
             )}
@@ -2040,27 +2131,12 @@ export default function App() {
       {showWalkthrough && (
         <Walkthrough
           onFinish={finishWalkthrough}
+          labels={{ skip: t("wt_skip"), next: t("wt_next"), gotit: t("wt_gotit") }}
           steps={[
-            {
-              title: "Welcome 👋",
-              text: "Let's set up your spending plan — it takes about a minute. We've filled it with example numbers you can replace.",
-              getTarget: () => null,
-            },
-            {
-              title: "1. Add your income",
-              text: "Open the Income tab to enter your salary and any other income sources.",
-              getTarget: () => tabRefs.current.income,
-            },
-            {
-              title: "2. Add your expenses",
-              text: "Open the Expenses tab to edit your expenses by category. Tap any item to change its name, amount, or frequency — and use “+ Add Expense” for new ones.",
-              getTarget: () => tabRefs.current.expenses,
-            },
-            {
-              title: "3. See your insights",
-              text: "The Overview tab shows your savings, health score, and a PDF export. Everything you change saves automatically.",
-              getTarget: () => tabRefs.current.overview,
-            },
+            { title: t("wt_welcome_title"), text: t("wt_welcome_text"), getTarget: () => null },
+            { title: t("wt_income_title"), text: t("wt_income_text"), getTarget: () => tabRefs.current.income },
+            { title: t("wt_expenses_title"), text: t("wt_expenses_text"), getTarget: () => tabRefs.current.expenses },
+            { title: t("wt_overview_title"), text: t("wt_overview_text"), getTarget: () => tabRefs.current.overview },
           ]}
         />
       )}
