@@ -807,6 +807,7 @@ export default function App() {
 <head>
   <meta charset="utf-8">
   <title>Spending Plan — ${date}</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
   <style>
     *{box-sizing:border-box;margin:0;padding:0}
     body{font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue',sans-serif;padding:40px;color:#1C1C1E;font-size:14px}
@@ -814,14 +815,34 @@ export default function App() {
     th{text-align:left;padding:8px 10px;font-size:11px;text-transform:uppercase;color:#888;border-bottom:2px solid #e0e0e0;letter-spacing:.5px}
     #dl-btn{display:inline-flex;align-items:center;gap:8px;padding:10px 22px;background:#007AFF;color:#fff;border:none;border-radius:20px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit}
     #dl-btn:hover{background:#0062cc}
-    @media print{#dl-bar{display:none!important}body{padding:20px}}
+    #dl-btn:disabled{background:#A0C4FF;cursor:default}
   </style>
 </head>
 <body>
   <div id="dl-bar" style="position:sticky;top:0;z-index:99;background:rgba(255,255,255,0.92);backdrop-filter:blur(10px);border-bottom:1px solid #e0e0e0;padding:12px 40px;display:flex;align-items:center;justify-content:space-between;margin:-40px -40px 32px">
     <span style="font-size:14px;font-weight:600;color:#1C1C1E">💳 ${t("appTitle")} &nbsp;·&nbsp; <span style="font-weight:400;color:#888">${date}</span></span>
-    <button id="dl-btn" onclick="window.print()">⬇ Download PDF</button>
+    <button id="dl-btn" onclick="downloadPDF()">⬇ Download PDF</button>
   </div>
+  <script>
+    function downloadPDF() {
+      const btn = document.getElementById('dl-btn');
+      btn.disabled = true;
+      btn.textContent = 'Generating…';
+      const bar = document.getElementById('dl-bar');
+      bar.style.display = 'none';
+      html2pdf().set({
+        margin: 10,
+        filename: 'spending-plan.pdf',
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { scale: 2, useCORS: true, logging: false },
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+      }).from(document.body).save().then(function() {
+        bar.style.display = 'flex';
+        btn.disabled = false;
+        btn.textContent = '⬇ Download PDF';
+      });
+    }
+  </script>
   <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:24px">
     <div>
       <h1 style="font-size:24px;font-weight:800;margin-bottom:4px">💳 ${t("appTitle")}</h1>
