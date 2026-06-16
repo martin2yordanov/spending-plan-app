@@ -812,10 +812,16 @@ export default function App() {
     body{font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue',sans-serif;padding:40px;color:#1C1C1E;font-size:14px}
     table{width:100%;border-collapse:collapse;font-size:13px}
     th{text-align:left;padding:8px 10px;font-size:11px;text-transform:uppercase;color:#888;border-bottom:2px solid #e0e0e0;letter-spacing:.5px}
-    @media print{body{padding:20px}}
+    #dl-btn{display:inline-flex;align-items:center;gap:8px;padding:10px 22px;background:#007AFF;color:#fff;border:none;border-radius:20px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit}
+    #dl-btn:hover{background:#0062cc}
+    @media print{#dl-bar{display:none!important}body{padding:20px}}
   </style>
 </head>
 <body>
+  <div id="dl-bar" style="position:sticky;top:0;z-index:99;background:rgba(255,255,255,0.92);backdrop-filter:blur(10px);border-bottom:1px solid #e0e0e0;padding:12px 40px;display:flex;align-items:center;justify-content:space-between;margin:-40px -40px 32px">
+    <span style="font-size:14px;font-weight:600;color:#1C1C1E">💳 ${t("appTitle")} &nbsp;·&nbsp; <span style="font-weight:400;color:#888">${date}</span></span>
+    <button id="dl-btn" onclick="window.print()">⬇ Download PDF</button>
+  </div>
   <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:24px">
     <div>
       <h1 style="font-size:24px;font-weight:800;margin-bottom:4px">💳 ${t("appTitle")}</h1>
@@ -1482,7 +1488,7 @@ export default function App() {
                         color: "#3C3C43", display: "flex", alignItems: "center", gap: 5,
                       }}
                     >
-                      📄 {t("exportPDF")}
+                      📄 {t("report")}
                     </button>
                   </div>
                   <div style={{ display: "flex", gap: 24, alignItems: "center", flexDirection: isMobile ? "column" : "row" }}>
