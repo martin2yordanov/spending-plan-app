@@ -1425,7 +1425,7 @@ export default function App() {
                 <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 4 }}>🛡️ {t("emergencyFund")}</div>
                 <div style={{ fontSize: 12, color: "#8E8E93", marginBottom: 14 }}>{t("emergencySub")}</div>
                 <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
-                  {[3, 6, 12].map((months) => (
+                  {[0, 3, 6, 12].map((months) => (
                     <button
                       key={months}
                       onClick={() => setEmergencyMonths(months)}
@@ -1435,22 +1435,30 @@ export default function App() {
                         borderRadius: 10,
                         border: "none",
                         cursor: "pointer",
-                        background: emergencyMonths === months ? "#007AFF" : "#F2F2F7",
+                        background: emergencyMonths === months ? (months === 0 ? "#FF3B30" : "#007AFF") : "#F2F2F7",
                         color: emergencyMonths === months ? "#fff" : "#3C3C43",
                         fontWeight: 600,
                         fontSize: 13,
                       }}
                     >
-                      {months}m
+                      {months === 0 ? t("noFund") : `${months}m`}
                     </button>
                   ))}
                 </div>
-                <div style={{ fontSize: 13, color: "#3C3C43" }}>
-                  {t("target")}: <strong style={{ fontSize: 18, color: "#FF9500" }}>€{fmt(emergencyTarget)}</strong>
-                </div>
-                <div style={{ fontSize: 11, color: "#8E8E93", marginTop: 2 }}>
-                  {t("perMonthMonths", { x: fmt(monthlyExpenses), n: emergencyMonths })}
-                </div>
+                {emergencyMonths === 0 ? (
+                  <div style={{ fontSize: 13, color: "#FF3B30", fontWeight: 500 }}>
+                    {t("noFundNote")}
+                  </div>
+                ) : (
+                  <>
+                    <div style={{ fontSize: 13, color: "#3C3C43" }}>
+                      {t("target")}: <strong style={{ fontSize: 18, color: "#FF9500" }}>€{fmt(emergencyTarget)}</strong>
+                    </div>
+                    <div style={{ fontSize: 11, color: "#8E8E93", marginTop: 2 }}>
+                      {t("perMonthMonths", { x: fmt(monthlyExpenses), n: emergencyMonths })}
+                    </div>
+                  </>
+                )}
               </div>
             </div>
 
