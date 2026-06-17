@@ -436,7 +436,7 @@ function Walkthrough({ steps, onFinish, labels }) {
   );
 }
 
-function DonutChart({ data, total }) {
+function DonutChart({ data, total, activeCategory, onCategoryChange }) {
   const size = 180;
   const strokeWidth = 28;
   const r = (size - strokeWidth) / 2;
@@ -444,38 +444,50 @@ function DonutChart({ data, total }) {
   let offset = 0;
   const segments = data.map((d) => {
     const pct = total > 0 ? d.value / total : 0;
-    const segment = {
-      ...d,
-      pct,
-      dasharray: `${pct * circ} ${circ}`,
-      dashoffset: -offset * circ,
-    };
+    const midAngle = (offset + pct / 2) * 2 * Math.PI;
+    const segment = { ...d, pct, dasharray: `${pct * circ} ${circ}`, dashoffset: -offset * circ, midAngle };
     offset += pct;
     return segment;
   });
+
+  const POP = 9;
 
   return (
     <svg
       width={size}
       height={size}
       viewBox={`0 0 ${size} ${size}`}
-      style={{ transform: "rotate(-90deg)" }}
+      style={{ transform: "rotate(-90deg)", overflow: "visible" }}
     >
-      {segments.map((segment, index) => (
-        <circle
-          key={index}
-          cx={size / 2}
-          cy={size / 2}
-          r={r}
-          fill="none"
-          stroke={segment.color}
-          strokeWidth={strokeWidth}
-          strokeDasharray={segment.dasharray}
-          strokeDashoffset={segment.dashoffset}
-          strokeLinecap="butt"
-          style={{ transition: "all 0.6s ease" }}
-        />
-      ))}
+      {segments.map((segment, index) => {
+        const isActive = activeCategory === segment.name;
+        const hasActive = activeCategory !== null;
+        const dx = isActive ? POP * Math.cos(segment.midAngle) : 0;
+        const dy = isActive ? POP * Math.sin(segment.midAngle) : 0;
+        return (
+          <circle
+            key={index}
+            cx={size / 2}
+            cy={size / 2}
+            r={r}
+            fill="none"
+            stroke={segment.color}
+            strokeWidth={isActive ? strokeWidth + 5 : strokeWidth}
+            strokeDasharray={segment.dasharray}
+            strokeDashoffset={segment.dashoffset}
+            strokeLinecap="butt"
+            style={{
+              transform: `translate(${dx}px, ${dy}px)`,
+              transition: "transform 0.22s ease, stroke-width 0.22s ease, opacity 0.22s ease",
+              opacity: hasActive && !isActive ? 0.3 : 1,
+              cursor: "pointer",
+            }}
+            onMouseEnter={() => onCategoryChange(segment.name)}
+            onMouseLeave={() => onCategoryChange(null)}
+            onClick={() => onCategoryChange(isActive ? null : segment.name)}
+          />
+        );
+      })}
     </svg>
   );
 }
@@ -501,6 +513,7 @@ export default function App() {
   const [expenses, setExpenses] = useState(EXAMPLE_EXPENSES);
   const [invest, setInvest] = useState(EXAMPLE_INVEST);
   const [investLabel, setInvestLabel] = useState(EXAMPLE_INVEST_LABEL);
+  const [activeCategory, setActiveCategory] = useState(null);
   const [showInvestMenu, setShowInvestMenu] = useState(false);
   const [investCustomInput, setInvestCustomInput] = useState("");
   const investMenuRef = useRef(null);
@@ -1378,7 +1391,7 @@ export default function App() {
                 <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 16 }}>{t("spendingByCategory")}</div>
                 <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 20, flexDirection: isMobile ? "column" : "row" }}>
                   <div style={{ position: "relative", flexShrink: 0 }}>
-                    <DonutChart data={donutData} total={totalExpenses} />
+                    <DonutChart data={donutData} total={totalExpenses} activeCategory={activeCategory} onCategoryChange={setActiveCategory} />
                     <div
                       style={{
                         position: "absolute",
@@ -1386,20 +1399,50 @@ export default function App() {
                         left: "50%",
                         transform: "translate(-50%,-50%)",
                         textAlign: "center",
+                        pointerEvents: "none",
                       }}
                     >
-                      <div style={{ fontSize: 18, fontWeight: 700, color: "#1C1C1E" }}>€{fmt(totalExpenses)}</div>
-                      <div style={{ fontSize: 11, color: "#8E8E93" }}>{t("total")}</div>
+                      {activeCategory ? (() => {
+                        const ac = donutData.find(d => d.name === activeCategory);
+                        return ac ? (
+                          <>
+                            <div style={{ fontSize: 15, fontWeight: 700, color: ac.color }}>€{fmt(ac.value)}</div>
+                            <div style={{ fontSize: 10, color: "#8E8E93", maxWidth: 60, lineHeight: 1.2 }}>{t.cat(ac.name)}</div>
+                          </>
+                        ) : null;
+                      })() : (
+                        <>
+                          <div style={{ fontSize: 18, fontWeight: 700, color: "#1C1C1E" }}>€{fmt(totalExpenses)}</div>
+                          <div style={{ fontSize: 11, color: "#8E8E93" }}>{t("total")}</div>
+                        </>
+                      )}
                     </div>
                   </div>
                   <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 7, width: "100%" }}>
-                    {donutData.map((item) => (
-                      <div key={item.name} style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                        <div style={{ width: 8, height: 8, borderRadius: "50%", background: item.color, flexShrink: 0 }} />
-                        <div style={{ flex: 1, fontSize: 12, color: "#3C3C43", fontWeight: 500 }}>{item.name}</div>
-                        <div style={{ fontSize: 12, fontWeight: 600, color: "#1C1C1E" }}>€{fmt(item.value)}</div>
-                      </div>
-                    ))}
+                    {donutData.map((item) => {
+                      const isActive = activeCategory === item.name;
+                      const hasActive = activeCategory !== null;
+                      return (
+                        <div
+                          key={item.name}
+                          style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer",
+                            opacity: hasActive && !isActive ? 0.4 : 1,
+                            transition: "opacity 0.22s ease",
+                          }}
+                          onMouseEnter={() => setActiveCategory(item.name)}
+                          onMouseLeave={() => setActiveCategory(null)}
+                          onClick={() => setActiveCategory(isActive ? null : item.name)}
+                        >
+                          <div style={{
+                            width: 8, height: 8, borderRadius: "50%", background: item.color, flexShrink: 0,
+                            transform: isActive ? "scale(1.6)" : "scale(1)",
+                            transition: "transform 0.22s ease",
+                          }} />
+                          <div style={{ flex: 1, fontSize: 12, color: "#3C3C43", fontWeight: isActive ? 700 : 500 }}>{t.cat(item.name)}</div>
+                          <div style={{ fontSize: 12, fontWeight: 600, color: "#1C1C1E" }}>€{fmt(item.value)}</div>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               </div>
@@ -1409,10 +1452,24 @@ export default function App() {
                 <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                   {categoryTotals.map((item) => {
                     const pct = totalIncome > 0 ? (item.value / totalIncome) * 100 : 0;
+                    const isActive = activeCategory === item.name;
+                    const hasActive = activeCategory !== null;
                     return (
-                      <div key={item.name}>
+                      <div
+                        key={item.name}
+                        style={{
+                          borderRadius: 10, padding: "5px 8px", margin: "0 -8px",
+                          background: isActive ? `${item.color}18` : "transparent",
+                          opacity: hasActive && !isActive ? 0.4 : 1,
+                          transition: "background 0.22s ease, opacity 0.22s ease",
+                          cursor: "pointer",
+                        }}
+                        onMouseEnter={() => setActiveCategory(item.name)}
+                        onMouseLeave={() => setActiveCategory(null)}
+                        onClick={() => setActiveCategory(isActive ? null : item.name)}
+                      >
                         <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4, gap: 10 }}>
-                          <span style={{ fontSize: 12, fontWeight: 500, color: "#3C3C43" }}>
+                          <span style={{ fontSize: 12, fontWeight: isActive ? 700 : 500, color: isActive ? "#1C1C1E" : "#3C3C43" }}>
                             {(CATEGORY_COLORS[item.name] || CATEGORY_COLORS.Other).icon} {t.cat(item.name)}
                           </span>
                           <span style={{ fontSize: 12, fontWeight: 600, textAlign: "right" }}>
