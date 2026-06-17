@@ -1358,31 +1358,37 @@ export default function App() {
                     borderRadius: 18,
                     padding: "20px 22px",
                     boxShadow: "0 2px 12px rgba(0,0,0,0.06)",
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
                   }}
                 >
-                  <div
-                    style={{
-                      fontSize: 12,
-                      color: "#8E8E93",
-                      fontWeight: 500,
-                      textTransform: "uppercase",
-                      letterSpacing: "0.5px",
-                      marginBottom: 6,
-                    }}
-                  >
-                    {card.label}
-                  </div>
-                  <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
+                  <div>
+                    <div
+                      style={{
+                        fontSize: 12,
+                        color: "#8E8E93",
+                        fontWeight: 500,
+                        textTransform: "uppercase",
+                        letterSpacing: "0.5px",
+                        marginBottom: 6,
+                      }}
+                    >
+                      {card.label}
+                    </div>
                     <div style={{ fontSize: 28, fontWeight: 700, color: card.color, letterSpacing: "-1px" }}>
                       €{fmt(card.value)}
                     </div>
-                    {card.pct !== null && (
-                      <div style={{ fontSize: 13, fontWeight: 600, color: card.color, opacity: 0.75 }}>
-                        {card.pct >= 0 ? "" : "−"}{Math.abs(card.pct).toFixed(0)}%
-                      </div>
-                    )}
+                    <div style={{ fontSize: 12, color: "#8E8E93", marginTop: 4 }}>{card.sub}</div>
                   </div>
-                  <div style={{ fontSize: 12, color: "#8E8E93", marginTop: 4 }}>{card.sub}</div>
+                  {card.pct !== null && (
+                    <div style={{
+                      fontSize: 22, fontWeight: 700, color: card.color, opacity: 0.8,
+                      letterSpacing: "-0.5px", flexShrink: 0,
+                    }}>
+                      {card.pct >= 0 ? "" : "−"}{Math.abs(card.pct).toFixed(0)}%
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
