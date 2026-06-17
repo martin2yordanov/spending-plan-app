@@ -1340,9 +1340,9 @@ export default function App() {
                 marginBottom: 14,
               }}
             >
-              <div style={{ background: "#fff", borderRadius: 18, padding: 22, boxShadow: "0 2px 12px rgba(0,0,0,0.06)" }}>
+              <div style={{ background: "#fff", borderRadius: 18, padding: 22, boxShadow: "0 2px 12px rgba(0,0,0,0.06)", display: "flex", flexDirection: "column" }}>
                 <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 16 }}>{t("spendingByCategory")}</div>
-                <div style={{ display: "flex", alignItems: "center", gap: 20, flexDirection: isMobile ? "column" : "row" }}>
+                <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 20, flexDirection: isMobile ? "column" : "row" }}>
                   <div style={{ position: "relative", flexShrink: 0 }}>
                     <DonutChart data={donutData} total={totalExpenses} />
                     <div
