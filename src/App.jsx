@@ -1474,58 +1474,6 @@ export default function App() {
                           {opt}
                         </button>
                       ))}
-                      <div style={{ borderTop: "1px solid #F2F2F7", marginTop: 4, paddingTop: 4 }}>
-                        {investCustomInput === null ? null : (
-                          <div style={{ padding: "6px 8px", display: "flex", gap: 6 }}>
-                            <input
-                              autoFocus
-                              value={investCustomInput}
-                              onChange={e => setInvestCustomInput(e.target.value)}
-                              onKeyDown={e => {
-                                if (e.key === "Enter" && investCustomInput.trim()) {
-                                  setInvestLabel(investCustomInput.trim());
-                                  setShowInvestMenu(false);
-                                  setInvestCustomInput("");
-                                }
-                              }}
-                              placeholder={t("investCustomPlaceholder")}
-                              style={{
-                                flex: 1, padding: "6px 10px", borderRadius: 8,
-                                border: "1.5px solid #E5E5EA", fontSize: 13, outline: "none",
-                              }}
-                            />
-                            <button
-                              onClick={() => {
-                                if (investCustomInput.trim()) {
-                                  setInvestLabel(investCustomInput.trim());
-                                  setShowInvestMenu(false);
-                                  setInvestCustomInput("");
-                                }
-                              }}
-                              disabled={!investCustomInput.trim()}
-                              style={{
-                                padding: "6px 12px", borderRadius: 8, border: "none",
-                                background: investCustomInput.trim() ? "#007AFF" : "#E5E5EA",
-                                color: investCustomInput.trim() ? "#fff" : "#8E8E93",
-                                fontSize: 12, fontWeight: 600, cursor: investCustomInput.trim() ? "pointer" : "default",
-                              }}
-                            >
-                              {t("investCustomSave")}
-                            </button>
-                          </div>
-                        )}
-                        <button
-                          onClick={() => setInvestCustomInput(prev => prev === "" ? "" : "")}
-                          style={{
-                            display: "block", width: "100%", textAlign: "left",
-                            padding: "8px 12px", borderRadius: 8, border: "none",
-                            background: "transparent", color: "#007AFF",
-                            fontSize: 13, fontWeight: 500, cursor: "pointer",
-                          }}
-                        >
-                          + {t("investCustomOption")}
-                        </button>
-                      </div>
                     </div>
                   )}
                 </div>
