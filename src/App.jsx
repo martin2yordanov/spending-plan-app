@@ -83,6 +83,21 @@ const EXAMPLE_INCOME = [
 ];
 
 const EXAMPLE_INVEST = 250;
+const EXAMPLE_INVEST_LABEL = "S&P 500 ETF";
+
+const INVEST_TYPES = [
+  "S&P 500 ETF",
+  "World Index ETF",
+  "Stocks & Equities",
+  "Bonds / Fixed Income",
+  "Real Estate / REITs",
+  "Pension Fund",
+  "Mutual Fund",
+  "Crypto",
+  "Gold & Commodities",
+  "Money Market / Savings",
+  "Mixed Portfolio",
+];
 
 const EXAMPLE_AMOUNTS = {
   1: 25, 2: 70, 3: 35, 4: 20, 5: 120, 6: 30, 7: 100, 8: 50, 9: 400, 10: 600,
@@ -485,6 +500,10 @@ export default function App() {
   const [income, setIncome] = useState(EXAMPLE_INCOME);
   const [expenses, setExpenses] = useState(EXAMPLE_EXPENSES);
   const [invest, setInvest] = useState(EXAMPLE_INVEST);
+  const [investLabel, setInvestLabel] = useState(EXAMPLE_INVEST_LABEL);
+  const [showInvestMenu, setShowInvestMenu] = useState(false);
+  const [investCustomInput, setInvestCustomInput] = useState("");
+  const investMenuRef = useRef(null);
   const [emergencyMonths, setEmergencyMonths] = useState(3);
   const [loaded, setLoaded] = useState(false);
   const [loadError, setLoadError] = useState(null);
@@ -560,6 +579,7 @@ export default function App() {
       if (data.income) setIncome(data.income);
       if (data.expenses) setExpenses(data.expenses);
       if (data.invest != null) setInvest(data.invest);
+      if (data.investLabel) setInvestLabel(data.investLabel);
       if (data.emergencyMonths != null) setEmergencyMonths(data.emergencyMonths);
       await saveData(auth.userId, data);
       setImportSuccess(true);
@@ -597,6 +617,7 @@ export default function App() {
           if (saved.income) setIncome(saved.income);
           if (saved.expenses) setExpenses(saved.expenses);
           if (saved.invest != null) setInvest(saved.invest);
+          if (saved.investLabel) setInvestLabel(saved.investLabel);
           if (saved.emergencyMonths != null) setEmergencyMonths(saved.emergencyMonths);
           setLoaded(true);
         } else {
@@ -614,6 +635,7 @@ export default function App() {
               if (legacy.income) setIncome(legacy.income);
               if (legacy.expenses) setExpenses(legacy.expenses);
               if (legacy.invest != null) setInvest(legacy.invest);
+              if (legacy.investLabel) setInvestLabel(legacy.investLabel);
               if (legacy.emergencyMonths != null) setEmergencyMonths(legacy.emergencyMonths);
               saveData(userId, legacy).finally(() => { if (!cancelled) setLoaded(true); });
             } else {
@@ -655,14 +677,14 @@ export default function App() {
     setIsDirty(true);
     if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
     autoSaveTimerRef.current = setTimeout(() => {
-      saveData(auth.userId, { income, expenses, invest, emergencyMonths }).then(() => {
+      saveData(auth.userId, { income, expenses, invest, investLabel, emergencyMonths }).then(() => {
         setIsDirty(false);
         setSavedFlag(true);
         setTimeout(() => setSavedFlag(false), 2000);
       });
     }, 2000);
     return () => { if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current); };
-  }, [loaded, income, expenses, invest, emergencyMonths, auth?.userId]);
+  }, [loaded, income, expenses, invest, investLabel, emergencyMonths, auth?.userId]);
 
   useEffect(() => {
     if (!showSync) return;
@@ -674,6 +696,18 @@ export default function App() {
     document.addEventListener("mousedown", handleClick);
     return () => document.removeEventListener("mousedown", handleClick);
   }, [showSync]);
+
+  useEffect(() => {
+    if (!showInvestMenu) return;
+    function handleClick(e) {
+      if (investMenuRef.current && !investMenuRef.current.contains(e.target)) {
+        setShowInvestMenu(false);
+        setInvestCustomInput("");
+      }
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [showInvestMenu]);
 
   useEffect(() => {
     if (!showLangMenu) return;
@@ -711,7 +745,7 @@ export default function App() {
       const res = await fetch("/api/suggestions", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ income, expenses, invest, emergencyMonths, lang }),
+        body: JSON.stringify({ income, expenses, invest, investLabel, emergencyMonths, lang }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error ?? `API ${res.status}`);
@@ -745,7 +779,7 @@ export default function App() {
   const handleSave = useCallback(() => {
     if (!loaded || !auth?.userId) return;
     if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
-    saveData(auth.userId, { income, expenses, invest, emergencyMonths }).then(() => {
+    saveData(auth.userId, { income, expenses, invest, investLabel, emergencyMonths }).then(() => {
       setIsDirty(false);
       setSavedFlag(true);
       window.setTimeout(() => setSavedFlag(false), 2000);
@@ -899,7 +933,7 @@ export default function App() {
     a.click();
     document.body.removeChild(a);
     setTimeout(() => URL.revokeObjectURL(url), 30000);
-  }, [income, expenses, invest, emergencyMonths, syncId, auth, t]);
+  }, [income, expenses, invest, investLabel, emergencyMonths, syncId, auth, t]);
 
   const updateExpense = (id, field, value) => {
     setExpenses((current) =>
@@ -1406,7 +1440,95 @@ export default function App() {
             <div style={{ display: "grid", gridTemplateColumns: twoColGrid, gap: 14 }}>
               <div style={{ background: "#fff", borderRadius: 18, padding: 22, boxShadow: "0 2px 12px rgba(0,0,0,0.06)" }}>
                 <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 4 }}>💹 {t("monthlyInvestment")}</div>
-                <div style={{ fontSize: 12, color: "#8E8E93", marginBottom: 14 }}>{t("investSub")}</div>
+                <div style={{ position: "relative", marginBottom: 14 }} ref={investMenuRef}>
+                  <button
+                    onClick={() => { setShowInvestMenu(v => !v); setInvestCustomInput(""); }}
+                    style={{
+                      background: "none", border: "none", padding: 0, cursor: "pointer",
+                      fontSize: 12, color: "#007AFF", fontWeight: 500, display: "flex",
+                      alignItems: "center", gap: 4,
+                    }}
+                  >
+                    {investLabel} ▾
+                  </button>
+                  {showInvestMenu && (
+                    <div style={{
+                      position: "absolute", top: "calc(100% + 6px)", left: 0,
+                      background: "#fff", border: "1.5px solid #E5E5EA", borderRadius: 14,
+                      padding: 6, minWidth: 220, boxShadow: "0 8px 32px rgba(0,0,0,0.12)",
+                      zIndex: 200,
+                    }}>
+                      {INVEST_TYPES.map((opt) => (
+                        <button
+                          key={opt}
+                          onClick={() => { setInvestLabel(opt); setShowInvestMenu(false); setInvestCustomInput(""); }}
+                          style={{
+                            display: "block", width: "100%", textAlign: "left",
+                            padding: "8px 12px", borderRadius: 8, border: "none",
+                            background: investLabel === opt ? "#F2F2F7" : "transparent",
+                            color: "#1C1C1E", fontSize: 13,
+                            fontWeight: investLabel === opt ? 700 : 400, cursor: "pointer",
+                          }}
+                        >
+                          {investLabel === opt && <span style={{ color: "#007AFF", marginRight: 6 }}>✓</span>}
+                          {opt}
+                        </button>
+                      ))}
+                      <div style={{ borderTop: "1px solid #F2F2F7", marginTop: 4, paddingTop: 4 }}>
+                        {investCustomInput === null ? null : (
+                          <div style={{ padding: "6px 8px", display: "flex", gap: 6 }}>
+                            <input
+                              autoFocus
+                              value={investCustomInput}
+                              onChange={e => setInvestCustomInput(e.target.value)}
+                              onKeyDown={e => {
+                                if (e.key === "Enter" && investCustomInput.trim()) {
+                                  setInvestLabel(investCustomInput.trim());
+                                  setShowInvestMenu(false);
+                                  setInvestCustomInput("");
+                                }
+                              }}
+                              placeholder={t("investCustomPlaceholder")}
+                              style={{
+                                flex: 1, padding: "6px 10px", borderRadius: 8,
+                                border: "1.5px solid #E5E5EA", fontSize: 13, outline: "none",
+                              }}
+                            />
+                            <button
+                              onClick={() => {
+                                if (investCustomInput.trim()) {
+                                  setInvestLabel(investCustomInput.trim());
+                                  setShowInvestMenu(false);
+                                  setInvestCustomInput("");
+                                }
+                              }}
+                              disabled={!investCustomInput.trim()}
+                              style={{
+                                padding: "6px 12px", borderRadius: 8, border: "none",
+                                background: investCustomInput.trim() ? "#007AFF" : "#E5E5EA",
+                                color: investCustomInput.trim() ? "#fff" : "#8E8E93",
+                                fontSize: 12, fontWeight: 600, cursor: investCustomInput.trim() ? "pointer" : "default",
+                              }}
+                            >
+                              {t("investCustomSave")}
+                            </button>
+                          </div>
+                        )}
+                        <button
+                          onClick={() => setInvestCustomInput(prev => prev === "" ? "" : "")}
+                          style={{
+                            display: "block", width: "100%", textAlign: "left",
+                            padding: "8px 12px", borderRadius: 8, border: "none",
+                            background: "transparent", color: "#007AFF",
+                            fontSize: 13, fontWeight: 500, cursor: "pointer",
+                          }}
+                        >
+                          + {t("investCustomOption")}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
                 <div style={{ display: "flex", alignItems: "center", gap: 12, flexDirection: isMobile ? "column" : "row" }}>
                   <input
                     type="range"
