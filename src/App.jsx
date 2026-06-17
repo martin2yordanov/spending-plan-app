@@ -436,6 +436,184 @@ function Walkthrough({ steps, onFinish, labels }) {
   );
 }
 
+const MODAL_CSS = `
+@keyframes backdropIn  { from { background: rgba(0,0,0,0) } to { background: rgba(0,0,0,0.45) } }
+@keyframes backdropOut { from { background: rgba(0,0,0,0.45) } to { background: rgba(0,0,0,0) } }
+@keyframes sheetIn  { from { transform: translateY(100%) } to { transform: translateY(0) } }
+@keyframes sheetOut { from { transform: translateY(0) } to { transform: translateY(100%) } }
+`;
+
+function CategoryModal({ cat, color, icon, catExpenses, closing, onClose, onUpdate, onDelete, t, fmt }) {
+  const [editingId, setEditingId] = useState(null);
+  const catTotal = catExpenses.reduce((s, e) => s + freqToMonthly(e.amount, e.frequency), 0);
+
+  return (
+    <>
+      <style>{MODAL_CSS}</style>
+      <div
+        onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+        style={{
+          position: "fixed", inset: 0, zIndex: 2000,
+          display: "flex", alignItems: "flex-end", justifyContent: "center",
+          animation: `${closing ? "backdropOut" : "backdropIn"} 0.3s ease forwards`,
+          background: closing ? "rgba(0,0,0,0.45)" : "rgba(0,0,0,0)",
+        }}
+      >
+        <div
+          style={{
+            background: "#fff",
+            borderRadius: "24px 24px 0 0",
+            width: "100%",
+            maxWidth: 620,
+            maxHeight: "88vh",
+            display: "flex",
+            flexDirection: "column",
+            animation: `${closing ? "sheetOut" : "sheetIn"} 0.3s cubic-bezier(0.32,0.72,0,1) forwards`,
+          }}
+        >
+          {/* Header */}
+          <div style={{
+            display: "flex", alignItems: "center", justifyContent: "space-between",
+            padding: "22px 22px 18px",
+            borderBottom: `3px solid ${color}30`,
+            flexShrink: 0,
+          }}>
+            <div>
+              <div style={{ fontSize: 11, color: "#8E8E93", textTransform: "uppercase", letterSpacing: 0.6, marginBottom: 3 }}>
+                {t("categoryBreakdown")}
+              </div>
+              <div style={{ fontSize: 22, fontWeight: 800, color: "#1C1C1E", letterSpacing: "-0.5px" }}>
+                {icon} {t.cat(cat)}
+              </div>
+              <div style={{ fontSize: 13, color: color, fontWeight: 600, marginTop: 2 }}>
+                €{fmt(catTotal)} / {t.freq("Monthly").toLowerCase()}
+              </div>
+            </div>
+            <button
+              onClick={onClose}
+              style={{
+                width: 34, height: 34, borderRadius: "50%", border: "none",
+                background: "#F2F2F7", cursor: "pointer",
+                display: "flex", alignItems: "center", justifyContent: "center",
+                fontSize: 15, color: "#3C3C43", fontWeight: 700, flexShrink: 0,
+                transition: "background 0.15s",
+              }}
+              onMouseEnter={e => e.currentTarget.style.background = "#E5E5EA"}
+              onMouseLeave={e => e.currentTarget.style.background = "#F2F2F7"}
+            >✕</button>
+          </div>
+
+          {/* Expense list */}
+          <div style={{ overflowY: "auto", padding: "14px 16px 32px", display: "flex", flexDirection: "column", gap: 10 }}>
+            {catExpenses.length === 0 && (
+              <div style={{ textAlign: "center", padding: "40px 0", color: "#8E8E93", fontSize: 14 }}>
+                No expenses in this category
+              </div>
+            )}
+            {catExpenses.map((expense) => {
+              const isEditing = editingId === expense.id;
+              const monthly = freqToMonthly(expense.amount, expense.frequency);
+              return (
+                <div
+                  key={expense.id}
+                  style={{
+                    borderRadius: 16, padding: "14px 16px",
+                    background: isEditing ? `${color}12` : "#F9F9FB",
+                    border: `1.5px solid ${isEditing ? color : "transparent"}`,
+                    transition: "all 0.2s ease",
+                  }}
+                >
+                  {isEditing ? (
+                    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                      <input
+                        autoFocus
+                        value={expense.name}
+                        onChange={e => onUpdate(expense.id, "name", e.target.value)}
+                        style={{
+                          fontSize: 15, fontWeight: 600, color: "#1C1C1E",
+                          border: "none", borderBottom: `2px solid ${color}`,
+                          background: "transparent", outline: "none", width: "100%", paddingBottom: 2,
+                        }}
+                      />
+                      <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+                        <div style={{ flex: 1 }}>
+                          <div style={{ fontSize: 11, color: "#8E8E93", marginBottom: 4 }}>Amount (€)</div>
+                          <input
+                            type="number"
+                            value={expense.amount}
+                            onChange={e => onUpdate(expense.id, "amount", e.target.value)}
+                            style={{
+                              fontSize: 16, fontWeight: 700, color: color, width: "100%",
+                              border: "none", borderBottom: `2px solid ${color}`,
+                              background: "transparent", outline: "none", paddingBottom: 2,
+                            }}
+                          />
+                        </div>
+                        <div style={{ flex: 1 }}>
+                          <div style={{ fontSize: 11, color: "#8E8E93", marginBottom: 4 }}>Frequency</div>
+                          <select
+                            value={expense.frequency}
+                            onChange={e => onUpdate(expense.id, "frequency", e.target.value)}
+                            style={{
+                              fontSize: 13, width: "100%", border: "none",
+                              borderBottom: `2px solid ${color}`, background: "transparent",
+                              outline: "none", paddingBottom: 2, color: "#1C1C1E",
+                            }}
+                          >
+                            {FREQUENCIES.map(f => <option key={f} value={f}>{t.freq(f)}</option>)}
+                          </select>
+                        </div>
+                      </div>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 4 }}>
+                        <button
+                          onClick={() => { onDelete(expense.id); setEditingId(null); }}
+                          style={{
+                            padding: "7px 14px", borderRadius: 10, border: "none",
+                            background: "#FF3B3015", color: "#FF3B30", fontSize: 13,
+                            fontWeight: 600, cursor: "pointer",
+                          }}
+                        >
+                          🗑 Delete
+                        </button>
+                        <button
+                          onClick={() => setEditingId(null)}
+                          style={{
+                            padding: "7px 18px", borderRadius: 10, border: "none",
+                            background: color, color: "#fff", fontSize: 13,
+                            fontWeight: 600, cursor: "pointer",
+                          }}
+                        >
+                          Done
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div
+                      style={{ display: "flex", alignItems: "center", gap: 12, cursor: "pointer" }}
+                      onClick={() => setEditingId(expense.id)}
+                    >
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: 14, fontWeight: 600, color: "#1C1C1E", marginBottom: 2 }}>{expense.name}</div>
+                        <div style={{ fontSize: 12, color: "#8E8E93" }}>
+                          €{fmt(expense.amount)} · {t.freq(expense.frequency)}
+                        </div>
+                      </div>
+                      <div style={{ textAlign: "right", flexShrink: 0 }}>
+                        <div style={{ fontSize: 15, fontWeight: 700, color: color }}>€{fmt(monthly)}<span style={{ fontSize: 11, fontWeight: 400, color: "#8E8E93" }}>/mo</span></div>
+                      </div>
+                      <div style={{ color: "#C7C7CC", fontSize: 13 }}>›</div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    </>
+  );
+}
+
 function DonutChart({ data, total, activeCategory, onCategoryChange }) {
   const size = 180;
   const strokeWidth = 28;
@@ -514,6 +692,8 @@ export default function App() {
   const [invest, setInvest] = useState(EXAMPLE_INVEST);
   const [investLabel, setInvestLabel] = useState(EXAMPLE_INVEST_LABEL);
   const [activeCategory, setActiveCategory] = useState(null);
+  const [catModalCat, setCatModalCat] = useState(null);
+  const [catModalClosing, setCatModalClosing] = useState(false);
   const [showInvestMenu, setShowInvestMenu] = useState(false);
   const [investCustomInput, setInvestCustomInput] = useState("");
   const investMenuRef = useRef(null);
@@ -558,6 +738,16 @@ export default function App() {
       try { localStorage.setItem(`walkthrough_done_${auth.userId}`, "1"); } catch { /* ignore */ }
     }
   }, [auth]);
+
+  const openCatModal = useCallback((catName) => {
+    setCatModalCat(catName);
+    setCatModalClosing(false);
+  }, []);
+
+  const closeCatModal = useCallback(() => {
+    setCatModalClosing(true);
+    setTimeout(() => { setCatModalCat(null); setCatModalClosing(false); }, 300);
+  }, []);
 
   const applyNewSyncId = useCallback((id) => {
     const clean = id.trim().toUpperCase();
@@ -1480,7 +1670,7 @@ export default function App() {
                         }}
                         onMouseEnter={() => setActiveCategory(item.name)}
                         onMouseLeave={() => setActiveCategory(null)}
-                        onClick={() => setActiveCategory(isActive ? null : item.name)}
+                        onClick={() => openCatModal(item.name)}
                       >
                         <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4, gap: 10 }}>
                           <span style={{ fontSize: 12, fontWeight: isActive ? 700 : 500, color: isActive ? "#1C1C1E" : "#3C3C43" }}>
@@ -2382,6 +2572,26 @@ export default function App() {
           </div>
         )}
       </div>
+
+      {catModalCat && (() => {
+        const catInfo = categoryTotals.find(c => c.name === catModalCat);
+        const icon = (CATEGORY_COLORS[catModalCat] || CATEGORY_COLORS.Other).icon;
+        const catExpenses = expenses.filter(e => e.category === catModalCat);
+        return (
+          <CategoryModal
+            cat={catModalCat}
+            color={catInfo?.color || "#007AFF"}
+            icon={icon}
+            catExpenses={catExpenses}
+            closing={catModalClosing}
+            onClose={closeCatModal}
+            onUpdate={updateExpense}
+            onDelete={deleteExpense}
+            t={t}
+            fmt={fmt}
+          />
+        );
+      })()}
 
       {showImport && (
         <div
