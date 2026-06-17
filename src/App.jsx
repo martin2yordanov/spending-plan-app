@@ -1341,13 +1341,14 @@ export default function App() {
               }}
             >
               {[
-                { label: t("card_monthlyIncome"), value: totalIncome, color: "#34C759", sub: t("card_totalEarnings") },
-                { label: t("card_monthlyExpenses"), value: totalExpenses + investMonthly, color: "#FF3B30", sub: t("card_allOutgoings") },
+                { label: t("card_monthlyIncome"), value: totalIncome, color: "#34C759", sub: t("card_totalEarnings"), pct: null },
+                { label: t("card_monthlyExpenses"), value: totalExpenses + investMonthly, color: "#FF3B30", sub: t("card_allOutgoings"), pct: totalIncome > 0 ? ((totalExpenses + investMonthly) / totalIncome) * 100 : null },
                 {
                   label: savings >= 0 ? t("card_netSavings") : t("card_deficit"),
                   value: Math.abs(savings),
                   color: savings >= 0 ? "#007AFF" : "#FF3B30",
                   sub: savings >= 0 ? t("card_afterAll") : t("card_overBudget"),
+                  pct: totalIncome > 0 ? (savings / totalIncome) * 100 : null,
                 },
               ].map((card) => (
                 <div
@@ -1371,8 +1372,15 @@ export default function App() {
                   >
                     {card.label}
                   </div>
-                  <div style={{ fontSize: 28, fontWeight: 700, color: card.color, letterSpacing: "-1px" }}>
-                    €{fmt(card.value)}
+                  <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
+                    <div style={{ fontSize: 28, fontWeight: 700, color: card.color, letterSpacing: "-1px" }}>
+                      €{fmt(card.value)}
+                    </div>
+                    {card.pct !== null && (
+                      <div style={{ fontSize: 13, fontWeight: 600, color: card.color, opacity: 0.75 }}>
+                        {card.pct >= 0 ? "" : "−"}{Math.abs(card.pct).toFixed(0)}%
+                      </div>
+                    )}
                   </div>
                   <div style={{ fontSize: 12, color: "#8E8E93", marginTop: 4 }}>{card.sub}</div>
                 </div>
