@@ -447,6 +447,22 @@ function CategoryModal({ cat, color, icon, catExpenses, closing, onClose, onUpda
   const [editingId, setEditingId] = useState(null);
   const catTotal = catExpenses.reduce((s, e) => s + freqToMonthly(e.amount, e.frequency), 0);
 
+  useEffect(() => {
+    const scrollY = window.scrollY;
+    const prev = { overflow: document.body.style.overflow, position: document.body.style.position, top: document.body.style.top, width: document.body.style.width };
+    document.body.style.overflow = "hidden";
+    document.body.style.position = "fixed";
+    document.body.style.top = `-${scrollY}px`;
+    document.body.style.width = "100%";
+    return () => {
+      document.body.style.overflow = prev.overflow;
+      document.body.style.position = prev.position;
+      document.body.style.top = prev.top;
+      document.body.style.width = prev.width;
+      window.scrollTo(0, scrollY);
+    };
+  }, []);
+
   return (
     <>
       <style>{MODAL_CSS}</style>
