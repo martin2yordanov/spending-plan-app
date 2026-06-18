@@ -6,3 +6,4 @@ dist
 data/spending-plan.json
 .env.local
 .env*.local
+.claude/
