@@ -1,27 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useUser, SignInButton, UserButton } from "@clerk/clerk-react";
 import { LANGUAGES, LANG_KEY, makeT } from "./i18n";
+import { freqToMonthly, fmt, computeHealthScore, scoreColor, scoreLabelKey } from "./utils";
 
 export const CLERK_ENABLED = !!import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
 
 const FREQUENCIES = ["Monthly", "Annual", "Weekly", "Quarterly", "Bi-weekly"];
-
-const freqToMonthly = (amount, freq) => {
-  switch (freq) {
-    case "Monthly":
-      return amount;
-    case "Annual":
-      return amount / 12;
-    case "Weekly":
-      return (amount * 52.142857) / 12;
-    case "Quarterly":
-      return amount / 3;
-    case "Bi-weekly":
-      return (amount * 26.071429) / 12;
-    default:
-      return amount;
-  }
-};
 
 const CATEGORY_COLORS = {
   Child: { bg: "#FFF0F5", accent: "#FF6B8A", icon: "👶" },
@@ -179,13 +163,6 @@ function renderInline(text) {
   });
 }
 
-function fmt(n) {
-  return new Intl.NumberFormat("en-US", {
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(Math.round(n));
-}
-
 const SYNC_KEY = "spending_sync_id";
 
 function getSyncId() {
@@ -213,63 +190,6 @@ async function saveData(id, data) {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
   });
-}
-
-function computeHealthScore(totalIncome, totalExpenses, invest, emergencyMonths) {
-  if (totalIncome <= 0) return null;
-  const net = totalIncome - totalExpenses - invest;
-  const savingsRate = net / totalIncome;
-  const investRate = invest / totalIncome;
-  const expenseRatio = totalExpenses / totalIncome;
-
-  const savingsScore  = Math.round(Math.min(1, Math.max(0, savingsRate / 0.20)) * 25);
-  const emergencyScore = Math.round(Math.min(1, emergencyMonths / 6) * 25);
-  const investScore   = Math.round(Math.min(1, Math.max(0, investRate / 0.10)) * 25);
-  const expenseScore  = Math.round(Math.min(1, Math.max(0, (0.90 - expenseRatio) / 0.40)) * 25);
-
-  return {
-    total: savingsScore + emergencyScore + investScore + expenseScore,
-    breakdown: [
-      {
-        labelKey: "score_savingsRate", score: savingsScore,
-        value: `${(savingsRate * 100).toFixed(0)}%`, target: "≥20%",
-        noteKey: savingsScore < 25 ? "note_savings" : null,
-        noteVars: { x: fmt(Math.max(0, totalIncome * 0.20 - net)) },
-      },
-      {
-        labelKey: "score_emergencyFund", score: emergencyScore,
-        value: `${emergencyMonths}mo`, target: "6mo",
-        noteKey: emergencyScore < 25 ? "note_emergency" : null,
-        noteVars: { x: fmt(totalExpenses * 6) },
-      },
-      {
-        labelKey: "score_investmentRate", score: investScore,
-        value: `${(investRate * 100).toFixed(0)}%`, target: "≥10%",
-        noteKey: investScore < 25 ? "note_invest" : null,
-        noteVars: { x: fmt(Math.max(0, totalIncome * 0.10 - invest)) },
-      },
-      {
-        labelKey: "score_expenseRatio", score: expenseScore,
-        value: `${(expenseRatio * 100).toFixed(0)}%`, target: "≤50%",
-        noteKey: expenseScore < 25 ? "note_expense" : null,
-        noteVars: { p: (expenseRatio * 100).toFixed(0), x: fmt(Math.max(0, totalExpenses - totalIncome * 0.50)) },
-      },
-    ],
-  };
-}
-
-function scoreColor(s) {
-  if (s >= 80) return "#34C759";
-  if (s >= 60) return "#007AFF";
-  if (s >= 40) return "#FF9500";
-  return "#FF3B30";
-}
-
-function scoreLabelKey(s) {
-  if (s >= 80) return "scoreLabel_excellent";
-  if (s >= 60) return "scoreLabel_good";
-  if (s >= 40) return "scoreLabel_fair";
-  return "scoreLabel_needsWork";
 }
 
 // Bridges Clerk auth state up to App. Only rendered when Clerk is configured.
@@ -445,6 +365,7 @@ const MODAL_CSS = `
 
 function CategoryModal({ cat, color, icon, catExpenses, closing, onClose, onUpdate, onDelete, t, fmt }) {
   const [editingId, setEditingId] = useState(null);
+  const [amountStr, setAmountStr] = useState("");
   const catTotal = catExpenses.reduce((s, e) => s + freqToMonthly(e.amount, e.frequency), 0);
 
   useEffect(() => {
@@ -555,9 +476,11 @@ function CategoryModal({ cat, color, icon, catExpenses, closing, onClose, onUpda
                         <div style={{ flex: 1 }}>
                           <div style={{ fontSize: 11, color: "#8E8E93", marginBottom: 4 }}>Amount (€)</div>
                           <input
-                            type="number"
-                            value={expense.amount}
-                            onChange={e => onUpdate(expense.id, "amount", e.target.value)}
+                            type="text"
+                            inputMode="decimal"
+                            value={amountStr}
+                            onChange={e => setAmountStr(e.target.value)}
+                            onBlur={() => { const n = parseFloat(amountStr); onUpdate(expense.id, "amount", isNaN(n) ? expense.amount : n); }}
                             style={{
                               fontSize: 16, fontWeight: 700, color: color, width: "100%",
                               border: "none", borderBottom: `2px solid ${color}`,
@@ -592,7 +515,7 @@ function CategoryModal({ cat, color, icon, catExpenses, closing, onClose, onUpda
                           🗑 Delete
                         </button>
                         <button
-                          onClick={() => setEditingId(null)}
+                          onClick={() => { const n = parseFloat(amountStr); onUpdate(expense.id, "amount", isNaN(n) ? expense.amount : n); setEditingId(null); }}
                           style={{
                             padding: "7px 18px", borderRadius: 10, border: "none",
                             background: color, color: "#fff", fontSize: 13,
@@ -606,7 +529,7 @@ function CategoryModal({ cat, color, icon, catExpenses, closing, onClose, onUpda
                   ) : (
                     <div
                       style={{ display: "flex", alignItems: "center", gap: 12, cursor: "pointer" }}
-                      onClick={() => setEditingId(expense.id)}
+                      onClick={() => { setEditingId(expense.id); setAmountStr(String(expense.amount)); }}
                     >
                       <div style={{ flex: 1 }}>
                         <div style={{ fontSize: 14, fontWeight: 600, color: "#1C1C1E", marginBottom: 2 }}>{expense.name}</div>
@@ -1160,7 +1083,7 @@ export default function App() {
         item.id === id
           ? {
               ...item,
-              [field]: field === "amount" ? parseFloat(value) || 0 : value,
+              [field]: field === "amount" ? (isNaN(parseFloat(value)) ? item.amount : parseFloat(value)) : value,
             }
           : item,
       ),
@@ -1177,7 +1100,7 @@ export default function App() {
         item.id === id
           ? {
               ...item,
-              [field]: field === "amount" ? parseFloat(value) || 0 : value,
+              [field]: field === "amount" ? (isNaN(parseFloat(value)) ? item.amount : parseFloat(value)) : value,
             }
           : item,
       ),
