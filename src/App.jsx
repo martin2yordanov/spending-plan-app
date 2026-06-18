@@ -1,11 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useUser, SignInButton, UserButton } from "@clerk/clerk-react";
 import { LANGUAGES, LANG_KEY, makeT } from "./i18n";
-import { freqToMonthly, fmt, computeHealthScore, scoreColor, scoreLabelKey } from "./utils";
+import { FREQUENCIES, freqToMonthly, fmt, computeHealthScore, scoreColor, scoreLabelKey, parseAmount } from "./utils.js";
 
 export const CLERK_ENABLED = !!import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
-
-const FREQUENCIES = ["Monthly", "Annual", "Weekly", "Quarterly", "Bi-weekly"];
 
 const CATEGORY_COLORS = {
   Child: { bg: "#FFF0F5", accent: "#FF6B8A", icon: "👶" },
@@ -192,6 +190,8 @@ async function saveData(id, data) {
   });
 }
 
+
+
 // Bridges Clerk auth state up to App. Only rendered when Clerk is configured.
 function AuthBridge({ onAuthChange, isMobile, signInLabel }) {
   const { isLoaded, isSignedIn, user } = useUser();
@@ -368,6 +368,15 @@ function CategoryModal({ cat, color, icon, catExpenses, closing, onClose, onUpda
   const [amountStr, setAmountStr] = useState("");
   const catTotal = catExpenses.reduce((s, e) => s + freqToMonthly(e.amount, e.frequency), 0);
 
+  const startEditing = (expense) => {
+    setEditingId(expense.id);
+    setAmountStr(String(expense.amount));
+  };
+  const commitAmount = (expenseId, currentAmount) => {
+    const n = parseFloat(amountStr);
+    onUpdate(expenseId, "amount", isNaN(n) ? currentAmount : n);
+  };
+
   useEffect(() => {
     const scrollY = window.scrollY;
     const prev = { overflow: document.body.style.overflow, position: document.body.style.position, top: document.body.style.top, width: document.body.style.width };
@@ -480,7 +489,7 @@ function CategoryModal({ cat, color, icon, catExpenses, closing, onClose, onUpda
                             inputMode="decimal"
                             value={amountStr}
                             onChange={e => setAmountStr(e.target.value)}
-                            onBlur={() => { const n = parseFloat(amountStr); onUpdate(expense.id, "amount", isNaN(n) ? expense.amount : n); }}
+                            onBlur={() => commitAmount(expense.id, expense.amount)}
                             style={{
                               fontSize: 16, fontWeight: 700, color: color, width: "100%",
                               border: "none", borderBottom: `2px solid ${color}`,
@@ -515,7 +524,7 @@ function CategoryModal({ cat, color, icon, catExpenses, closing, onClose, onUpda
                           🗑 Delete
                         </button>
                         <button
-                          onClick={() => { const n = parseFloat(amountStr); onUpdate(expense.id, "amount", isNaN(n) ? expense.amount : n); setEditingId(null); }}
+                          onClick={() => { commitAmount(expense.id, expense.amount); setEditingId(null); }}
                           style={{
                             padding: "7px 18px", borderRadius: 10, border: "none",
                             background: color, color: "#fff", fontSize: 13,
@@ -529,7 +538,7 @@ function CategoryModal({ cat, color, icon, catExpenses, closing, onClose, onUpda
                   ) : (
                     <div
                       style={{ display: "flex", alignItems: "center", gap: 12, cursor: "pointer" }}
-                      onClick={() => { setEditingId(expense.id); setAmountStr(String(expense.amount)); }}
+                      onClick={() => startEditing(expense)}
                     >
                       <div style={{ flex: 1 }}>
                         <div style={{ fontSize: 14, fontWeight: 600, color: "#1C1C1E", marginBottom: 2 }}>{expense.name}</div>
@@ -1081,10 +1090,7 @@ export default function App() {
     setExpenses((current) =>
       current.map((item) =>
         item.id === id
-          ? {
-              ...item,
-              [field]: field === "amount" ? (isNaN(parseFloat(value)) ? item.amount : parseFloat(value)) : value,
-            }
+          ? { ...item, [field]: field === "amount" ? parseAmount(value, item.amount) : value }
           : item,
       ),
     );
@@ -1098,10 +1104,7 @@ export default function App() {
     setIncome((current) =>
       current.map((item) =>
         item.id === id
-          ? {
-              ...item,
-              [field]: field === "amount" ? (isNaN(parseFloat(value)) ? item.amount : parseFloat(value)) : value,
-            }
+          ? { ...item, [field]: field === "amount" ? parseAmount(value, item.amount) : value }
           : item,
       ),
     );
