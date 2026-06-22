@@ -873,6 +873,7 @@ export default function App() {
   const [activeTab, setActiveTab] = useState("overview");
   const [editingIncome, setEditingIncome] = useState(null);
   const [editingExpense, setEditingExpense] = useState(null);
+  const [editingExpenseAmountStr, setEditingExpenseAmountStr] = useState("");
   const [addingExpense, setAddingExpense] = useState(false);
   const [newExpense, setNewExpense] = useState({
     name: "",
@@ -1844,8 +1845,151 @@ export default function App() {
               ))}
             </div>
 
-            <div style={{ background: "#fff", borderRadius: 18, overflow: "hidden", boxShadow: "0 2px 12px rgba(0,0,0,0.06)", overflowX: "auto" }}>
-              <div style={{ minWidth: isMobile ? 720 : "auto" }}>
+            {/* ── Mobile card layout ── */}
+            {isMobile ? (
+              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                {filteredExpenses.map((item) => {
+                  const colorSet = CATEGORY_COLORS[item.category] || CATEGORY_COLORS.Other;
+                  const color = colorSet.accent;
+                  const isEditing = editingExpense === item.id;
+                  const monthly = freqToMonthly(item.amount, item.frequency);
+                  return (
+                    <div
+                      key={item.id}
+                      style={{
+                        borderRadius: 16, padding: "14px 16px",
+                        background: isEditing ? `${color}12` : "#fff",
+                        border: `1.5px solid ${isEditing ? color : "transparent"}`,
+                        boxShadow: "0 2px 8px rgba(0,0,0,0.06)",
+                        transition: "all 0.2s ease",
+                      }}
+                    >
+                      {isEditing ? (
+                        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                          <input
+                            autoFocus
+                            value={item.name}
+                            onChange={e => updateExpense(item.id, "name", e.target.value)}
+                            style={{
+                              fontSize: 15, fontWeight: 600, color: "#1C1C1E",
+                              border: "none", borderBottom: `2px solid ${color}`,
+                              background: "transparent", outline: "none", width: "100%", paddingBottom: 2,
+                            }}
+                          />
+                          <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+                            <div style={{ flex: 1 }}>
+                              <div style={{ fontSize: 11, color: "#8E8E93", marginBottom: 4 }}>{t("col_category")}</div>
+                              <select
+                                value={item.category}
+                                onChange={e => updateExpense(item.id, "category", e.target.value)}
+                                style={{
+                                  fontSize: 13, width: "100%", border: "none",
+                                  borderBottom: `2px solid ${color}`, background: "transparent",
+                                  outline: "none", paddingBottom: 2, color: "#1C1C1E",
+                                }}
+                              >
+                                {Object.keys(CATEGORY_COLORS).map(cat => (
+                                  <option key={cat} value={cat}>{t.cat(cat)}</option>
+                                ))}
+                              </select>
+                            </div>
+                          </div>
+                          <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+                            <div style={{ flex: 1 }}>
+                              <div style={{ fontSize: 11, color: "#8E8E93", marginBottom: 4 }}>{t("col_amount")} (€)</div>
+                              <input
+                                type="text"
+                                inputMode="decimal"
+                                value={editingExpenseAmountStr}
+                                onChange={e => setEditingExpenseAmountStr(e.target.value)}
+                                onBlur={() => {
+                                  const n = parseFloat(editingExpenseAmountStr);
+                                  updateExpense(item.id, "amount", isNaN(n) ? item.amount : n);
+                                }}
+                                style={{
+                                  fontSize: 16, fontWeight: 700, color, width: "100%",
+                                  border: "none", borderBottom: `2px solid ${color}`,
+                                  background: "transparent", outline: "none", paddingBottom: 2,
+                                }}
+                              />
+                            </div>
+                            <div style={{ flex: 1 }}>
+                              <div style={{ fontSize: 11, color: "#8E8E93", marginBottom: 4 }}>{t("col_frequency")}</div>
+                              <select
+                                value={item.frequency}
+                                onChange={e => updateExpense(item.id, "frequency", e.target.value)}
+                                style={{
+                                  fontSize: 13, width: "100%", border: "none",
+                                  borderBottom: `2px solid ${color}`, background: "transparent",
+                                  outline: "none", paddingBottom: 2, color: "#1C1C1E",
+                                }}
+                              >
+                                {FREQUENCIES.map(f => <option key={f} value={f}>{t.freq(f)}</option>)}
+                              </select>
+                            </div>
+                          </div>
+                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 4 }}>
+                            <button
+                              onClick={() => { deleteExpense(item.id); setEditingExpense(null); }}
+                              style={{
+                                padding: "7px 14px", borderRadius: 10, border: "none",
+                                background: "#FF3B3015", color: "#FF3B30", fontSize: 13,
+                                fontWeight: 600, cursor: "pointer",
+                              }}
+                            >
+                              🗑 Delete
+                            </button>
+                            <button
+                              onClick={() => {
+                                const n = parseFloat(editingExpenseAmountStr);
+                                updateExpense(item.id, "amount", isNaN(n) ? item.amount : n);
+                                setEditingExpense(null);
+                              }}
+                              style={{
+                                padding: "7px 18px", borderRadius: 10, border: "none",
+                                background: color, color: "#fff", fontSize: 13,
+                                fontWeight: 600, cursor: "pointer",
+                              }}
+                            >
+                              Done
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div
+                          style={{ display: "flex", alignItems: "center", gap: 12, cursor: "pointer" }}
+                          onClick={() => {
+                            setEditingExpense(item.id);
+                            setEditingExpenseAmountStr(String(item.amount));
+                          }}
+                        >
+                          <div style={{ flex: 1 }}>
+                            <div style={{ fontSize: 14, fontWeight: 600, color: "#1C1C1E", marginBottom: 3 }}>{item.name}</div>
+                            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                              <span style={{
+                                fontSize: 11, color: colorSet.accent, fontWeight: 600,
+                                background: colorSet.bg, padding: "2px 7px", borderRadius: 5,
+                              }}>
+                                {colorSet.icon} {t.cat(item.category)}
+                              </span>
+                              <span style={{ fontSize: 12, color: "#8E8E93" }}>· {t.freq(item.frequency)}</span>
+                            </div>
+                          </div>
+                          <div style={{ textAlign: "right", flexShrink: 0 }}>
+                            <div style={{ fontSize: 15, fontWeight: 700, color }}>€{fmt(item.amount)}</div>
+                            <div style={{ fontSize: 11, color: "#8E8E93" }}>€{fmt(monthly)}{t("perMo")}</div>
+                          </div>
+                          <div style={{ color: "#C7C7CC", fontSize: 13 }}>›</div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+            /* ── Desktop table layout ── */
+            <div style={{ background: "#fff", borderRadius: 18, overflow: "hidden", boxShadow: "0 2px 12px rgba(0,0,0,0.06)" }}>
+              <div>
                 <div
                   style={{
                     padding: "14px 20px",
@@ -1888,6 +2032,7 @@ export default function App() {
                         onClick={() => {
                           if (!isEditing) {
                             setEditingExpense(item.id);
+                            setEditingExpenseAmountStr(String(item.amount));
                           }
                         }}
                         style={{ cursor: isEditing ? "default" : "pointer" }}
@@ -1898,14 +2043,10 @@ export default function App() {
                             value={item.name}
                             onChange={(event) => updateExpense(item.id, "name", event.target.value)}
                             style={{
-                              width: "100%",
-                              border: "none",
+                              width: "100%", border: "none",
                               borderBottom: `2px solid ${colorSet.accent}`,
-                              background: "transparent",
-                              fontSize: 14,
-                              fontWeight: 500,
-                              outline: "none",
-                              padding: "2px 0",
+                              background: "transparent", fontSize: 14, fontWeight: 500,
+                              outline: "none", padding: "2px 0",
                             }}
                           />
                         ) : (
@@ -1918,13 +2059,9 @@ export default function App() {
                             value={item.category}
                             onChange={(event) => updateExpense(item.id, "category", event.target.value)}
                             style={{
-                              border: "none",
-                              borderBottom: `2px solid ${colorSet.accent}`,
-                              background: "transparent",
-                              fontSize: 12,
-                              outline: "none",
-                              padding: "2px 0",
-                              width: "100%",
+                              border: "none", borderBottom: `2px solid ${colorSet.accent}`,
+                              background: "transparent", fontSize: 12, outline: "none",
+                              padding: "2px 0", width: "100%",
                             }}
                           >
                             {Object.keys(CATEGORY_COLORS).map((category) => (
@@ -1932,16 +2069,10 @@ export default function App() {
                             ))}
                           </select>
                         ) : (
-                          <span
-                            style={{
-                              fontSize: 12,
-                              color: colorSet.accent,
-                              fontWeight: 600,
-                              background: colorSet.bg,
-                              padding: "3px 8px",
-                              borderRadius: 6,
-                            }}
-                          >
+                          <span style={{
+                            fontSize: 12, color: colorSet.accent, fontWeight: 600,
+                            background: colorSet.bg, padding: "3px 8px", borderRadius: 6,
+                          }}>
                             {colorSet.icon} {t.cat(item.category)}
                           </span>
                         )}
@@ -1949,19 +2080,19 @@ export default function App() {
                       <div style={{ textAlign: "right" }}>
                         {isEditing ? (
                           <input
-                            type="number"
-                            value={item.amount}
-                            onChange={(event) => updateExpense(item.id, "amount", event.target.value)}
+                            type="text"
+                            inputMode="decimal"
+                            value={editingExpenseAmountStr}
+                            onChange={e => setEditingExpenseAmountStr(e.target.value)}
+                            onBlur={() => {
+                              const n = parseFloat(editingExpenseAmountStr);
+                              updateExpense(item.id, "amount", isNaN(n) ? item.amount : n);
+                            }}
                             style={{
-                              width: "100%",
-                              border: "none",
+                              width: "100%", border: "none",
                               borderBottom: `2px solid ${colorSet.accent}`,
-                              background: "transparent",
-                              fontSize: 14,
-                              fontWeight: 600,
-                              outline: "none",
-                              textAlign: "right",
-                              padding: "2px 0",
+                              background: "transparent", fontSize: 14, fontWeight: 600,
+                              outline: "none", textAlign: "right", padding: "2px 0",
                             }}
                           />
                         ) : (
@@ -1977,13 +2108,9 @@ export default function App() {
                             value={item.frequency}
                             onChange={(event) => updateExpense(item.id, "frequency", event.target.value)}
                             style={{
-                              border: "none",
-                              borderBottom: `2px solid ${colorSet.accent}`,
-                              background: "transparent",
-                              fontSize: 12,
-                              outline: "none",
-                              padding: "2px 0",
-                              width: "100%",
+                              border: "none", borderBottom: `2px solid ${colorSet.accent}`,
+                              background: "transparent", fontSize: 12, outline: "none",
+                              padding: "2px 0", width: "100%",
                             }}
                           >
                             {FREQUENCIES.map((frequency) => (
@@ -1997,19 +2124,15 @@ export default function App() {
                       <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
                         {isEditing && (
                           <button
-                            onClick={() => { handleSave(); setEditingExpense(null); }}
+                            onClick={() => {
+                              const n = parseFloat(editingExpenseAmountStr);
+                              updateExpense(item.id, "amount", isNaN(n) ? item.amount : n);
+                              setEditingExpense(null);
+                            }}
                             style={{
-                              width: 28,
-                              height: 28,
-                              borderRadius: "50%",
-                              border: "none",
-                              background: "#E8FFF0",
-                              color: "#34C759",
-                              cursor: "pointer",
-                              fontSize: 16,
-                              display: "flex",
-                              alignItems: "center",
-                              justifyContent: "center",
+                              width: 28, height: 28, borderRadius: "50%", border: "none",
+                              background: "#E8FFF0", color: "#34C759", cursor: "pointer",
+                              fontSize: 16, display: "flex", alignItems: "center", justifyContent: "center",
                             }}
                           >
                             ✓
@@ -2018,17 +2141,9 @@ export default function App() {
                         <button
                           onClick={() => deleteExpense(item.id)}
                           style={{
-                            width: 28,
-                            height: 28,
-                            borderRadius: "50%",
-                            border: "none",
-                            background: "#FFE5E5",
-                            color: "#FF3B30",
-                            cursor: "pointer",
-                            fontSize: 14,
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
+                            width: 28, height: 28, borderRadius: "50%", border: "none",
+                            background: "#FFE5E5", color: "#FF3B30", cursor: "pointer",
+                            fontSize: 14, display: "flex", alignItems: "center", justifyContent: "center",
                           }}
                         >
                           ×
@@ -2155,6 +2270,99 @@ export default function App() {
                 )}
               </div>
             </div>
+            )} {/* end isMobile ternary */}
+
+            {/* Mobile: Add Expense button (shown below cards) */}
+            {isMobile && (
+              addingExpense ? (
+                <div style={{
+                  marginTop: 10, background: "#fff", borderRadius: 16,
+                  padding: "16px 16px", boxShadow: "0 2px 8px rgba(0,0,0,0.06)",
+                  display: "flex", flexDirection: "column", gap: 12,
+                  border: "2px solid #007AFF",
+                }}>
+                  <input
+                    autoFocus
+                    placeholder={t("ph_name")}
+                    value={newExpense.name}
+                    onChange={e => setNewExpense(c => ({ ...c, name: e.target.value }))}
+                    style={{
+                      fontSize: 15, fontWeight: 600, border: "none",
+                      borderBottom: "2px solid #007AFF", background: "transparent",
+                      outline: "none", paddingBottom: 2,
+                    }}
+                  />
+                  <div style={{ display: "flex", gap: 10 }}>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: 11, color: "#8E8E93", marginBottom: 4 }}>{t("col_category")}</div>
+                      <select
+                        value={newExpense.category}
+                        onChange={e => setNewExpense(c => ({ ...c, category: e.target.value }))}
+                        style={{ fontSize: 13, width: "100%", border: "none", borderBottom: "2px solid #007AFF", background: "transparent", outline: "none" }}
+                      >
+                        {Object.keys(CATEGORY_COLORS).map(cat => (
+                          <option key={cat} value={cat}>{t.cat(cat)}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                  <div style={{ display: "flex", gap: 10 }}>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: 11, color: "#8E8E93", marginBottom: 4 }}>{t("col_amount")} (€)</div>
+                      <input
+                        type="text"
+                        inputMode="decimal"
+                        placeholder="0"
+                        value={newExpense.amount || ""}
+                        onChange={e => setNewExpense(c => ({ ...c, amount: e.target.value }))}
+                        onBlur={e => setNewExpense(c => ({ ...c, amount: parseFloat(e.target.value) || 0 }))}
+                        style={{
+                          fontSize: 16, fontWeight: 700, color: "#007AFF", width: "100%",
+                          border: "none", borderBottom: "2px solid #007AFF",
+                          background: "transparent", outline: "none", paddingBottom: 2,
+                        }}
+                      />
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: 11, color: "#8E8E93", marginBottom: 4 }}>{t("col_frequency")}</div>
+                      <select
+                        value={newExpense.frequency}
+                        onChange={e => setNewExpense(c => ({ ...c, frequency: e.target.value }))}
+                        style={{ fontSize: 13, width: "100%", border: "none", borderBottom: "2px solid #007AFF", background: "transparent", outline: "none" }}
+                      >
+                        {FREQUENCIES.map(f => <option key={f} value={f}>{t.freq(f)}</option>)}
+                      </select>
+                    </div>
+                  </div>
+                  <div style={{ display: "flex", justifyContent: "space-between" }}>
+                    <button
+                      onClick={() => setAddingExpense(false)}
+                      style={{ padding: "7px 14px", borderRadius: 10, border: "none", background: "#F2F2F7", color: "#3C3C43", fontSize: 13, fontWeight: 600, cursor: "pointer" }}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={addExpense}
+                      style={{ padding: "7px 18px", borderRadius: 10, border: "none", background: "#007AFF", color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer" }}
+                    >
+                      + {t("addExpense")}
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <button
+                  onClick={() => setAddingExpense(true)}
+                  style={{
+                    marginTop: 10, width: "100%", padding: "14px", borderRadius: 16,
+                    border: "2px dashed #C7C7CC", background: "transparent",
+                    color: "#007AFF", fontSize: 14, fontWeight: 600, cursor: "pointer",
+                    display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+                  }}
+                >
+                  <span style={{ fontSize: 18, lineHeight: 1 }}>+</span> {t("addExpense")}
+                </button>
+              )
+            )}
 
             <div
               style={{
