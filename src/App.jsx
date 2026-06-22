@@ -1161,274 +1161,291 @@ export default function App() {
           zIndex: 100,
         }}
       >
-        <div
-          style={{
-            maxWidth: contentWidth,
-            margin: "0 auto",
-            display: "flex",
-            flexDirection: isMobile ? "column" : "row",
-            alignItems: isMobile ? "stretch" : "center",
-            justifyContent: "space-between",
-            gap: isMobile ? 12 : 0,
-            minHeight: isMobile ? "auto" : 56,
-            padding: isMobile ? "14px 0" : 0,
-          }}
-        >
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <span style={{ fontSize: 22 }}>💳</span>
-            <span style={{ fontSize: 17, fontWeight: 600, letterSpacing: "-0.3px" }}>{t("appTitle")}</span>
+        {isMobile ? (
+          /* ── Mobile header ── */
+          <div style={{ maxWidth: contentWidth, margin: "0 auto" }}>
+            {/* Row 1: title + icon actions */}
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", paddingTop: 10, paddingBottom: 6 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <span style={{ fontSize: 20 }}>💳</span>
+                <span style={{ fontSize: 16, fontWeight: 700, letterSpacing: "-0.3px" }}>{t("appTitle")}</span>
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                {/* Language icon */}
+                <div style={{ position: "relative" }} ref={langMenuRef}>
+                  <button
+                    onClick={() => setShowLangMenu(v => !v)}
+                    style={{
+                      width: 34, height: 34, borderRadius: "50%", border: "1.5px solid #E5E5EA",
+                      background: showLangMenu ? "#F2F2F7" : "#fff", cursor: "pointer",
+                      fontSize: 18, display: "flex", alignItems: "center", justifyContent: "center",
+                    }}
+                  >
+                    {LANGUAGES.find(l => l.code === lang)?.flag}
+                  </button>
+                  {showLangMenu && (
+                    <div style={{
+                      position: "absolute", top: "calc(100% + 8px)", right: 0,
+                      background: "#fff", border: "1.5px solid #E5E5EA", borderRadius: 12,
+                      padding: 6, minWidth: 160, boxShadow: "0 8px 32px rgba(0,0,0,0.12)", zIndex: 200,
+                    }}>
+                      {LANGUAGES.map(l => (
+                        <button key={l.code} onClick={() => changeLang(l.code)} style={{
+                          display: "flex", alignItems: "center", gap: 8, width: "100%",
+                          padding: "8px 10px", borderRadius: 8, border: "none", cursor: "pointer",
+                          fontSize: 14, fontWeight: lang === l.code ? 700 : 500,
+                          background: lang === l.code ? "#F2F2F7" : "transparent", color: "#1C1C1E", textAlign: "left",
+                        }}>
+                          <span style={{ fontSize: 16 }}>{l.flag}</span>
+                          {l.label}
+                          {lang === l.code && <span style={{ marginLeft: "auto", color: "#007AFF" }}>✓</span>}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Import icon (signed in only) */}
+                {isSignedIn && (
+                  <button
+                    onClick={() => { setShowImport(true); setImportInput(""); setImportError(null); setImportSuccess(false); }}
+                    title="Import"
+                    style={{
+                      width: 34, height: 34, borderRadius: "50%", border: "1.5px solid #E5E5EA",
+                      background: "#fff", cursor: "pointer", fontSize: 16,
+                      display: "flex", alignItems: "center", justifyContent: "center", color: "#3C3C43",
+                    }}
+                  >
+                    ↓
+                  </button>
+                )}
+
+                {/* Save icon (signed in only) */}
+                {isSignedIn && (
+                  <button
+                    onClick={handleSave}
+                    disabled={!loaded}
+                    title={savedFlag ? t("saved") : t("save")}
+                    style={{
+                      width: 34, height: 34, borderRadius: "50%", border: "none",
+                      cursor: loaded ? "pointer" : "default",
+                      background: savedFlag ? "#34C759" : !loaded ? "#A0C4FF" : isDirty ? "#FF9500" : "#007AFF",
+                      color: "#fff", fontSize: 15, display: "flex", alignItems: "center", justifyContent: "center",
+                      transition: "background 0.3s",
+                    }}
+                  >
+                    {savedFlag ? "✓" : isDirty ? "●" : "↑"}
+                  </button>
+                )}
+
+                {/* Auth (UserButton or SignIn) */}
+                {CLERK_ENABLED && <AuthBridge onAuthChange={handleAuthChange} isMobile={false} signInLabel={t("signIn")} />}
+              </div>
+            </div>
+
+            {/* Row 2: tabs in a single scrollable row */}
+            <div style={{
+              display: "flex", gap: 4, overflowX: "auto", paddingBottom: 8,
+              scrollbarWidth: "none", msOverflowStyle: "none",
+            }}>
+              {["overview", "expenses", "income", "suggestions"].map(tab => (
+                <button
+                  key={tab}
+                  ref={el => { tabRefs.current[tab] = el; }}
+                  onClick={() => setActiveTab(tab)}
+                  style={{
+                    flexShrink: 0,
+                    padding: "6px 12px",
+                    borderRadius: 20,
+                    border: "none",
+                    cursor: "pointer",
+                    fontSize: 13,
+                    fontWeight: 500,
+                    background: activeTab === tab ? "#007AFF" : "transparent",
+                    color: activeTab === tab ? "#fff" : "#3C3C43",
+                    transition: "all 0.2s",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {t(`tab_${tab}`)}
+                </button>
+              ))}
+            </div>
           </div>
-          <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-            {["overview", "expenses", "income", "suggestions"].map((tab) => (
+        ) : (
+          /* ── Desktop header ── */
+          <div
+            style={{
+              maxWidth: contentWidth,
+              margin: "0 auto",
+              display: "flex",
+              flexDirection: "row",
+              alignItems: "center",
+              justifyContent: "space-between",
+              minHeight: 56,
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <span style={{ fontSize: 22 }}>💳</span>
+              <span style={{ fontSize: 17, fontWeight: 600, letterSpacing: "-0.3px" }}>{t("appTitle")}</span>
+            </div>
+            <div style={{ display: "flex", gap: 6 }}>
+              {["overview", "expenses", "income", "suggestions"].map((tab) => (
+                <button
+                  key={tab}
+                  ref={(el) => { tabRefs.current[tab] = el; }}
+                  onClick={() => setActiveTab(tab)}
+                  style={{
+                    padding: "6px 14px", borderRadius: 20, border: "none", cursor: "pointer",
+                    fontSize: 13, fontWeight: 500,
+                    background: activeTab === tab ? "#007AFF" : "transparent",
+                    color: activeTab === tab ? "#fff" : "#3C3C43",
+                    transition: "all 0.2s",
+                  }}
+                >
+                  {t(`tab_${tab}`)}
+                </button>
+              ))}
+            </div>
+            <div style={{ position: "relative", display: "none" }} ref={syncPanelRef}>
               <button
-                key={tab}
-                ref={(el) => { tabRefs.current[tab] = el; }}
-                onClick={() => setActiveTab(tab)}
+                onClick={() => { setShowSync((v) => !v); setSyncInput(""); }}
+                title="Sync across devices"
                 style={{
-                  padding: "6px 14px",
-                  borderRadius: 20,
-                  border: "none",
-                  cursor: "pointer",
-                  fontSize: 13,
-                  fontWeight: 500,
-                  background: activeTab === tab ? "#007AFF" : "transparent",
-                  color: activeTab === tab ? "#fff" : "#3C3C43",
-                  transition: "all 0.2s",
+                  padding: "7px 14px", borderRadius: 20, border: "1.5px solid #E5E5EA",
+                  cursor: "pointer", fontSize: 13, fontWeight: 600,
+                  background: showSync ? "#F2F2F7" : "#fff", color: "#3C3C43",
+                  display: "flex", alignItems: "center", gap: 5,
                 }}
               >
-                {t(`tab_${tab}`)}
+                🔗 Sync
               </button>
-            ))}
-          </div>
-          <div style={{ position: "relative", display: "none" }} ref={syncPanelRef}>
-            <button
-              onClick={() => { setShowSync((v) => !v); setSyncInput(""); }}
-              title="Sync across devices"
-              style={{
-                padding: "7px 14px",
-                borderRadius: 20,
-                border: "1.5px solid #E5E5EA",
-                cursor: "pointer",
-                fontSize: 13,
-                fontWeight: 600,
-                background: showSync ? "#F2F2F7" : "#fff",
-                color: "#3C3C43",
-                display: "flex",
-                alignItems: "center",
-                gap: 5,
-                alignSelf: isMobile ? "stretch" : "auto",
-              }}
-            >
-              🔗 Sync
-            </button>
-            {showSync && (
-              <div style={{
-                position: "absolute",
-                top: "calc(100% + 10px)",
-                right: 0,
-                background: "#fff",
-                border: "1.5px solid #E5E5EA",
-                borderRadius: 16,
-                padding: 20,
-                width: 280,
-                boxShadow: "0 8px 32px rgba(0,0,0,0.12)",
-                zIndex: 100,
-              }}>
-                <p style={{ margin: "0 0 6px", fontSize: 13, fontWeight: 700, color: "#1C1C1E" }}>Your sync code</p>
-                <p style={{ margin: "0 0 12px", fontSize: 11, color: "#8E8E93", lineHeight: 1.4 }}>
-                  Share this code with another device to see the same data.
-                </p>
-                <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
-                  <div style={{
-                    flex: 1,
-                    background: "#F2F2F7",
-                    borderRadius: 10,
-                    padding: "10px 14px",
-                    fontSize: 20,
-                    fontWeight: 700,
-                    letterSpacing: 4,
-                    color: "#007AFF",
-                    textAlign: "center",
-                    fontFamily: "monospace",
-                  }}>
-                    {syncId}
+              {showSync && (
+                <div style={{
+                  position: "absolute", top: "calc(100% + 10px)", right: 0,
+                  background: "#fff", border: "1.5px solid #E5E5EA", borderRadius: 16,
+                  padding: 20, width: 280, boxShadow: "0 8px 32px rgba(0,0,0,0.12)", zIndex: 100,
+                }}>
+                  <p style={{ margin: "0 0 6px", fontSize: 13, fontWeight: 700, color: "#1C1C1E" }}>Your sync code</p>
+                  <p style={{ margin: "0 0 12px", fontSize: 11, color: "#8E8E93", lineHeight: 1.4 }}>
+                    Share this code with another device to see the same data.
+                  </p>
+                  <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
+                    <div style={{
+                      flex: 1, background: "#F2F2F7", borderRadius: 10, padding: "10px 14px",
+                      fontSize: 20, fontWeight: 700, letterSpacing: 4, color: "#007AFF",
+                      textAlign: "center", fontFamily: "monospace",
+                    }}>
+                      {syncId}
+                    </div>
+                    <button
+                      onClick={() => { navigator.clipboard.writeText(syncId).then(() => { setCopied(true); setTimeout(() => setCopied(false), 2000); }); }}
+                      style={{
+                        padding: "0 14px", borderRadius: 10, border: "none", cursor: "pointer",
+                        background: copied ? "#34C759" : "#007AFF", color: "#fff",
+                        fontSize: 12, fontWeight: 600, transition: "background 0.2s", whiteSpace: "nowrap",
+                      }}
+                    >
+                      {copied ? "✓" : "Copy"}
+                    </button>
                   </div>
-                  <button
-                    onClick={() => {
-                      navigator.clipboard.writeText(syncId).then(() => {
-                        setCopied(true);
-                        setTimeout(() => setCopied(false), 2000);
-                      });
-                    }}
-                    style={{
-                      padding: "0 14px",
-                      borderRadius: 10,
-                      border: "none",
-                      cursor: "pointer",
-                      background: copied ? "#34C759" : "#007AFF",
-                      color: "#fff",
-                      fontSize: 12,
-                      fontWeight: 600,
-                      transition: "background 0.2s",
-                      whiteSpace: "nowrap",
-                    }}
-                  >
-                    {copied ? "✓" : "Copy"}
-                  </button>
+                  <p style={{ margin: "0 0 8px", fontSize: 13, fontWeight: 700, color: "#1C1C1E" }}>Use another code</p>
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <input
+                      value={syncInput}
+                      onChange={e => setSyncInput(e.target.value.toUpperCase())}
+                      placeholder="Enter code…"
+                      maxLength={10}
+                      style={{
+                        flex: 1, padding: "9px 12px", borderRadius: 10, border: "1.5px solid #E5E5EA",
+                        fontSize: 15, fontWeight: 700, letterSpacing: 3, fontFamily: "monospace",
+                        outline: "none", textTransform: "uppercase",
+                      }}
+                    />
+                    <button
+                      onClick={() => applyNewSyncId(syncInput)}
+                      disabled={!syncInput.trim()}
+                      style={{
+                        padding: "0 14px", borderRadius: 10, border: "none",
+                        cursor: syncInput.trim() ? "pointer" : "default",
+                        background: syncInput.trim() ? "#007AFF" : "#E5E5EA",
+                        color: syncInput.trim() ? "#fff" : "#8E8E93",
+                        fontSize: 12, fontWeight: 600,
+                      }}
+                    >
+                      Apply
+                    </button>
+                  </div>
                 </div>
-                <p style={{ margin: "0 0 8px", fontSize: 13, fontWeight: 700, color: "#1C1C1E" }}>Use another code</p>
-                <div style={{ display: "flex", gap: 8 }}>
-                  <input
-                    value={syncInput}
-                    onChange={(e) => setSyncInput(e.target.value.toUpperCase())}
-                    placeholder="Enter code…"
-                    maxLength={10}
-                    style={{
-                      flex: 1,
-                      padding: "9px 12px",
-                      borderRadius: 10,
-                      border: "1.5px solid #E5E5EA",
-                      fontSize: 15,
-                      fontWeight: 700,
-                      letterSpacing: 3,
-                      fontFamily: "monospace",
-                      outline: "none",
-                      textTransform: "uppercase",
-                    }}
-                  />
-                  <button
-                    onClick={() => applyNewSyncId(syncInput)}
-                    disabled={!syncInput.trim()}
-                    style={{
-                      padding: "0 14px",
-                      borderRadius: 10,
-                      border: "none",
-                      cursor: syncInput.trim() ? "pointer" : "default",
-                      background: syncInput.trim() ? "#007AFF" : "#E5E5EA",
-                      color: syncInput.trim() ? "#fff" : "#8E8E93",
-                      fontSize: 12,
-                      fontWeight: 600,
-                    }}
-                  >
-                    Apply
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-          {isSignedIn && (
-            <button
-              onClick={() => { setShowImport(true); setImportInput(""); setImportError(null); setImportSuccess(false); }}
-              title="Import data from a previous account"
-              style={{
-                padding: "7px 14px",
-                borderRadius: 20,
-                border: "1.5px solid #E5E5EA",
-                cursor: "pointer",
-                fontSize: 13,
-                fontWeight: 600,
-                background: "#fff",
-                color: "#3C3C43",
-                display: "flex",
-                alignItems: "center",
-                gap: 5,
-                alignSelf: isMobile ? "stretch" : "auto",
-              }}
-            >
-              ↓ Import
-            </button>
-          )}
-          {isSignedIn && (
-            <button
-              onClick={handleSave}
-              disabled={!loaded}
-              style={{
-                padding: "7px 16px",
-                borderRadius: 20,
-                border: "none",
-                cursor: loaded ? "pointer" : "default",
-                fontSize: 13,
-                fontWeight: 600,
-                background: savedFlag ? "#34C759" : !loaded ? "#A0C4FF" : isDirty ? "#FF9500" : "#007AFF",
-                color: "#fff",
-                transition: "all 0.3s",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: 5,
-                alignSelf: isMobile ? "stretch" : "auto",
-              }}
-            >
-              {savedFlag ? `✓ ${t("saved")}` : isDirty ? `● ${t("save")}` : t("save")}
-            </button>
-          )}
-          <div style={{ position: "relative", alignSelf: isMobile ? "stretch" : "auto" }} ref={langMenuRef}>
-            <button
-              onClick={() => setShowLangMenu((v) => !v)}
-              title="Language"
-              style={{
-                padding: "7px 12px",
-                borderRadius: 20,
-                border: "1.5px solid #E5E5EA",
-                cursor: "pointer",
-                fontSize: 13,
-                fontWeight: 600,
-                background: showLangMenu ? "#F2F2F7" : "#fff",
-                color: "#3C3C43",
-                display: "flex",
-                alignItems: "center",
-                gap: 6,
-                width: isMobile ? "100%" : "auto",
-                justifyContent: "center",
-              }}
-            >
-              {LANGUAGES.find((l) => l.code === lang)?.flag} {lang.toUpperCase()}
-            </button>
-            {showLangMenu && (
-              <div
+              )}
+            </div>
+            {isSignedIn && (
+              <button
+                onClick={() => { setShowImport(true); setImportInput(""); setImportError(null); setImportSuccess(false); }}
+                title="Import data from a previous account"
                 style={{
-                  position: "absolute",
-                  top: "calc(100% + 8px)",
-                  right: 0,
-                  background: "#fff",
-                  border: "1.5px solid #E5E5EA",
-                  borderRadius: 12,
-                  padding: 6,
-                  minWidth: 160,
-                  boxShadow: "0 8px 32px rgba(0,0,0,0.12)",
-                  zIndex: 200,
+                  padding: "7px 14px", borderRadius: 20, border: "1.5px solid #E5E5EA",
+                  cursor: "pointer", fontSize: 13, fontWeight: 600,
+                  background: "#fff", color: "#3C3C43",
+                  display: "flex", alignItems: "center", gap: 5,
                 }}
               >
-                {LANGUAGES.map((l) => (
-                  <button
-                    key={l.code}
-                    onClick={() => changeLang(l.code)}
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 8,
-                      width: "100%",
-                      padding: "8px 10px",
-                      borderRadius: 8,
-                      border: "none",
-                      cursor: "pointer",
-                      fontSize: 14,
-                      fontWeight: lang === l.code ? 700 : 500,
-                      background: lang === l.code ? "#F2F2F7" : "transparent",
-                      color: "#1C1C1E",
-                      textAlign: "left",
-                    }}
-                  >
-                    <span style={{ fontSize: 16 }}>{l.flag}</span>
-                    {l.label}
-                    {lang === l.code && <span style={{ marginLeft: "auto", color: "#007AFF" }}>✓</span>}
-                  </button>
-                ))}
-              </div>
+                ↓ Import
+              </button>
             )}
+            {isSignedIn && (
+              <button
+                onClick={handleSave}
+                disabled={!loaded}
+                style={{
+                  padding: "7px 16px", borderRadius: 20, border: "none",
+                  cursor: loaded ? "pointer" : "default", fontSize: 13, fontWeight: 600,
+                  background: savedFlag ? "#34C759" : !loaded ? "#A0C4FF" : isDirty ? "#FF9500" : "#007AFF",
+                  color: "#fff", transition: "all 0.3s",
+                  display: "flex", alignItems: "center", justifyContent: "center", gap: 5,
+                }}
+              >
+                {savedFlag ? `✓ ${t("saved")}` : isDirty ? `● ${t("save")}` : t("save")}
+              </button>
+            )}
+            <div style={{ position: "relative" }} ref={langMenuRef}>
+              <button
+                onClick={() => setShowLangMenu((v) => !v)}
+                title="Language"
+                style={{
+                  padding: "7px 12px", borderRadius: 20, border: "1.5px solid #E5E5EA",
+                  cursor: "pointer", fontSize: 13, fontWeight: 600,
+                  background: showLangMenu ? "#F2F2F7" : "#fff", color: "#3C3C43",
+                  display: "flex", alignItems: "center", gap: 6,
+                }}
+              >
+                {LANGUAGES.find((l) => l.code === lang)?.flag} {lang.toUpperCase()}
+              </button>
+              {showLangMenu && (
+                <div style={{
+                  position: "absolute", top: "calc(100% + 8px)", right: 0,
+                  background: "#fff", border: "1.5px solid #E5E5EA", borderRadius: 12,
+                  padding: 6, minWidth: 160, boxShadow: "0 8px 32px rgba(0,0,0,0.12)", zIndex: 200,
+                }}>
+                  {LANGUAGES.map((l) => (
+                    <button key={l.code} onClick={() => changeLang(l.code)} style={{
+                      display: "flex", alignItems: "center", gap: 8, width: "100%",
+                      padding: "8px 10px", borderRadius: 8, border: "none", cursor: "pointer",
+                      fontSize: 14, fontWeight: lang === l.code ? 700 : 500,
+                      background: lang === l.code ? "#F2F2F7" : "transparent",
+                      color: "#1C1C1E", textAlign: "left",
+                    }}>
+                      <span style={{ fontSize: 16 }}>{l.flag}</span>
+                      {l.label}
+                      {lang === l.code && <span style={{ marginLeft: "auto", color: "#007AFF" }}>✓</span>}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+            {CLERK_ENABLED && <AuthBridge onAuthChange={handleAuthChange} isMobile={false} signInLabel={t("signIn")} />}
           </div>
-          {CLERK_ENABLED && <AuthBridge onAuthChange={handleAuthChange} isMobile={isMobile} signInLabel={t("signIn")} />}
-        </div>
+        )}
       </div>
 
       {CLERK_ENABLED && !isSignedIn && loaded && (
@@ -1474,18 +1491,20 @@ export default function App() {
               }}
             >
               {[
-                { label: t("card_monthlyIncome"), value: totalIncome, color: "#34C759", sub: t("card_totalEarnings"), pct: null },
-                { label: t("card_monthlyExpenses"), value: totalExpenses + investMonthly, color: "#FF3B30", sub: t("card_allOutgoings"), pct: totalIncome > 0 ? ((totalExpenses + investMonthly) / totalIncome) * 100 : null },
+                { label: t("card_monthlyIncome"), value: totalIncome, color: "#34C759", sub: t("card_totalEarnings"), pct: null, tab: "income" },
+                { label: t("card_monthlyExpenses"), value: totalExpenses + investMonthly, color: "#FF3B30", sub: t("card_allOutgoings"), pct: totalIncome > 0 ? ((totalExpenses + investMonthly) / totalIncome) * 100 : null, tab: "expenses" },
                 {
                   label: savings >= 0 ? t("card_netSavings") : t("card_deficit"),
                   value: Math.abs(savings),
                   color: savings >= 0 ? "#007AFF" : "#FF3B30",
                   sub: savings >= 0 ? t("card_afterAll") : t("card_overBudget"),
                   pct: totalIncome > 0 ? (savings / totalIncome) * 100 : null,
+                  tab: null,
                 },
               ].map((card) => (
                 <div
                   key={card.label}
+                  onClick={() => card.tab && setActiveTab(card.tab)}
                   style={{
                     background: "#fff",
                     borderRadius: 18,
@@ -1494,7 +1513,11 @@ export default function App() {
                     display: "flex",
                     justifyContent: "space-between",
                     alignItems: "center",
+                    cursor: card.tab ? "pointer" : "default",
+                    transition: "transform 0.15s ease, box-shadow 0.15s ease",
                   }}
+                  onMouseEnter={e => { if (card.tab) { e.currentTarget.style.transform = "translateY(-2px)"; e.currentTarget.style.boxShadow = "0 6px 20px rgba(0,0,0,0.10)"; } }}
+                  onMouseLeave={e => { e.currentTarget.style.transform = ""; e.currentTarget.style.boxShadow = "0 2px 12px rgba(0,0,0,0.06)"; }}
                 >
                   <div>
                     <div
