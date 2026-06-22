@@ -1205,39 +1205,6 @@ export default function App() {
                   )}
                 </div>
 
-                {/* Import icon (signed in only) */}
-                {isSignedIn && (
-                  <button
-                    onClick={() => { setShowImport(true); setImportInput(""); setImportError(null); setImportSuccess(false); }}
-                    title="Import"
-                    style={{
-                      width: 34, height: 34, borderRadius: "50%", border: "1.5px solid #E5E5EA",
-                      background: "#fff", cursor: "pointer", fontSize: 16,
-                      display: "flex", alignItems: "center", justifyContent: "center", color: "#3C3C43",
-                    }}
-                  >
-                    ↓
-                  </button>
-                )}
-
-                {/* Save icon (signed in only) */}
-                {isSignedIn && (
-                  <button
-                    onClick={handleSave}
-                    disabled={!loaded}
-                    title={savedFlag ? t("saved") : t("save")}
-                    style={{
-                      width: 34, height: 34, borderRadius: "50%", border: "none",
-                      cursor: loaded ? "pointer" : "default",
-                      background: savedFlag ? "#34C759" : !loaded ? "#A0C4FF" : isDirty ? "#FF9500" : "#007AFF",
-                      color: "#fff", fontSize: 15, display: "flex", alignItems: "center", justifyContent: "center",
-                      transition: "background 0.3s",
-                    }}
-                  >
-                    {savedFlag ? "✓" : isDirty ? "●" : "↑"}
-                  </button>
-                )}
-
                 {/* Auth (UserButton or SignIn) */}
                 {CLERK_ENABLED && <AuthBridge onAuthChange={handleAuthChange} isMobile={false} signInLabel={t("signIn")} />}
               </div>
@@ -1379,35 +1346,6 @@ export default function App() {
                 </div>
               )}
             </div>
-            {isSignedIn && (
-              <button
-                onClick={() => { setShowImport(true); setImportInput(""); setImportError(null); setImportSuccess(false); }}
-                title="Import data from a previous account"
-                style={{
-                  padding: "7px 14px", borderRadius: 20, border: "1.5px solid #E5E5EA",
-                  cursor: "pointer", fontSize: 13, fontWeight: 600,
-                  background: "#fff", color: "#3C3C43",
-                  display: "flex", alignItems: "center", gap: 5,
-                }}
-              >
-                ↓ Import
-              </button>
-            )}
-            {isSignedIn && (
-              <button
-                onClick={handleSave}
-                disabled={!loaded}
-                style={{
-                  padding: "7px 16px", borderRadius: 20, border: "none",
-                  cursor: loaded ? "pointer" : "default", fontSize: 13, fontWeight: 600,
-                  background: savedFlag ? "#34C759" : !loaded ? "#A0C4FF" : isDirty ? "#FF9500" : "#007AFF",
-                  color: "#fff", transition: "all 0.3s",
-                  display: "flex", alignItems: "center", justifyContent: "center", gap: 5,
-                }}
-              >
-                {savedFlag ? `✓ ${t("saved")}` : isDirty ? `● ${t("save")}` : t("save")}
-              </button>
-            )}
             <div style={{ position: "relative" }} ref={langMenuRef}>
               <button
                 onClick={() => setShowLangMenu((v) => !v)}
@@ -2509,7 +2447,7 @@ export default function App() {
                       <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
                         {isEditing && (
                           <button
-                            onClick={() => { handleSave(); setEditingIncome(null); }}
+                            onClick={() => { setEditingIncome(null); }}
                             style={{
                               width: 28,
                               height: 28,
