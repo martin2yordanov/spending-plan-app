@@ -2590,8 +2590,6 @@ export default function App() {
                       <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
                         {isEditing && (
                           <button
-                            onClick={() => setEditingIncome(null)}
-                            style={{ width: 28, height: 28, borderRadius: "50%", border: "none", background: "#E8FFF0", color: "#34C759", cursor: "pointer", fontSize: 16, display: "flex", alignItems: "center", justifyContent: "center" }}
                           >
                             ✓
                           </button>
