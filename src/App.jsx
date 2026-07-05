@@ -674,6 +674,35 @@ export default function App() {
   const autoSaveTimerRef = useRef(null);
   const skipNextSaveRef = useRef(false);
   const tabRefs = useRef({});
+  const [activeTab, setActiveTab] = useState("overview");
+  const [editingIncome, setEditingIncome] = useState(null);
+  const [editingExpense, setEditingExpense] = useState(null);
+  const [editingExpenseAmountStr, setEditingExpenseAmountStr] = useState("");
+  const [addingExpense, setAddingExpense] = useState(false);
+  const [newExpense, setNewExpense] = useState({
+    name: "",
+    type: "",
+    category: "Personal",
+    amount: 0,
+    frequency: "Monthly",
+  });
+  const [addingIncome, setAddingIncome] = useState(false);
+  const [newIncome, setNewIncome] = useState({ name: "", amount: 0, frequency: "Monthly" });
+  const [savingsAccounts, setSavingsAccounts] = useState([]);
+  const [addingSavings, setAddingSavings] = useState(false);
+  const [newSavings, setNewSavings] = useState({ name: "", amount: 0, target: "", targetMonth: "" });
+  const [editingSavings, setEditingSavings] = useState(null);
+  const [categoryLimits, setCategoryLimits] = useState({});
+  const [editingLimitCat, setEditingLimitCat] = useState(null);
+  const [limitInput, setLimitInput] = useState("");
+  const [bills, setBills] = useState([]);
+  const [addingBill, setAddingBill] = useState(false);
+  const [newBill, setNewBill] = useState({ name: "", amount: 0, dueDay: 1 });
+  const [savedFlag, setSavedFlag] = useState(false);
+  const [filterCat, setFilterCat] = useState("All");
+  const [suggestions, setSuggestions] = useState("");
+  const [suggestionsLoading, setSuggestionsLoading] = useState(false);
+  const [suggestionsError, setSuggestionsError] = useState(null);
 
   // Data is only persisted for signed-in users (keyed by Clerk user id).
   // Logged-out visitors see read-only example data.
@@ -709,6 +738,8 @@ export default function App() {
     setExpenses(DEFAULT_EXPENSES);
     setInvest(0);
     setEmergencyMonths(3);
+    setCategoryLimits({});
+    setBills([]);
     setSyncInput("");
     setShowSync(false);
     setIsDirty(false);
@@ -733,6 +764,8 @@ export default function App() {
       if (data.investLabel) setInvestLabel(data.investLabel);
       if (data.emergencyMonths != null) setEmergencyMonths(data.emergencyMonths);
       if (data.savingsAccounts) setSavingsAccounts(data.savingsAccounts);
+      if (data.categoryLimits) setCategoryLimits(data.categoryLimits);
+      if (data.bills) setBills(data.bills);
       await saveData(auth.userId, data);
       setImportSuccess(true);
       setImportInput("");
@@ -752,6 +785,8 @@ export default function App() {
       setExpenses(EXAMPLE_EXPENSES);
       setInvest(EXAMPLE_INVEST);
       setEmergencyMonths(3);
+      setCategoryLimits({});
+      setBills([]);
       setLoadError(null);
       setLoaded(true);
       return;
@@ -772,6 +807,8 @@ export default function App() {
           if (saved.investLabel) setInvestLabel(saved.investLabel);
           if (saved.emergencyMonths != null) setEmergencyMonths(saved.emergencyMonths);
           if (saved.savingsAccounts) setSavingsAccounts(saved.savingsAccounts);
+          if (saved.categoryLimits) setCategoryLimits(saved.categoryLimits);
+          if (saved.bills) setBills(saved.bills);
           setLoaded(true);
         } else {
           // Brand-new account: check for pre-auth sync code data first.
@@ -791,6 +828,8 @@ export default function App() {
               if (legacy.investLabel) setInvestLabel(legacy.investLabel);
               if (legacy.emergencyMonths != null) setEmergencyMonths(legacy.emergencyMonths);
               if (legacy.savingsAccounts) setSavingsAccounts(legacy.savingsAccounts);
+              if (legacy.categoryLimits) setCategoryLimits(legacy.categoryLimits);
+              if (legacy.bills) setBills(legacy.bills);
               saveData(userId, legacy).finally(() => { if (!cancelled) setLoaded(true); });
             } else {
               // Truly new account: seed example data and run walkthrough.
@@ -831,14 +870,14 @@ export default function App() {
     setIsDirty(true);
     if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
     autoSaveTimerRef.current = setTimeout(() => {
-      saveData(auth.userId, { income, expenses, invest, investLabel, emergencyMonths, savingsAccounts }).then(() => {
+      saveData(auth.userId, { income, expenses, invest, investLabel, emergencyMonths, savingsAccounts, categoryLimits, bills }).then(() => {
         setIsDirty(false);
         setSavedFlag(true);
         setTimeout(() => setSavedFlag(false), 2000);
       });
     }, 2000);
     return () => { if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current); };
-  }, [loaded, income, expenses, invest, investLabel, emergencyMonths, savingsAccounts, auth?.userId]);
+  }, [loaded, income, expenses, invest, investLabel, emergencyMonths, savingsAccounts, categoryLimits, bills, auth?.userId]);
 
   useEffect(() => {
     if (!showSync) return;
@@ -873,49 +912,6 @@ export default function App() {
     document.addEventListener("mousedown", handleClick);
     return () => document.removeEventListener("mousedown", handleClick);
   }, [showLangMenu]);
-  const [activeTab, setActiveTab] = useState("overview");
-  const [editingIncome, setEditingIncome] = useState(null);
-  const [editingExpense, setEditingExpense] = useState(null);
-  const [editingExpenseAmountStr, setEditingExpenseAmountStr] = useState("");
-  const [addingExpense, setAddingExpense] = useState(false);
-  const [newExpense, setNewExpense] = useState({
-    name: "",
-    type: "",
-    category: "Personal",
-    amount: 0,
-    frequency: "Monthly",
-  });
-  const [addingIncome, setAddingIncome] = useState(false);
-  const [newIncome, setNewIncome] = useState({ name: "", amount: 0, frequency: "Monthly" });
-  const [savingsAccounts, setSavingsAccounts] = useState([]);
-  const [addingSavings, setAddingSavings] = useState(false);
-  const [newSavings, setNewSavings] = useState({ name: "", amount: 0 });
-  const [editingSavings, setEditingSavings] = useState(null);
-  const [savedFlag, setSavedFlag] = useState(false);
-  const [filterCat, setFilterCat] = useState("All");
-  const [suggestions, setSuggestions] = useState("");
-  const [suggestionsLoading, setSuggestionsLoading] = useState(false);
-  const [suggestionsError, setSuggestionsError] = useState(null);
-
-  const generateSuggestions = useCallback(async () => {
-    setSuggestionsLoading(true);
-    setSuggestionsError(null);
-    try {
-      const res = await fetch("/api/suggestions", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ income, expenses, invest, investLabel, emergencyMonths, savingsAccounts, totalSavingsBalance, lang }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data?.error ?? `API ${res.status}`);
-      setSuggestions(data.suggestions ?? "");
-    } catch (err) {
-      setSuggestionsError(err?.message ?? "Failed to generate suggestions");
-    } finally {
-      setSuggestionsLoading(false);
-    }
-  }, [income, expenses, invest, emergencyMonths, savingsAccounts, totalSavingsBalance, lang]);
-
   const totalIncome = income.reduce((sum, item) => sum + freqToMonthly(item.amount, item.frequency), 0);
   const totalExpenses = expenses.reduce((sum, item) => sum + freqToMonthly(item.amount, item.frequency), 0);
   const totalSavingsBalance = savingsAccounts.reduce((sum, a) => sum + (a.amount || 0), 0);
@@ -936,15 +932,62 @@ export default function App() {
   const monthlyExpenses = totalExpenses + investMonthly;
   const emergencyTarget = monthlyExpenses * emergencyMonths;
 
+  // Safe-to-spend: what's left this month spread over the remaining days (incl. today).
+  const now = new Date();
+  const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+  const daysLeftInMonth = daysInMonth - now.getDate() + 1;
+  const safeToSpendDaily = savings / daysLeftInMonth;
+
+  // Bills sorted by next due date, with days-until for reminder coloring.
+  const sortedBills = useMemo(() => {
+    const today = new Date();
+    const startOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    return bills
+      .map((bill) => {
+        const day = Math.min(Math.max(1, Math.round(bill.dueDay) || 1), 31);
+        let year = today.getFullYear();
+        let month = today.getMonth();
+        if (day < today.getDate()) {
+          month += 1;
+          if (month > 11) { month = 0; year += 1; }
+        }
+        const lastDay = new Date(year, month + 1, 0).getDate();
+        const due = new Date(year, month, Math.min(day, lastDay));
+        const daysUntil = Math.round((due - startOfToday) / 86400000);
+        return { ...bill, due, daysUntil };
+      })
+      .sort((a, b) => a.daysUntil - b.daysUntil);
+  }, [bills]);
+  const billsTotal = bills.reduce((sum, bill) => sum + (parseFloat(bill.amount) || 0), 0);
+
+  const generateSuggestions = useCallback(async () => {
+    setSuggestionsLoading(true);
+    setSuggestionsError(null);
+    try {
+      const res = await fetch("/api/suggestions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ income, expenses, invest, investLabel, emergencyMonths, savingsAccounts, totalSavingsBalance, categoryLimits, bills, lang }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error ?? `API ${res.status}`);
+      setSuggestions(data.suggestions ?? "");
+    } catch (err) {
+      setSuggestionsError(err?.message ?? "Failed to generate suggestions");
+    } finally {
+      setSuggestionsLoading(false);
+    }
+  }, [income, expenses, invest, investLabel, emergencyMonths, savingsAccounts, totalSavingsBalance, categoryLimits, bills, lang]);
+
   const handleSave = useCallback(() => {
     if (!loaded || !auth?.userId) return;
     if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
-    saveData(auth.userId, { income, expenses, invest, investLabel, emergencyMonths, savingsAccounts }).then(() => {
+    saveData(auth.userId, { income, expenses, invest, investLabel, emergencyMonths, savingsAccounts, categoryLimits, bills }).then(() => {
       setIsDirty(false);
       setSavedFlag(true);
       window.setTimeout(() => setSavedFlag(false), 2000);
     });
-  }, [emergencyMonths, expenses, income, invest, loaded, auth, savingsAccounts]);
+  }, [emergencyMonths, expenses, income, invest, investLabel, loaded, auth, savingsAccounts, categoryLimits, bills]);
 
   const handleExportPDF = useCallback(() => {
     const date = new Date().toLocaleDateString("en-GB", { year: "numeric", month: "long", day: "numeric" });
@@ -1430,6 +1473,41 @@ export default function App() {
           <div>
             <div
               style={{
+                borderRadius: 18,
+                padding: isMobile ? "18px 20px" : "20px 24px",
+                marginBottom: 14,
+                color: "#fff",
+                background: savings >= 0
+                  ? "linear-gradient(135deg, #007AFF 0%, #5AC8FA 100%)"
+                  : "linear-gradient(135deg, #FF3B30 0%, #FF9500 100%)",
+                boxShadow: savings >= 0 ? "0 6px 24px rgba(0,122,255,0.25)" : "0 6px 24px rgba(255,59,48,0.25)",
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                gap: 14,
+                flexWrap: "wrap",
+              }}
+            >
+              <div>
+                <div style={{ fontSize: 12, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.6px", opacity: 0.85, marginBottom: 4 }}>
+                  {savings >= 0 ? `☀️ ${t("sts_title")}` : `⚠️ ${t("sts_overTitle")}`}
+                </div>
+                <div style={{ fontSize: 34, fontWeight: 800, letterSpacing: "-1px", lineHeight: 1.1 }}>
+                  €{fmt(Math.abs(safeToSpendDaily))}
+                  <span style={{ fontSize: 15, fontWeight: 500, opacity: 0.85 }}>{t("sts_perDay")}</span>
+                </div>
+              </div>
+              <div style={{ textAlign: isMobile ? "left" : "right", fontSize: 13, fontWeight: 500, opacity: 0.95, lineHeight: 1.5 }}>
+                {savings >= 0
+                  ? t("sts_leftThisMonth", { x: fmt(savings) })
+                  : t("sts_overThisMonth", { x: fmt(Math.abs(savings)) })}
+                <br />
+                {t("sts_daysLeft", { n: daysLeftInMonth })}
+              </div>
+            </div>
+
+            <div
+              style={{
                 display: "grid",
                 gridTemplateColumns: threeColGrid,
                 gap: 14,
@@ -1570,6 +1648,24 @@ export default function App() {
                     const pct = totalIncome > 0 ? (item.value / totalIncome) * 100 : 0;
                     const isActive = activeCategory === item.name;
                     const hasActive = activeCategory !== null;
+                    const limit = parseFloat(categoryLimits[item.name]) || 0;
+                    const limitPct = limit > 0 ? (item.value / limit) * 100 : 0;
+                    const overLimit = limit > 0 && limitPct > 100;
+                    const nearLimit = limit > 0 && !overLimit && limitPct >= 90;
+                    const barPct = limit > 0 ? limitPct : pct;
+                    const barColor = overLimit ? "#FF3B30" : nearLimit ? "#FF9500" : item.color;
+                    const isEditingLimit = editingLimitCat === item.name;
+                    const commitLimit = () => {
+                      const n = parseFloat(limitInput);
+                      setCategoryLimits((current) => {
+                        const next = { ...current };
+                        if (isNaN(n) || n <= 0) delete next[item.name];
+                        else next[item.name] = n;
+                        return next;
+                      });
+                      setEditingLimitCat(null);
+                      setLimitInput("");
+                    };
                     return (
                       <div
                         key={item.name}
@@ -1584,24 +1680,86 @@ export default function App() {
                         onMouseLeave={() => setActiveCategory(null)}
                         onClick={() => openCatModal(item.name)}
                       >
-                        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4, gap: 10 }}>
-                          <span style={{ fontSize: 12, fontWeight: isActive ? 700 : 500, color: isActive ? "#1C1C1E" : "#3C3C43" }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4, gap: 10 }}>
+                          <span style={{ fontSize: 12, fontWeight: isActive ? 700 : 500, color: isActive ? "#1C1C1E" : "#3C3C43", display: "flex", alignItems: "center", gap: 6 }}>
                             {(CATEGORY_COLORS[item.name] || CATEGORY_COLORS.Other).icon} {t.cat(item.name)}
+                            {overLimit && (
+                              <span style={{ fontSize: 10, fontWeight: 700, color: "#fff", background: "#FF3B30", padding: "1px 6px", borderRadius: 6, whiteSpace: "nowrap" }}>
+                                {t("overLimit")}
+                              </span>
+                            )}
+                            {nearLimit && (
+                              <span style={{ fontSize: 10, fontWeight: 700, color: "#fff", background: "#FF9500", padding: "1px 6px", borderRadius: 6, whiteSpace: "nowrap" }}>
+                                {t("nearLimit")}
+                              </span>
+                            )}
                           </span>
                           <span style={{ fontSize: 12, fontWeight: 600, textAlign: "right" }}>
-                            €{fmt(item.value)} <span style={{ color: "#8E8E93", fontWeight: 400 }}>({pct.toFixed(0)}%)</span>
+                            €{fmt(item.value)}{" "}
+                            <span style={{ color: overLimit ? "#FF3B30" : nearLimit ? "#FF9500" : "#8E8E93", fontWeight: limit > 0 ? 600 : 400 }}>
+                              {limit > 0 ? `/ €${fmt(limit)} (${limitPct.toFixed(0)}%)` : `(${pct.toFixed(0)}%)`}
+                            </span>
                           </span>
                         </div>
                         <div style={{ background: "#F2F2F7", borderRadius: 4, height: 6, overflow: "hidden" }}>
                           <div
                             style={{
-                              width: `${Math.min(pct, 100)}%`,
+                              width: `${Math.min(barPct, 100)}%`,
                               height: "100%",
-                              background: item.color,
+                              background: barColor,
                               borderRadius: 4,
-                              transition: "width 0.6s ease",
+                              transition: "width 0.6s ease, background 0.3s ease",
                             }}
                           />
+                        </div>
+                        <div style={{ marginTop: 3 }} onClick={(e) => e.stopPropagation()}>
+                          {isEditingLimit ? (
+                            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                              <input
+                                autoFocus
+                                type="text"
+                                inputMode="decimal"
+                                value={limitInput}
+                                onChange={(e) => setLimitInput(e.target.value)}
+                                onKeyDown={(e) => { if (e.key === "Enter") commitLimit(); if (e.key === "Escape") { setEditingLimitCat(null); setLimitInput(""); } }}
+                                placeholder={t("ph_limit")}
+                                style={{
+                                  width: 90, fontSize: 12, fontWeight: 600, color: item.color,
+                                  border: "none", borderBottom: `2px solid ${item.color}`,
+                                  background: "transparent", outline: "none", padding: "1px 0",
+                                }}
+                              />
+                              <button
+                                onClick={commitLimit}
+                                style={{ border: "none", background: item.color, color: "#fff", fontSize: 11, fontWeight: 600, padding: "3px 10px", borderRadius: 8, cursor: "pointer" }}
+                              >
+                                {t("btn_save_limit")}
+                              </button>
+                              {limit > 0 && (
+                                <button
+                                  onClick={() => {
+                                    setCategoryLimits((current) => {
+                                      const next = { ...current };
+                                      delete next[item.name];
+                                      return next;
+                                    });
+                                    setEditingLimitCat(null);
+                                    setLimitInput("");
+                                  }}
+                                  style={{ border: "none", background: "transparent", color: "#FF3B30", fontSize: 11, fontWeight: 600, padding: "3px 4px", cursor: "pointer" }}
+                                >
+                                  {t("removeLimit")}
+                                </button>
+                              )}
+                            </div>
+                          ) : (
+                            <button
+                              onClick={() => { setEditingLimitCat(item.name); setLimitInput(limit > 0 ? String(limit) : ""); }}
+                              style={{ border: "none", background: "transparent", color: limit > 0 ? "#8E8E93" : "#007AFF", fontSize: 11, fontWeight: 500, padding: 0, cursor: "pointer" }}
+                            >
+                              {limit > 0 ? `✎ ${t("editLimit")}` : `+ ${t("setLimit")}`}
+                            </button>
+                          )}
                         </div>
                       </div>
                     );
@@ -1730,6 +1888,128 @@ export default function App() {
                   </>
                 )}
               </div>
+            </div>
+
+            <div style={{ background: "#fff", borderRadius: 18, padding: 22, boxShadow: "0 2px 12px rgba(0,0,0,0.06)", marginTop: 14 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4, gap: 10, flexWrap: "wrap" }}>
+                <div style={{ fontSize: 15, fontWeight: 600 }}>🔔 {t("bills_title")}</div>
+                {bills.length > 0 && (
+                  <div style={{ fontSize: 13, color: "#8E8E93" }}>
+                    {t("bills_total")}: <strong style={{ color: "#1C1C1E" }}>€{fmt(billsTotal)}{t("perMo")}</strong>
+                  </div>
+                )}
+              </div>
+              <div style={{ fontSize: 12, color: "#8E8E93", marginBottom: 14 }}>{t("bills_sub")}</div>
+              {sortedBills.length === 0 && !addingBill && (
+                <div style={{ fontSize: 13, color: "#8E8E93", padding: "8px 0 14px" }}>{t("bills_empty")}</div>
+              )}
+              <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 12 }}>
+                {sortedBills.map((bill) => {
+                  const urgent = bill.daysUntil <= 3;
+                  const soon = !urgent && bill.daysUntil <= 7;
+                  const dueColor = urgent ? "#FF3B30" : soon ? "#FF9500" : "#8E8E93";
+                  const dueLabel = bill.daysUntil === 0
+                    ? t("bill_dueToday")
+                    : bill.daysUntil === 1
+                      ? t("bill_dueTomorrow")
+                      : t("bill_dueInDays", { n: bill.daysUntil });
+                  return (
+                    <div
+                      key={bill.id}
+                      style={{
+                        display: "flex", alignItems: "center", gap: 12,
+                        padding: "10px 12px", borderRadius: 12,
+                        background: urgent ? "#FF3B300D" : soon ? "#FF95000D" : "#F9F9FB",
+                        border: `1.5px solid ${urgent ? "#FF3B3030" : soon ? "#FF950030" : "transparent"}`,
+                      }}
+                    >
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 14, fontWeight: 600, color: "#1C1C1E", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{bill.name}</div>
+                        <div style={{ fontSize: 11, color: "#8E8E93" }}>{t("bill_dayOfMonth", { d: bill.dueDay })}</div>
+                      </div>
+                      <span style={{ fontSize: 11, fontWeight: 700, color: dueColor, background: `${dueColor}15`, padding: "3px 8px", borderRadius: 8, whiteSpace: "nowrap", flexShrink: 0 }}>
+                        {dueLabel}
+                      </span>
+                      <div style={{ fontSize: 15, fontWeight: 700, color: "#1C1C1E", flexShrink: 0 }}>€{fmt(bill.amount)}</div>
+                      <button
+                        onClick={() => setBills((current) => current.filter((b) => b.id !== bill.id))}
+                        style={{
+                          width: 24, height: 24, borderRadius: "50%", border: "none",
+                          background: "#FFE5E5", color: "#FF3B30", cursor: "pointer", fontSize: 13,
+                          display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+                        }}
+                      >
+                        ×
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+              {addingBill ? (
+                <div style={{ display: "flex", flexDirection: "column", gap: 12, padding: "14px", borderRadius: 12, border: "2px solid #007AFF", background: "#F0F4FF" }}>
+                  <input
+                    autoFocus
+                    placeholder={t("ph_billName")}
+                    value={newBill.name}
+                    onChange={(e) => setNewBill((c) => ({ ...c, name: e.target.value }))}
+                    style={{ fontSize: 14, fontWeight: 600, border: "none", borderBottom: "2px solid #007AFF", background: "transparent", outline: "none", paddingBottom: 2 }}
+                  />
+                  <div style={{ display: "flex", gap: 10 }}>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: 11, color: "#8E8E93", marginBottom: 4 }}>{t("col_amount")} (€)</div>
+                      <input
+                        type="text" inputMode="decimal" placeholder="0"
+                        value={newBill.amount || ""}
+                        onChange={(e) => setNewBill((c) => ({ ...c, amount: e.target.value }))}
+                        style={{ fontSize: 15, fontWeight: 700, color: "#007AFF", width: "100%", border: "none", borderBottom: "2px solid #007AFF", background: "transparent", outline: "none", paddingBottom: 2 }}
+                      />
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: 11, color: "#8E8E93", marginBottom: 4 }}>{t("bill_dueDay")}</div>
+                      <select
+                        value={newBill.dueDay}
+                        onChange={(e) => setNewBill((c) => ({ ...c, dueDay: Number(e.target.value) }))}
+                        style={{ fontSize: 13, width: "100%", border: "none", borderBottom: "2px solid #007AFF", background: "transparent", outline: "none", paddingBottom: 2, color: "#1C1C1E" }}
+                      >
+                        {Array.from({ length: 31 }, (_, i) => i + 1).map((d) => (
+                          <option key={d} value={d}>{d}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                  <div style={{ display: "flex", justifyContent: "space-between" }}>
+                    <button
+                      onClick={() => { setAddingBill(false); setNewBill({ name: "", amount: 0, dueDay: 1 }); }}
+                      style={{ padding: "7px 14px", borderRadius: 10, border: "none", background: "#F2F2F7", color: "#3C3C43", fontSize: 13, fontWeight: 600, cursor: "pointer" }}
+                    >
+                      {t("btn_cancel")}
+                    </button>
+                    <button
+                      onClick={() => {
+                        if (!newBill.name) return;
+                        setBills((current) => [...current, { id: Date.now(), name: newBill.name, amount: parseFloat(newBill.amount) || 0, dueDay: Math.min(Math.max(1, Math.round(newBill.dueDay) || 1), 31) }]);
+                        setNewBill({ name: "", amount: 0, dueDay: 1 });
+                        setAddingBill(false);
+                      }}
+                      style={{ padding: "7px 18px", borderRadius: 10, border: "none", background: "#007AFF", color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer" }}
+                    >
+                      + {t("addBill")}
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <button
+                  onClick={() => setAddingBill(true)}
+                  style={{
+                    width: "100%", padding: "12px", borderRadius: 12,
+                    border: "2px dashed #C7C7CC", background: "transparent",
+                    color: "#007AFF", fontSize: 13, fontWeight: 600, cursor: "pointer",
+                    display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
+                  }}
+                >
+                  <span style={{ fontSize: 16, lineHeight: 1 }}>+</span> {t("addBill")}
+                </button>
+              )}
             </div>
 
             {(() => {
@@ -2708,6 +2988,30 @@ export default function App() {
                               style={{ fontSize: 16, fontWeight: 700, color: "#30D158", width: "100%", border: "none", borderBottom: "2px solid #30D158", background: "transparent", outline: "none", paddingBottom: 2 }}
                             />
                           </div>
+                          <div style={{ display: "flex", gap: 10 }}>
+                            <div style={{ flex: 1 }}>
+                              <div style={{ fontSize: 11, color: "#8E8E93", marginBottom: 4 }}>{t("goal_targetAmount")}</div>
+                              <input
+                                type="text" inputMode="decimal" placeholder={t("goal_optional")}
+                                value={account.target ?? ""}
+                                onChange={e => setSavingsAccounts(s => s.map(a => a.id === account.id ? { ...a, target: e.target.value } : a))}
+                                onBlur={e => {
+                                  const n = parseFloat(e.target.value);
+                                  setSavingsAccounts(s => s.map(a => a.id === account.id ? { ...a, target: isNaN(n) || n <= 0 ? "" : n } : a));
+                                }}
+                                style={{ fontSize: 14, fontWeight: 600, color: "#30D158", width: "100%", border: "none", borderBottom: "2px solid #30D158", background: "transparent", outline: "none", paddingBottom: 2 }}
+                              />
+                            </div>
+                            <div style={{ flex: 1 }}>
+                              <div style={{ fontSize: 11, color: "#8E8E93", marginBottom: 4 }}>{t("goal_targetMonth")}</div>
+                              <input
+                                type="month"
+                                value={account.targetMonth ?? ""}
+                                onChange={e => setSavingsAccounts(s => s.map(a => a.id === account.id ? { ...a, targetMonth: e.target.value } : a))}
+                                style={{ fontSize: 13, width: "100%", border: "none", borderBottom: "2px solid #30D158", background: "transparent", outline: "none", paddingBottom: 2, color: "#1C1C1E" }}
+                              />
+                            </div>
+                          </div>
                           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 4 }}>
                             <button
                               onClick={() => setSavingsAccounts(s => s.filter(a => a.id !== account.id))}
@@ -2727,18 +3031,53 @@ export default function App() {
                           </div>
                         </div>
                       ) : (
-                        <div
-                          style={{ display: "flex", alignItems: "center", gap: 12, cursor: "pointer" }}
-                          onClick={() => setEditingSavings(account.id)}
-                        >
-                          <div style={{ flex: 1 }}>
-                            <div style={{ fontSize: 14, fontWeight: 600, color: "#1C1C1E", marginBottom: 2 }}>{account.name}</div>
-                            <div style={{ fontSize: 12, color: "#8E8E93" }}>{t("col_balance")}</div>
+                        <div style={{ cursor: "pointer" }} onClick={() => setEditingSavings(account.id)}>
+                          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                            <div style={{ flex: 1 }}>
+                              <div style={{ fontSize: 14, fontWeight: 600, color: "#1C1C1E", marginBottom: 2 }}>{account.name}</div>
+                              <div style={{ fontSize: 12, color: "#8E8E93" }}>{t("col_balance")}</div>
+                            </div>
+                            <div style={{ textAlign: "right", flexShrink: 0 }}>
+                              <div style={{ fontSize: 15, fontWeight: 700, color: "#30D158" }}>€{fmt(account.amount || 0)}</div>
+                            </div>
+                            <div style={{ color: "#C7C7CC", fontSize: 13 }}>›</div>
                           </div>
-                          <div style={{ textAlign: "right", flexShrink: 0 }}>
-                            <div style={{ fontSize: 15, fontWeight: 700, color: "#30D158" }}>€{fmt(account.amount || 0)}</div>
-                          </div>
-                          <div style={{ color: "#C7C7CC", fontSize: 13 }}>›</div>
+                          {(() => {
+                            const target = parseFloat(account.target) || 0;
+                            if (target <= 0) return null;
+                            const balance = parseFloat(account.amount) || 0;
+                            const goalPct = Math.min(100, (balance / target) * 100);
+                            const reached = balance >= target;
+                            let neededLine = null;
+                            if (!reached && /^\d{4}-\d{2}$/.test(account.targetMonth || "")) {
+                              const [ty, tm] = account.targetMonth.split("-").map(Number);
+                              const today = new Date();
+                              const monthsLeft = (ty - today.getFullYear()) * 12 + (tm - 1 - today.getMonth());
+                              const monthlyNeeded = monthsLeft > 0 ? (target - balance) / monthsLeft : target - balance;
+                              neededLine = monthsLeft > 0
+                                ? t("goal_needed", { x: fmt(monthlyNeeded) })
+                                : t("goal_pastDue", { x: fmt(target - balance) });
+                            }
+                            return (
+                              <div style={{ marginTop: 10 }}>
+                                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4, gap: 8 }}>
+                                  <span style={{ fontSize: 11, color: "#8E8E93" }}>
+                                    🎯 {t("goal_label")}: €{fmt(target)}
+                                    {account.targetMonth && /^\d{4}-\d{2}$/.test(account.targetMonth) ? ` · ${account.targetMonth}` : ""}
+                                  </span>
+                                  <span style={{ fontSize: 11, fontWeight: 700, color: reached ? "#30D158" : "#3C3C43" }}>
+                                    {reached ? t("goal_reached") : `${goalPct.toFixed(0)}%`}
+                                  </span>
+                                </div>
+                                <div style={{ background: "#F2F2F7", borderRadius: 4, height: 6, overflow: "hidden" }}>
+                                  <div style={{ width: `${goalPct}%`, height: "100%", background: "#30D158", borderRadius: 4, transition: "width 0.6s ease" }} />
+                                </div>
+                                {neededLine && (
+                                  <div style={{ fontSize: 11, color: "#8E8E93", marginTop: 4 }}>{neededLine}</div>
+                                )}
+                              </div>
+                            );
+                          })()}
                         </div>
                       )}
                     </div>
@@ -2763,15 +3102,41 @@ export default function App() {
                         style={{ fontSize: 16, fontWeight: 700, color: "#30D158", width: "100%", border: "none", borderBottom: "2px solid #30D158", background: "transparent", outline: "none", paddingBottom: 2 }}
                       />
                     </div>
+                    <div style={{ display: "flex", gap: 10 }}>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: 11, color: "#8E8E93", marginBottom: 4 }}>{t("goal_targetAmount")}</div>
+                        <input
+                          type="text" inputMode="decimal" placeholder={t("goal_optional")}
+                          value={newSavings.target || ""}
+                          onChange={e => setNewSavings(c => ({ ...c, target: e.target.value }))}
+                          style={{ fontSize: 14, fontWeight: 600, color: "#30D158", width: "100%", border: "none", borderBottom: "2px solid #30D158", background: "transparent", outline: "none", paddingBottom: 2 }}
+                        />
+                      </div>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: 11, color: "#8E8E93", marginBottom: 4 }}>{t("goal_targetMonth")}</div>
+                        <input
+                          type="month"
+                          value={newSavings.targetMonth || ""}
+                          onChange={e => setNewSavings(c => ({ ...c, targetMonth: e.target.value }))}
+                          style={{ fontSize: 13, width: "100%", border: "none", borderBottom: "2px solid #30D158", background: "transparent", outline: "none", paddingBottom: 2, color: "#1C1C1E" }}
+                        />
+                      </div>
+                    </div>
                     <div style={{ display: "flex", justifyContent: "space-between" }}>
-                      <button onClick={() => { setAddingSavings(false); setNewSavings({ name: "", amount: 0 }); }} style={{ padding: "7px 14px", borderRadius: 10, border: "none", background: "#F2F2F7", color: "#3C3C43", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
+                      <button onClick={() => { setAddingSavings(false); setNewSavings({ name: "", amount: 0, target: "", targetMonth: "" }); }} style={{ padding: "7px 14px", borderRadius: 10, border: "none", background: "#F2F2F7", color: "#3C3C43", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
                         {t("btn_cancel")}
                       </button>
                       <button
                         onClick={() => {
                           if (!newSavings.name) return;
-                          setSavingsAccounts(s => [...s, { id: Date.now(), name: newSavings.name, amount: parseFloat(newSavings.amount) || 0 }]);
-                          setNewSavings({ name: "", amount: 0 });
+                          setSavingsAccounts(s => [...s, {
+                            id: Date.now(),
+                            name: newSavings.name,
+                            amount: parseFloat(newSavings.amount) || 0,
+                            target: parseFloat(newSavings.target) > 0 ? parseFloat(newSavings.target) : "",
+                            targetMonth: newSavings.targetMonth || "",
+                          }]);
+                          setNewSavings({ name: "", amount: 0, target: "", targetMonth: "" });
                           setAddingSavings(false);
                         }}
                         style={{ padding: "7px 18px", borderRadius: 10, border: "none", background: "#30D158", color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer" }}

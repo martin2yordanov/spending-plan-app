@@ -77,7 +77,7 @@ A short bullet list (4-6 items) outlining what they should do over the next year
 - Use European currency convention (€) since the app uses euros.
 - Keep total response length manageable — aim for ~700-1000 words of focused, high-density advice.`;
 
-function formatFinancialData({ income, expenses, invest, emergencyMonths }) {
+function formatFinancialData({ income, expenses, invest, emergencyMonths, savingsAccounts, categoryLimits, bills }) {
   const freqToMonthly = (amount, freq) => {
     switch (freq) {
       case "Monthly": return amount;
@@ -113,6 +113,29 @@ function formatFinancialData({ income, expenses, invest, emergencyMonths }) {
     })
     .join("\n");
 
+  const limitLines = Object.entries(categoryLimits ?? {})
+    .map(([cat, limit]) => {
+      const spent = (expensesByCategory[cat] ?? []).reduce((s, e) => s + freqToMonthly(e.amount, e.frequency), 0);
+      return `  - ${cat}: €${Number(limit).toFixed(2)}/mo limit (currently spending €${spent.toFixed(2)}/mo, ${limit > 0 ? ((spent / limit) * 100).toFixed(0) : "?"}% of limit)`;
+    })
+    .join("\n");
+
+  const savingsLines = (savingsAccounts ?? [])
+    .map((a) => {
+      const balance = Number(a.amount) || 0;
+      const target = Number(a.target) || 0;
+      const goal = target > 0
+        ? ` — goal: €${target.toFixed(2)}${a.targetMonth ? ` by ${a.targetMonth}` : ""} (${((balance / target) * 100).toFixed(0)}% funded)`
+        : "";
+      return `  - ${a.name}: €${balance.toFixed(2)}${goal}`;
+    })
+    .join("\n");
+
+  const billsTotal = (bills ?? []).reduce((s, b) => s + (Number(b.amount) || 0), 0);
+  const billLines = (bills ?? [])
+    .map((b) => `  - ${b.name}: €${(Number(b.amount) || 0).toFixed(2)} due on day ${b.dueDay} of each month`)
+    .join("\n");
+
   return `Please analyze my spending plan and provide recommendations.
 
 ## Income (total: €${totalIncomeMonthly.toFixed(2)}/month)
@@ -120,6 +143,15 @@ ${incomeLines || "  (none)"}
 
 ## Expenses (total: €${totalExpensesMonthly.toFixed(2)}/month)
 ${expenseLines || "  (none)"}
+
+## Category spending limits I've set
+${limitLines || "  (none)"}
+
+## Savings accounts and goals
+${savingsLines || "  (none)"}
+
+## Recurring bills (total: €${billsTotal.toFixed(2)}/month)
+${billLines || "  (none)"}
 
 ## Monthly investment contribution: €${(invest ?? 0).toFixed(2)}
 ## Emergency fund target: ${emergencyMonths ?? 0} months of expenses
