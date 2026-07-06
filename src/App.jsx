@@ -14,7 +14,7 @@ const CATEGORY_COLORS = {
   Personal: { bg: "#F0FFFE", accent: "#32ADE6", icon: "👤" },
   Medical: { bg: "#FFF0F0", accent: "#FF3B30", icon: "💊" },
   Holidays: { bg: "#FFFFF0", accent: "#FFCC00", icon: "✈️" },
-  Other: { bg: "#F5F5F5", accent: "#8E8E93", icon: "📦" },
+  Other: { bg: "#F5F5F5", accent: "#6C6C70", icon: "📦" },
   Savings: { bg: "#F0FFF4", accent: "#30D158", icon: "💰" },
 };
 
@@ -172,10 +172,6 @@ function getSyncId() {
   return id;
 }
 
-function setSyncId(id) {
-  localStorage.setItem(SYNC_KEY, id);
-}
-
 async function loadData(id) {
   const res = await fetch(`/api/data?id=${encodeURIComponent(id)}`);
   if (!res.ok) throw new Error(`API ${res.status}`);
@@ -183,11 +179,12 @@ async function loadData(id) {
 }
 
 async function saveData(id, data) {
-  await fetch(`/api/data?id=${encodeURIComponent(id)}`, {
+  const res = await fetch(`/api/data?id=${encodeURIComponent(id)}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
   });
+  if (!res.ok) throw new Error(`API ${res.status}`);
 }
 
 
@@ -328,7 +325,7 @@ function Walkthrough({ steps, onFinish, labels }) {
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <button
             onClick={onFinish}
-            style={{ border: "none", background: "transparent", color: "#8E8E93", fontSize: 13, fontWeight: 500, cursor: "pointer", padding: 0 }}
+            style={{ border: "none", background: "transparent", color: "#6C6C70", fontSize: 13, fontWeight: 500, cursor: "pointer", padding: 0 }}
           >
             {labels.skip}
           </button>
@@ -384,14 +381,17 @@ function CategoryModal({ cat, color, icon, catExpenses, closing, onClose, onUpda
     document.body.style.position = "fixed";
     document.body.style.top = `-${scrollY}px`;
     document.body.style.width = "100%";
+    const onKey = (e) => { if (e.key === "Escape") onClose(); };
+    document.addEventListener("keydown", onKey);
     return () => {
+      document.removeEventListener("keydown", onKey);
       document.body.style.overflow = prev.overflow;
       document.body.style.position = prev.position;
       document.body.style.top = prev.top;
       document.body.style.width = prev.width;
       window.scrollTo(0, scrollY);
     };
-  }, []);
+  }, [onClose]);
 
   return (
     <>
@@ -425,7 +425,7 @@ function CategoryModal({ cat, color, icon, catExpenses, closing, onClose, onUpda
             flexShrink: 0,
           }}>
             <div>
-              <div style={{ fontSize: 11, color: "#8E8E93", textTransform: "uppercase", letterSpacing: 0.6, marginBottom: 3 }}>
+              <div style={{ fontSize: 11, color: "#6C6C70", textTransform: "uppercase", letterSpacing: 0.6, marginBottom: 3 }}>
                 {t("categoryBreakdown")}
               </div>
               <div style={{ fontSize: 22, fontWeight: 800, color: "#1C1C1E", letterSpacing: "-0.5px" }}>
@@ -437,6 +437,7 @@ function CategoryModal({ cat, color, icon, catExpenses, closing, onClose, onUpda
             </div>
             <button
               onClick={onClose}
+              aria-label={t("close")}
               style={{
                 width: 34, height: 34, borderRadius: "50%", border: "none",
                 background: "#F2F2F7", cursor: "pointer",
@@ -452,7 +453,7 @@ function CategoryModal({ cat, color, icon, catExpenses, closing, onClose, onUpda
           {/* Expense list */}
           <div style={{ overflowY: "auto", padding: "14px 16px 32px", display: "flex", flexDirection: "column", gap: 10 }}>
             {catExpenses.length === 0 && (
-              <div style={{ textAlign: "center", padding: "40px 0", color: "#8E8E93", fontSize: 14 }}>
+              <div style={{ textAlign: "center", padding: "40px 0", color: "#6C6C70", fontSize: 14 }}>
                 {t("no_expenses_in_cat")}
               </div>
             )}
@@ -483,7 +484,7 @@ function CategoryModal({ cat, color, icon, catExpenses, closing, onClose, onUpda
                       />
                       <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
                         <div style={{ flex: 1 }}>
-                          <div style={{ fontSize: 11, color: "#8E8E93", marginBottom: 4 }}>{t("col_amount")} (€)</div>
+                          <div style={{ fontSize: 11, color: "#6C6C70", marginBottom: 4 }}>{t("col_amount")} (€)</div>
                           <input
                             type="text"
                             inputMode="decimal"
@@ -498,7 +499,7 @@ function CategoryModal({ cat, color, icon, catExpenses, closing, onClose, onUpda
                           />
                         </div>
                         <div style={{ flex: 1 }}>
-                          <div style={{ fontSize: 11, color: "#8E8E93", marginBottom: 4 }}>{t("col_frequency")}</div>
+                          <div style={{ fontSize: 11, color: "#6C6C70", marginBottom: 4 }}>{t("col_frequency")}</div>
                           <select
                             value={expense.frequency}
                             onChange={e => onUpdate(expense.id, "frequency", e.target.value)}
@@ -542,12 +543,12 @@ function CategoryModal({ cat, color, icon, catExpenses, closing, onClose, onUpda
                     >
                       <div style={{ flex: 1 }}>
                         <div style={{ fontSize: 14, fontWeight: 600, color: "#1C1C1E", marginBottom: 2 }}>{expense.name}</div>
-                        <div style={{ fontSize: 12, color: "#8E8E93" }}>
+                        <div style={{ fontSize: 12, color: "#6C6C70" }}>
                           €{fmt(expense.amount)} · {t.freq(expense.frequency)}
                         </div>
                       </div>
                       <div style={{ textAlign: "right", flexShrink: 0 }}>
-                        <div style={{ fontSize: 15, fontWeight: 700, color: color }}>€{fmt(monthly)}<span style={{ fontSize: 11, fontWeight: 400, color: "#8E8E93" }}>/mo</span></div>
+                        <div style={{ fontSize: 15, fontWeight: 700, color: color }}>€{fmt(monthly)}<span style={{ fontSize: 11, fontWeight: 400, color: "#6C6C70" }}>/mo</span></div>
                       </div>
                       <div style={{ color: "#C7C7CC", fontSize: 13 }}>›</div>
                     </div>
@@ -634,31 +635,25 @@ function useIsMobile() {
 
 export default function App() {
   const isMobile = useIsMobile();
-  const [syncId, setSyncIdState] = useState(() => getSyncId());
+  const [syncId] = useState(() => getSyncId());
   const [income, setIncome] = useState(EXAMPLE_INCOME);
   const [expenses, setExpenses] = useState(EXAMPLE_EXPENSES);
   const [invest, setInvest] = useState(EXAMPLE_INVEST);
+  const [investStr, setInvestStr] = useState(String(EXAMPLE_INVEST));
   const [investLabel, setInvestLabel] = useState(EXAMPLE_INVEST_LABEL);
   const [activeCategory, setActiveCategory] = useState(null);
   const [catModalCat, setCatModalCat] = useState(null);
   const [catModalClosing, setCatModalClosing] = useState(false);
   const [showInvestMenu, setShowInvestMenu] = useState(false);
-  const [investCustomInput, setInvestCustomInput] = useState("");
   const investMenuRef = useRef(null);
   const [emergencyMonths, setEmergencyMonths] = useState(3);
   const [loaded, setLoaded] = useState(false);
   const [loadError, setLoadError] = useState(null);
-  const [showSync, setShowSync] = useState(false);
-  const [syncInput, setSyncInput] = useState("");
-  const [copied, setCopied] = useState(false);
-  const [showImport, setShowImport] = useState(false);
-  const [importInput, setImportInput] = useState("");
-  const [importLoading, setImportLoading] = useState(false);
-  const [importError, setImportError] = useState(null);
-  const [importSuccess, setImportSuccess] = useState(false);
-  const syncPanelRef = useRef(null);
   const [auth, setAuth] = useState(null); // { userId, email } when signed in, else null
   const [isDirty, setIsDirty] = useState(false);
+  const [saveError, setSaveError] = useState(false);
+  const [undoInfo, setUndoInfo] = useState(null); // { name, restore } for the delete-undo toast
+  const undoTimerRef = useRef(null);
   const [showWalkthrough, setShowWalkthrough] = useState(false);
   const [lang, setLang] = useState(() => {
     try { return localStorage.getItem(LANG_KEY) || "en"; } catch { return "en"; }
@@ -676,6 +671,7 @@ export default function App() {
   const tabRefs = useRef({});
   const [activeTab, setActiveTab] = useState("overview");
   const [editingIncome, setEditingIncome] = useState(null);
+  const [editingIncomeAmountStr, setEditingIncomeAmountStr] = useState("");
   const [editingExpense, setEditingExpense] = useState(null);
   const [editingExpenseAmountStr, setEditingExpenseAmountStr] = useState("");
   const [addingExpense, setAddingExpense] = useState(false);
@@ -726,56 +722,25 @@ export default function App() {
     setTimeout(() => { setCatModalCat(null); setCatModalClosing(false); }, 300);
   }, []);
 
-  const applyNewSyncId = useCallback((id) => {
-    const clean = id.trim().toUpperCase();
-    if (!clean) return;
-    if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
-    setSyncId(clean);
-    setSyncIdState(clean);
-    setLoaded(false);
-    setLoadError(null);
-    setIncome(DEFAULT_INCOME);
-    setExpenses(DEFAULT_EXPENSES);
-    setInvest(0);
-    setEmergencyMonths(3);
-    setCategoryLimits({});
-    setBills([]);
-    setSyncInput("");
-    setShowSync(false);
-    setIsDirty(false);
+  // Keep the editable investment text field in sync when the value changes
+  // from elsewhere (slider, loading saved data).
+  useEffect(() => { setInvestStr(String(invest)); }, [invest]);
+
+  // Delete-with-undo: run the delete, then offer a 6s window to restore.
+  const deleteWithUndo = useCallback((name, doDelete, restore) => {
+    doDelete();
+    if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
+    setUndoInfo({ name, restore });
+    undoTimerRef.current = setTimeout(() => setUndoInfo(null), 6000);
   }, []);
 
-  const handleImportFromOldAccount = useCallback(async () => {
-    const oldId = importInput.trim();
-    if (!oldId || !auth?.userId) return;
-    setImportLoading(true);
-    setImportError(null);
-    setImportSuccess(false);
-    try {
-      const data = await loadData(oldId);
-      if (!data || (!data.income && !data.expenses)) {
-        setImportError("No data found for that account ID. Please double-check and try again.");
-        return;
-      }
-      skipNextSaveRef.current = true;
-      if (data.income) setIncome(data.income);
-      if (data.expenses) setExpenses(data.expenses);
-      if (data.invest != null) setInvest(data.invest);
-      if (data.investLabel) setInvestLabel(data.investLabel);
-      if (data.emergencyMonths != null) setEmergencyMonths(data.emergencyMonths);
-      if (data.savingsAccounts) setSavingsAccounts(data.savingsAccounts);
-      if (data.categoryLimits) setCategoryLimits(data.categoryLimits);
-      if (data.bills) setBills(data.bills);
-      await saveData(auth.userId, data);
-      setImportSuccess(true);
-      setImportInput("");
-      setTimeout(() => { setShowImport(false); setImportSuccess(false); }, 1800);
-    } catch (err) {
-      setImportError(err?.message ?? "Failed to import data");
-    } finally {
-      setImportLoading(false);
-    }
-  }, [importInput, auth?.userId]);
+  const handleUndo = useCallback(() => {
+    if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
+    setUndoInfo((info) => {
+      info?.restore();
+      return null;
+    });
+  }, []);
 
   useEffect(() => {
     // Logged out: show example demo data, no backend reads/writes.
@@ -868,34 +833,42 @@ export default function App() {
       return;
     }
     setIsDirty(true);
+    setSaveError(false);
     if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
     autoSaveTimerRef.current = setTimeout(() => {
-      saveData(auth.userId, { income, expenses, invest, investLabel, emergencyMonths, savingsAccounts, categoryLimits, bills }).then(() => {
-        setIsDirty(false);
-        setSavedFlag(true);
-        setTimeout(() => setSavedFlag(false), 2000);
-      });
+      saveData(auth.userId, { income, expenses, invest, investLabel, emergencyMonths, savingsAccounts, categoryLimits, bills })
+        .then(() => {
+          setIsDirty(false);
+          setSaveError(false);
+          setSavedFlag(true);
+          setTimeout(() => setSavedFlag(false), 2000);
+        })
+        .catch(() => {
+          setIsDirty(false);
+          setSaveError(true);
+        });
     }, 2000);
     return () => { if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current); };
   }, [loaded, income, expenses, invest, investLabel, emergencyMonths, savingsAccounts, categoryLimits, bills, auth?.userId]);
 
+  // Warn before leaving with unsaved (or failed-to-save) changes.
   useEffect(() => {
-    if (!showSync) return;
-    function handleClick(e) {
-      if (syncPanelRef.current && !syncPanelRef.current.contains(e.target)) {
-        setShowSync(false);
+    if (!auth?.userId) return;
+    function onBeforeUnload(e) {
+      if (isDirty || saveError) {
+        e.preventDefault();
+        e.returnValue = "";
       }
     }
-    document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
-  }, [showSync]);
+    window.addEventListener("beforeunload", onBeforeUnload);
+    return () => window.removeEventListener("beforeunload", onBeforeUnload);
+  }, [isDirty, saveError, auth?.userId]);
 
   useEffect(() => {
     if (!showInvestMenu) return;
     function handleClick(e) {
       if (investMenuRef.current && !investMenuRef.current.contains(e.target)) {
         setShowInvestMenu(false);
-        setInvestCustomInput("");
       }
     }
     document.addEventListener("mousedown", handleClick);
@@ -917,6 +890,22 @@ export default function App() {
   const totalSavingsBalance = savingsAccounts.reduce((sum, a) => sum + (a.amount || 0), 0);
   const investMonthly = freqToMonthly(invest, "Monthly");
   const savings = totalIncome - totalExpenses - investMonthly;
+  // Let the slider grow past its default 1000 ceiling so it never misrepresents
+  // a larger value typed into the number field.
+  const investSliderMax = Math.max(1000, Math.ceil(invest / 100) * 100);
+
+  // Shared handlers for the editable investment number field (Overview + Savings).
+  const onInvestInput = (v) => {
+    setInvestStr(v);
+    const n = parseFloat(v);
+    if (!isNaN(n)) setInvest(n);
+  };
+  const onInvestBlur = () => {
+    const n = parseFloat(investStr);
+    const val = isNaN(n) ? 0 : n;
+    setInvest(val);
+    setInvestStr(String(val));
+  };
 
   const categories = [...new Set(expenses.map((item) => item.category))].sort();
   const categoryTotals = categories
@@ -969,24 +958,34 @@ export default function App() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ income, expenses, invest, investLabel, emergencyMonths, savingsAccounts, totalSavingsBalance, categoryLimits, bills, lang }),
       });
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data?.error ?? `API ${res.status}`);
       setSuggestions(data.suggestions ?? "");
-    } catch (err) {
-      setSuggestionsError(err?.message ?? "Failed to generate suggestions");
+    } catch {
+      // Show a friendly message instead of leaking internal error strings.
+      setSuggestionsError(t("advisorError"));
     } finally {
       setSuggestionsLoading(false);
     }
-  }, [income, expenses, invest, investLabel, emergencyMonths, savingsAccounts, totalSavingsBalance, categoryLimits, bills, lang]);
+  }, [income, expenses, invest, investLabel, emergencyMonths, savingsAccounts, totalSavingsBalance, categoryLimits, bills, lang, t]);
 
-  const handleSave = useCallback(() => {
+  // Manual retry used by the "Couldn't save" indicator in the header.
+  const retrySave = useCallback(() => {
     if (!loaded || !auth?.userId) return;
     if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
-    saveData(auth.userId, { income, expenses, invest, investLabel, emergencyMonths, savingsAccounts, categoryLimits, bills }).then(() => {
-      setIsDirty(false);
-      setSavedFlag(true);
-      window.setTimeout(() => setSavedFlag(false), 2000);
-    });
+    setSaveError(false);
+    setIsDirty(true);
+    saveData(auth.userId, { income, expenses, invest, investLabel, emergencyMonths, savingsAccounts, categoryLimits, bills })
+      .then(() => {
+        setIsDirty(false);
+        setSaveError(false);
+        setSavedFlag(true);
+        window.setTimeout(() => setSavedFlag(false), 2000);
+      })
+      .catch(() => {
+        setIsDirty(false);
+        setSaveError(true);
+      });
   }, [emergencyMonths, expenses, income, invest, investLabel, loaded, auth, savingsAccounts, categoryLimits, bills]);
 
   const handleExportPDF = useCallback(() => {
@@ -1037,6 +1036,39 @@ export default function App() {
         </table>
       </div>` : "";
 
+    const savingsHtml = (savingsAccounts && savingsAccounts.length) ? `
+      <h2 style="font-size:15px;font-weight:700;margin:28px 0 10px;padding-bottom:6px;border-bottom:2px solid #30D158;color:#30D158">${t("savings_title")}</h2>
+      <table>
+        <thead><tr><th>${t("col_account")}</th><th>${t("goal_label")}</th><th style="text-align:right">${t("col_balance")}</th></tr></thead>
+        <tbody>
+          ${savingsAccounts.map(a => {
+            const bal = Number(a.amount) || 0;
+            const target = Number(a.target) || 0;
+            const goal = target > 0 ? `€${fmt(target)}${a.targetMonth ? ` · ${a.targetMonth}` : ""} (${((bal / target) * 100).toFixed(0)}%)` : "—";
+            return `<tr>
+              <td style="padding:6px 10px;border-bottom:1px solid #f0f0f0;font-weight:600">${a.name}</td>
+              <td style="padding:6px 10px;border-bottom:1px solid #f0f0f0;color:#888">${goal}</td>
+              <td style="padding:6px 10px;border-bottom:1px solid #f0f0f0;text-align:right;font-weight:700;color:#30D158">€${fmt(bal)}</td>
+            </tr>`;
+          }).join("")}
+          <tr><td colspan="2" style="padding:8px 10px;font-weight:700">${t("totalSavings")}</td><td style="padding:8px 10px;text-align:right;font-weight:800;color:#30D158">€${fmt(savingsAccounts.reduce((s, a) => s + (Number(a.amount) || 0), 0))}</td></tr>
+        </tbody>
+      </table>` : "";
+
+    const billsHtml = (bills && bills.length) ? `
+      <h2 style="font-size:15px;font-weight:700;margin:28px 0 10px;padding-bottom:6px;border-bottom:2px solid #FF9500;color:#FF9500">${t("bills_title")}</h2>
+      <table>
+        <thead><tr><th>${t("ph_billName")}</th><th>${t("bill_dueDay")}</th><th style="text-align:right">${t("col_amount")}</th></tr></thead>
+        <tbody>
+          ${bills.map(b => `<tr>
+            <td style="padding:6px 10px;border-bottom:1px solid #f0f0f0;font-weight:600">${b.name}</td>
+            <td style="padding:6px 10px;border-bottom:1px solid #f0f0f0;color:#888">${t("bill_dayOfMonth", { d: b.dueDay })}</td>
+            <td style="padding:6px 10px;border-bottom:1px solid #f0f0f0;text-align:right;font-weight:700">€${fmt(Number(b.amount) || 0)}</td>
+          </tr>`).join("")}
+          <tr><td colspan="2" style="padding:8px 10px;font-weight:700">${t("bills_total")}</td><td style="padding:8px 10px;text-align:right;font-weight:800">€${fmt(bills.reduce((s, b) => s + (Number(b.amount) || 0), 0))}</td></tr>
+        </tbody>
+      </table>` : "";
+
     const ownerLine = auth?.email ? auth.email : `#${syncId}`;
 
     const html = `<!DOCTYPE html>
@@ -1053,6 +1085,7 @@ export default function App() {
     #dl-btn{display:inline-flex;align-items:center;gap:8px;padding:10px 22px;background:#007AFF;color:#fff;border:none;border-radius:20px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit}
     #dl-btn:hover{background:#0062cc}
     #dl-btn:disabled{background:#A0C4FF;cursor:default}
+    @media print { #dl-bar { display: none !important } body { padding: 0 } }
   </style>
 </head>
 <body>
@@ -1063,9 +1096,15 @@ export default function App() {
   <script>
     function downloadPDF() {
       const btn = document.getElementById('dl-btn');
+      const bar = document.getElementById('dl-bar');
+      // Fallback to the browser's print-to-PDF if the CDN library is unavailable
+      // (e.g. offline or blocked).
+      if (typeof html2pdf === 'undefined') {
+        window.print();
+        return;
+      }
       btn.disabled = true;
       btn.textContent = 'Generating…';
-      const bar = document.getElementById('dl-bar');
       bar.style.display = 'none';
       html2pdf().set({
         margin: 10,
@@ -1077,6 +1116,11 @@ export default function App() {
         bar.style.display = 'flex';
         btn.disabled = false;
         btn.textContent = '⬇ Download PDF';
+      }).catch(function() {
+        bar.style.display = 'flex';
+        btn.disabled = false;
+        btn.textContent = '⬇ Download PDF';
+        window.print();
       });
     }
   </script>
@@ -1122,6 +1166,9 @@ export default function App() {
     <tbody>${catRows}</tbody>
   </table>
 
+  ${savingsHtml}
+  ${billsHtml}
+
   <p style="margin-top:36px;font-size:11px;color:#bbb;text-align:center">For personal planning purposes only. Not financial advice.</p>
 </body>
 </html>`;
@@ -1136,7 +1183,7 @@ export default function App() {
     a.click();
     document.body.removeChild(a);
     setTimeout(() => URL.revokeObjectURL(url), 30000);
-  }, [income, expenses, invest, investLabel, emergencyMonths, syncId, auth, t]);
+  }, [income, expenses, invest, investLabel, emergencyMonths, savingsAccounts, bills, syncId, auth, t]);
 
   const updateExpense = (id, field, value) => {
     setExpenses((current) =>
@@ -1149,7 +1196,18 @@ export default function App() {
   };
 
   const deleteExpense = (id) => {
-    setExpenses((current) => current.filter((item) => item.id !== id));
+    const removed = expenses.find((item) => item.id === id);
+    const idx = expenses.findIndex((item) => item.id === id);
+    if (!removed) return;
+    deleteWithUndo(
+      removed.name,
+      () => setExpenses((current) => current.filter((item) => item.id !== id)),
+      () => setExpenses((current) => {
+        const next = current.slice();
+        next.splice(Math.min(idx, next.length), 0, removed);
+        return next;
+      }),
+    );
   };
 
   const updateIncome = (id, field, value) => {
@@ -1162,8 +1220,34 @@ export default function App() {
     );
   };
 
+  // Income amount editing uses a string buffer so decimals ("12.5") survive
+  // re-renders; the number is committed on blur/done.
+  const startEditingIncome = (item) => {
+    setEditingIncome(item.id);
+    setEditingIncomeAmountStr(String(item.amount));
+  };
+  const commitIncomeAmount = (id) => {
+    setIncome((current) =>
+      current.map((item) =>
+        item.id === id ? { ...item, amount: parseAmount(editingIncomeAmountStr, item.amount) } : item,
+      ),
+    );
+  };
+
   const deleteIncome = (id) => {
-    setIncome((current) => current.filter((item) => item.id !== id));
+    const removed = income.find((item) => item.id === id);
+    const idx = income.findIndex((item) => item.id === id);
+    if (!removed) return;
+    setEditingIncome(null);
+    deleteWithUndo(
+      removed.name,
+      () => setIncome((current) => current.filter((item) => item.id !== id)),
+      () => setIncome((current) => {
+        const next = current.slice();
+        next.splice(Math.min(idx, next.length), 0, removed);
+        return next;
+      }),
+    );
   };
 
   const addExpense = () => {
@@ -1186,11 +1270,69 @@ export default function App() {
     setAddingIncome(false);
   };
 
+  const deleteBill = (id) => {
+    const removed = bills.find((b) => b.id === id);
+    const idx = bills.findIndex((b) => b.id === id);
+    if (!removed) return;
+    deleteWithUndo(
+      removed.name,
+      () => setBills((current) => current.filter((b) => b.id !== id)),
+      () => setBills((current) => {
+        const next = current.slice();
+        next.splice(Math.min(idx, next.length), 0, removed);
+        return next;
+      }),
+    );
+  };
+
+  const deleteSavings = (id) => {
+    const removed = savingsAccounts.find((a) => a.id === id);
+    const idx = savingsAccounts.findIndex((a) => a.id === id);
+    if (!removed) return;
+    setEditingSavings(null);
+    deleteWithUndo(
+      removed.name,
+      () => setSavingsAccounts((current) => current.filter((a) => a.id !== id)),
+      () => setSavingsAccounts((current) => {
+        const next = current.slice();
+        next.splice(Math.min(idx, next.length), 0, removed);
+        return next;
+      }),
+    );
+  };
+
   const filteredExpenses = filterCat === "All" ? expenses : expenses.filter((item) => item.category === filterCat);
-  const donutData = categoryTotals.slice(0, 8);
+  // Show every category with spending so the drawn segments always sum to the
+  // total shown in the donut's center (avoids a phantom empty wedge).
+  const donutData = categoryTotals.filter((c) => c.value > 0);
   const contentWidth = isMobile ? "100%" : 960;
   const threeColGrid = isMobile ? "1fr" : "repeat(3, 1fr)";
   const twoColGrid = isMobile ? "1fr" : "1fr 1fr";
+
+  // Header save-status pill (signed-in only): saving / saved / retry.
+  const saveStatus = (
+    saveError ? (
+      <button
+        onClick={retrySave}
+        style={{
+          padding: "6px 12px", borderRadius: 20, border: "1.5px solid #FFD2CF",
+          background: "#FFF0EF", color: "#FF3B30", fontSize: 12, fontWeight: 600,
+          cursor: "pointer", display: "flex", alignItems: "center", gap: 5, whiteSpace: "nowrap",
+        }}
+      >
+        ⚠ {t("saveFailed")} · {t("retry")}
+      </button>
+    ) : isDirty ? (
+      <span style={{ fontSize: 12, fontWeight: 500, color: "#6C6C70", display: "flex", alignItems: "center", gap: 5, whiteSpace: "nowrap" }}>
+        <span style={{ width: 7, height: 7, borderRadius: "50%", background: "#FF9500", display: "inline-block" }} />
+        {t("saving")}
+      </span>
+    ) : savedFlag ? (
+      <span style={{ fontSize: 12, fontWeight: 500, color: "#34C759", display: "flex", alignItems: "center", gap: 4, whiteSpace: "nowrap" }}>
+        ✓ {t("saved")}
+      </span>
+    ) : null
+  );
 
   return (
     <div
@@ -1221,11 +1363,13 @@ export default function App() {
                 <span style={{ fontSize: 20 }}>💳</span>
                 <span style={{ fontSize: 16, fontWeight: 700, letterSpacing: "-0.3px" }}>{t("appTitle")}</span>
               </div>
-              <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                {isSignedIn && saveStatus}
                 {/* Language icon */}
                 <div style={{ position: "relative" }} ref={langMenuRef}>
                   <button
                     onClick={() => setShowLangMenu(v => !v)}
+                    aria-label="Language"
                     style={{
                       width: 34, height: 34, borderRadius: "50%", border: "1.5px solid #E5E5EA",
                       background: showLangMenu ? "#F2F2F7" : "#fff", cursor: "pointer",
@@ -1261,33 +1405,41 @@ export default function App() {
               </div>
             </div>
 
-            {/* Row 2: tabs in a single scrollable row */}
-            <div style={{
-              display: "flex", gap: 4, overflowX: "auto", paddingBottom: 8,
-              scrollbarWidth: "none", msOverflowStyle: "none",
-            }}>
-              {["overview", "expenses", "income", "savings", "suggestions"].map(tab => (
-                <button
-                  key={tab}
-                  ref={el => { tabRefs.current[tab] = el; }}
-                  onClick={() => setActiveTab(tab)}
-                  style={{
-                    flexShrink: 0,
-                    padding: "6px 12px",
-                    borderRadius: 20,
-                    border: "none",
-                    cursor: "pointer",
-                    fontSize: 13,
-                    fontWeight: 500,
-                    background: activeTab === tab ? "#007AFF" : "transparent",
-                    color: activeTab === tab ? "#fff" : "#3C3C43",
-                    transition: "all 0.2s",
-                    whiteSpace: "nowrap",
-                  }}
-                >
-                  {t(`tab_${tab}`)}
-                </button>
-              ))}
+            {/* Row 2: tabs in a single scrollable row, with a right fade to hint
+                that more tabs lie off-screen. */}
+            <div style={{ position: "relative" }}>
+              <div style={{
+                display: "flex", gap: 4, overflowX: "auto", paddingBottom: 8, paddingRight: 24,
+                scrollbarWidth: "none", msOverflowStyle: "none",
+              }}>
+                {["overview", "expenses", "income", "savings", "suggestions"].map(tab => (
+                  <button
+                    key={tab}
+                    ref={el => { tabRefs.current[tab] = el; }}
+                    onClick={() => setActiveTab(tab)}
+                    style={{
+                      flexShrink: 0,
+                      padding: "6px 12px",
+                      borderRadius: 20,
+                      border: "none",
+                      cursor: "pointer",
+                      fontSize: 13,
+                      fontWeight: 500,
+                      background: activeTab === tab ? "#007AFF" : "transparent",
+                      color: activeTab === tab ? "#fff" : "#3C3C43",
+                      transition: "all 0.2s",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {t(`tab_${tab}`)}
+                  </button>
+                ))}
+              </div>
+              <div style={{
+                position: "absolute", right: 0, top: 0, bottom: 8, width: 28,
+                pointerEvents: "none",
+                background: "linear-gradient(to right, rgba(255,255,255,0), rgba(255,255,255,0.95))",
+              }} />
             </div>
           </div>
         ) : (
@@ -1325,78 +1477,7 @@ export default function App() {
                 </button>
               ))}
             </div>
-            <div style={{ position: "relative", display: "none" }} ref={syncPanelRef}>
-              <button
-                onClick={() => { setShowSync((v) => !v); setSyncInput(""); }}
-                title="Sync across devices"
-                style={{
-                  padding: "7px 14px", borderRadius: 20, border: "1.5px solid #E5E5EA",
-                  cursor: "pointer", fontSize: 13, fontWeight: 600,
-                  background: showSync ? "#F2F2F7" : "#fff", color: "#3C3C43",
-                  display: "flex", alignItems: "center", gap: 5,
-                }}
-              >
-                🔗 Sync
-              </button>
-              {showSync && (
-                <div style={{
-                  position: "absolute", top: "calc(100% + 10px)", right: 0,
-                  background: "#fff", border: "1.5px solid #E5E5EA", borderRadius: 16,
-                  padding: 20, width: 280, boxShadow: "0 8px 32px rgba(0,0,0,0.12)", zIndex: 100,
-                }}>
-                  <p style={{ margin: "0 0 6px", fontSize: 13, fontWeight: 700, color: "#1C1C1E" }}>Your sync code</p>
-                  <p style={{ margin: "0 0 12px", fontSize: 11, color: "#8E8E93", lineHeight: 1.4 }}>
-                    Share this code with another device to see the same data.
-                  </p>
-                  <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
-                    <div style={{
-                      flex: 1, background: "#F2F2F7", borderRadius: 10, padding: "10px 14px",
-                      fontSize: 20, fontWeight: 700, letterSpacing: 4, color: "#007AFF",
-                      textAlign: "center", fontFamily: "monospace",
-                    }}>
-                      {syncId}
-                    </div>
-                    <button
-                      onClick={() => { navigator.clipboard.writeText(syncId).then(() => { setCopied(true); setTimeout(() => setCopied(false), 2000); }); }}
-                      style={{
-                        padding: "0 14px", borderRadius: 10, border: "none", cursor: "pointer",
-                        background: copied ? "#34C759" : "#007AFF", color: "#fff",
-                        fontSize: 12, fontWeight: 600, transition: "background 0.2s", whiteSpace: "nowrap",
-                      }}
-                    >
-                      {copied ? "✓" : "Copy"}
-                    </button>
-                  </div>
-                  <p style={{ margin: "0 0 8px", fontSize: 13, fontWeight: 700, color: "#1C1C1E" }}>Use another code</p>
-                  <div style={{ display: "flex", gap: 8 }}>
-                    <input
-                      value={syncInput}
-                      onChange={e => setSyncInput(e.target.value.toUpperCase())}
-                      placeholder="Enter code…"
-                      maxLength={10}
-                      style={{
-                        flex: 1, padding: "9px 12px", borderRadius: 10, border: "1.5px solid #E5E5EA",
-                        fontSize: 15, fontWeight: 700, letterSpacing: 3, fontFamily: "monospace",
-                        outline: "none", textTransform: "uppercase",
-                      }}
-                    />
-                    <button
-                      onClick={() => applyNewSyncId(syncInput)}
-                      disabled={!syncInput.trim()}
-                      style={{
-                        padding: "0 14px", borderRadius: 10, border: "none",
-                        cursor: syncInput.trim() ? "pointer" : "default",
-                        background: syncInput.trim() ? "#007AFF" : "#E5E5EA",
-                        color: syncInput.trim() ? "#fff" : "#8E8E93",
-                        fontSize: 12, fontWeight: 600,
-                      }}
-                    >
-                      Apply
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
+            {isSignedIn && saveStatus}
             <div style={{ position: "relative" }} ref={langMenuRef}>
               <button
                 onClick={() => setShowLangMenu((v) => !v)}
@@ -1437,7 +1518,7 @@ export default function App() {
         )}
       </div>
 
-      {CLERK_ENABLED && !isSignedIn && loaded && (
+      {loaded && (!CLERK_ENABLED || (!isSignedIn)) && (
         <div
           style={{
             background: "#FFF8E6",
@@ -1457,7 +1538,15 @@ export default function App() {
               flexWrap: "wrap",
             }}
           >
-            <span>📊 {t("demoBanner")}</span>
+            <span>📊 {CLERK_ENABLED ? t("demoBanner") : t("localBanner")}</span>
+          </div>
+        </div>
+      )}
+
+      {loadError && loaded && isSignedIn && (
+        <div style={{ background: "#FFF0EF", borderBottom: "1px solid #FFD2CF", padding: isMobile ? "10px 16px" : "10px 24px" }}>
+          <div style={{ maxWidth: contentWidth, margin: "0 auto", fontSize: 13, color: "#C0261C", display: "flex", alignItems: "center", gap: 8 }}>
+            <span>⚠️ {t("loadFailed")}</span>
           </div>
         </div>
       )}
@@ -1516,7 +1605,7 @@ export default function App() {
             >
               {[
                 { label: t("card_monthlyIncome"), value: totalIncome, color: "#34C759", sub: t("card_totalEarnings"), pct: null, tab: "income" },
-                { label: t("card_monthlyExpenses"), value: totalExpenses + investMonthly, color: "#FF3B30", sub: t("card_allOutgoings"), pct: totalIncome > 0 ? ((totalExpenses + investMonthly) / totalIncome) * 100 : null, tab: "expenses" },
+                { label: t("card_monthlyExpenses"), value: totalExpenses, color: "#FF3B30", sub: t("card_allOutgoings"), pct: totalIncome > 0 ? (totalExpenses / totalIncome) * 100 : null, tab: "expenses" },
                 {
                   label: savings >= 0 ? t("card_netSavings") : t("card_deficit"),
                   value: Math.abs(savings),
@@ -1547,7 +1636,7 @@ export default function App() {
                     <div
                       style={{
                         fontSize: 12,
-                        color: "#8E8E93",
+                        color: "#6C6C70",
                         fontWeight: 500,
                         textTransform: "uppercase",
                         letterSpacing: "0.5px",
@@ -1559,14 +1648,17 @@ export default function App() {
                     <div style={{ fontSize: 28, fontWeight: 700, color: card.color, letterSpacing: "-1px" }}>
                       €{fmt(card.value)}
                     </div>
-                    <div style={{ fontSize: 12, color: "#8E8E93", marginTop: 4 }}>{card.sub}</div>
+                    <div style={{ fontSize: 12, color: "#6C6C70", marginTop: 4 }}>{card.sub}</div>
                   </div>
                   {card.pct !== null && (
-                    <div style={{
-                      fontSize: 22, fontWeight: 700, color: card.color, opacity: 0.8,
-                      letterSpacing: "-0.5px", flexShrink: 0,
-                    }}>
-                      {card.pct >= 0 ? "" : "−"}{Math.abs(card.pct).toFixed(0)}%
+                    <div style={{ textAlign: "right", flexShrink: 0 }}>
+                      <div style={{
+                        fontSize: 22, fontWeight: 700, color: card.color, opacity: 0.8,
+                        letterSpacing: "-0.5px",
+                      }}>
+                        {card.pct >= 0 ? "" : "−"}{Math.abs(card.pct).toFixed(0)}%
+                      </div>
+                      <div style={{ fontSize: 10, color: "#6C6C70", marginTop: 2 }}>{t("ofIncome")}</div>
                     </div>
                   )}
                 </div>
@@ -1601,13 +1693,13 @@ export default function App() {
                         return ac ? (
                           <>
                             <div style={{ fontSize: 15, fontWeight: 700, color: ac.color }}>€{fmt(ac.value)}</div>
-                            <div style={{ fontSize: 10, color: "#8E8E93", maxWidth: 60, lineHeight: 1.2 }}>{t.cat(ac.name)}</div>
+                            <div style={{ fontSize: 10, color: "#6C6C70", maxWidth: 60, lineHeight: 1.2 }}>{t.cat(ac.name)}</div>
                           </>
                         ) : null;
                       })() : (
                         <>
                           <div style={{ fontSize: 18, fontWeight: 700, color: "#1C1C1E" }}>€{fmt(totalExpenses)}</div>
-                          <div style={{ fontSize: 11, color: "#8E8E93" }}>{t("total")}</div>
+                          <div style={{ fontSize: 11, color: "#6C6C70" }}>{t("total")}</div>
                         </>
                       )}
                     </div>
@@ -1696,7 +1788,7 @@ export default function App() {
                           </span>
                           <span style={{ fontSize: 12, fontWeight: 600, textAlign: "right" }}>
                             €{fmt(item.value)}{" "}
-                            <span style={{ color: overLimit ? "#FF3B30" : nearLimit ? "#FF9500" : "#8E8E93", fontWeight: limit > 0 ? 600 : 400 }}>
+                            <span style={{ color: overLimit ? "#FF3B30" : nearLimit ? "#FF9500" : "#6C6C70", fontWeight: limit > 0 ? 600 : 400 }}>
                               {limit > 0 ? `/ €${fmt(limit)} (${limitPct.toFixed(0)}%)` : `(${pct.toFixed(0)}%)`}
                             </span>
                           </span>
@@ -1755,7 +1847,7 @@ export default function App() {
                           ) : (
                             <button
                               onClick={() => { setEditingLimitCat(item.name); setLimitInput(limit > 0 ? String(limit) : ""); }}
-                              style={{ border: "none", background: "transparent", color: limit > 0 ? "#8E8E93" : "#007AFF", fontSize: 11, fontWeight: 500, padding: 0, cursor: "pointer" }}
+                              style={{ border: "none", background: "transparent", color: limit > 0 ? "#6C6C70" : "#007AFF", fontSize: 11, fontWeight: 500, padding: 0, cursor: "pointer" }}
                             >
                               {limit > 0 ? `✎ ${t("editLimit")}` : `+ ${t("setLimit")}`}
                             </button>
@@ -1812,7 +1904,7 @@ export default function App() {
                   <input
                     type="range"
                     min={0}
-                    max={1000}
+                    max={investSliderMax}
                     step={10}
                     value={invest}
                     onChange={(event) => setInvest(Number(event.target.value))}
@@ -1828,9 +1920,12 @@ export default function App() {
                     }}
                   >
                     <input
-                      type="number"
-                      value={invest}
-                      onChange={(event) => setInvest(parseFloat(event.target.value) || 0)}
+                      type="text"
+                      inputMode="decimal"
+                      aria-label={t("monthlyInvestment")}
+                      value={investStr}
+                      onChange={(event) => onInvestInput(event.target.value)}
+                      onBlur={onInvestBlur}
                       style={{
                         width: "100%",
                         border: "none",
@@ -1844,14 +1939,14 @@ export default function App() {
                     />
                   </div>
                 </div>
-                <div style={{ marginTop: 10, fontSize: 12, color: "#8E8E93" }}>
+                <div style={{ marginTop: 10, fontSize: 12, color: "#6C6C70" }}>
                   {t("annual")}: <strong style={{ color: "#007AFF" }}>€{fmt(invest * 12)}</strong>
                 </div>
               </div>
 
               <div style={{ background: "#fff", borderRadius: 18, padding: 22, boxShadow: "0 2px 12px rgba(0,0,0,0.06)" }}>
                 <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 4 }}>🛡️ {t("emergencyFund")}</div>
-                <div style={{ fontSize: 12, color: "#8E8E93", marginBottom: 14 }}>{t("emergencySub")}</div>
+                <div style={{ fontSize: 12, color: "#6C6C70", marginBottom: 14 }}>{t("emergencySub")}</div>
                 <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
                   {[0, 3, 6, 12].map((months) => (
                     <button
@@ -1882,7 +1977,7 @@ export default function App() {
                     <div style={{ fontSize: 13, color: "#3C3C43" }}>
                       {t("target")}: <strong style={{ fontSize: 18, color: "#FF9500" }}>€{fmt(emergencyTarget)}</strong>
                     </div>
-                    <div style={{ fontSize: 11, color: "#8E8E93", marginTop: 2 }}>
+                    <div style={{ fontSize: 11, color: "#6C6C70", marginTop: 2 }}>
                       {t("perMonthMonths", { x: fmt(monthlyExpenses), n: emergencyMonths })}
                     </div>
                   </>
@@ -1894,20 +1989,20 @@ export default function App() {
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4, gap: 10, flexWrap: "wrap" }}>
                 <div style={{ fontSize: 15, fontWeight: 600 }}>🔔 {t("bills_title")}</div>
                 {bills.length > 0 && (
-                  <div style={{ fontSize: 13, color: "#8E8E93" }}>
+                  <div style={{ fontSize: 13, color: "#6C6C70" }}>
                     {t("bills_total")}: <strong style={{ color: "#1C1C1E" }}>€{fmt(billsTotal)}{t("perMo")}</strong>
                   </div>
                 )}
               </div>
-              <div style={{ fontSize: 12, color: "#8E8E93", marginBottom: 14 }}>{t("bills_sub")}</div>
+              <div style={{ fontSize: 12, color: "#6C6C70", marginBottom: 14 }}>{t("bills_sub")}</div>
               {sortedBills.length === 0 && !addingBill && (
-                <div style={{ fontSize: 13, color: "#8E8E93", padding: "8px 0 14px" }}>{t("bills_empty")}</div>
+                <div style={{ fontSize: 13, color: "#6C6C70", padding: "8px 0 14px" }}>{t("bills_empty")}</div>
               )}
               <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 12 }}>
                 {sortedBills.map((bill) => {
                   const urgent = bill.daysUntil <= 3;
                   const soon = !urgent && bill.daysUntil <= 7;
-                  const dueColor = urgent ? "#FF3B30" : soon ? "#FF9500" : "#8E8E93";
+                  const dueColor = urgent ? "#FF3B30" : soon ? "#FF9500" : "#6C6C70";
                   const dueLabel = bill.daysUntil === 0
                     ? t("bill_dueToday")
                     : bill.daysUntil === 1
@@ -1925,14 +2020,15 @@ export default function App() {
                     >
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ fontSize: 14, fontWeight: 600, color: "#1C1C1E", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{bill.name}</div>
-                        <div style={{ fontSize: 11, color: "#8E8E93" }}>{t("bill_dayOfMonth", { d: bill.dueDay })}</div>
+                        <div style={{ fontSize: 11, color: "#6C6C70" }}>{t("bill_dayOfMonth", { d: bill.dueDay })}</div>
                       </div>
                       <span style={{ fontSize: 11, fontWeight: 700, color: dueColor, background: `${dueColor}15`, padding: "3px 8px", borderRadius: 8, whiteSpace: "nowrap", flexShrink: 0 }}>
                         {dueLabel}
                       </span>
                       <div style={{ fontSize: 15, fontWeight: 700, color: "#1C1C1E", flexShrink: 0 }}>€{fmt(bill.amount)}</div>
                       <button
-                        onClick={() => setBills((current) => current.filter((b) => b.id !== bill.id))}
+                        onClick={() => deleteBill(bill.id)}
+                        aria-label={t("btn_delete")}
                         style={{
                           width: 24, height: 24, borderRadius: "50%", border: "none",
                           background: "#FFE5E5", color: "#FF3B30", cursor: "pointer", fontSize: 13,
@@ -1956,7 +2052,7 @@ export default function App() {
                   />
                   <div style={{ display: "flex", gap: 10 }}>
                     <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: 11, color: "#8E8E93", marginBottom: 4 }}>{t("col_amount")} (€)</div>
+                      <div style={{ fontSize: 11, color: "#6C6C70", marginBottom: 4 }}>{t("col_amount")} (€)</div>
                       <input
                         type="text" inputMode="decimal" placeholder="0"
                         value={newBill.amount || ""}
@@ -1965,7 +2061,7 @@ export default function App() {
                       />
                     </div>
                     <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: 11, color: "#8E8E93", marginBottom: 4 }}>{t("bill_dueDay")}</div>
+                      <div style={{ fontSize: 11, color: "#6C6C70", marginBottom: 4 }}>{t("bill_dueDay")}</div>
                       <select
                         value={newBill.dueDay}
                         onChange={(e) => setNewBill((c) => ({ ...c, dueDay: Number(e.target.value) }))}
@@ -2022,7 +2118,7 @@ export default function App() {
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 20, flexWrap: "wrap", gap: 12 }}>
                     <div>
                       <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 2 }}>{t("healthScore")}</div>
-                      <div style={{ fontSize: 12, color: "#8E8E93" }}>{t("healthSub")}</div>
+                      <div style={{ fontSize: 12, color: "#6C6C70" }}>{t("healthSub")}</div>
                     </div>
                     <button
                       onClick={handleExportPDF}
@@ -2039,14 +2135,14 @@ export default function App() {
                     <div style={{ textAlign: "center", flexShrink: 0 }}>
                       <div style={{ fontSize: 64, fontWeight: 800, color, lineHeight: 1, letterSpacing: "-3px" }}>{score.total}</div>
                       <div style={{ fontSize: 14, fontWeight: 600, color, marginTop: 4 }}>{t(scoreLabelKey(score.total))}</div>
-                      <div style={{ fontSize: 11, color: "#8E8E93", marginTop: 2 }}>{t("outOf100")}</div>
+                      <div style={{ fontSize: 11, color: "#6C6C70", marginTop: 2 }}>{t("outOf100")}</div>
                     </div>
                     <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 12, width: "100%" }}>
                       {score.breakdown.map((item) => (
                         <div key={item.labelKey}>
                           <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
                             <span style={{ fontSize: 12, fontWeight: 500, color: "#3C3C43" }}>{t(item.labelKey)}</span>
-                            <span style={{ fontSize: 12, color: "#8E8E93" }}>
+                            <span style={{ fontSize: 12, color: "#6C6C70" }}>
                               {item.value} <span style={{ color: "#C7C7CC" }}>/ {item.target}</span>
                               <span style={{ marginLeft: 8, fontWeight: 700, color: scoreColor(item.score * 4) }}>{item.score}/25</span>
                             </span>
@@ -2127,7 +2223,7 @@ export default function App() {
                           />
                           <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
                             <div style={{ flex: 1 }}>
-                              <div style={{ fontSize: 11, color: "#8E8E93", marginBottom: 4 }}>{t("col_category")}</div>
+                              <div style={{ fontSize: 11, color: "#6C6C70", marginBottom: 4 }}>{t("col_category")}</div>
                               <select
                                 value={item.category}
                                 onChange={e => updateExpense(item.id, "category", e.target.value)}
@@ -2145,7 +2241,7 @@ export default function App() {
                           </div>
                           <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
                             <div style={{ flex: 1 }}>
-                              <div style={{ fontSize: 11, color: "#8E8E93", marginBottom: 4 }}>{t("col_amount")} (€)</div>
+                              <div style={{ fontSize: 11, color: "#6C6C70", marginBottom: 4 }}>{t("col_amount")} (€)</div>
                               <input
                                 type="text"
                                 inputMode="decimal"
@@ -2163,7 +2259,7 @@ export default function App() {
                               />
                             </div>
                             <div style={{ flex: 1 }}>
-                              <div style={{ fontSize: 11, color: "#8E8E93", marginBottom: 4 }}>{t("col_frequency")}</div>
+                              <div style={{ fontSize: 11, color: "#6C6C70", marginBottom: 4 }}>{t("col_frequency")}</div>
                               <select
                                 value={item.frequency}
                                 onChange={e => updateExpense(item.id, "frequency", e.target.value)}
@@ -2221,12 +2317,12 @@ export default function App() {
                               }}>
                                 {colorSet.icon} {t.cat(item.category)}
                               </span>
-                              <span style={{ fontSize: 12, color: "#8E8E93" }}>· {t.freq(item.frequency)}</span>
+                              <span style={{ fontSize: 12, color: "#6C6C70" }}>· {t.freq(item.frequency)}</span>
                             </div>
                           </div>
                           <div style={{ textAlign: "right", flexShrink: 0 }}>
                             <div style={{ fontSize: 15, fontWeight: 700, color }}>€{fmt(item.amount)}</div>
-                            <div style={{ fontSize: 11, color: "#8E8E93" }}>€{fmt(monthly)}{t("perMo")}</div>
+                            <div style={{ fontSize: 11, color: "#6C6C70" }}>€{fmt(monthly)}{t("perMo")}</div>
                           </div>
                           <div style={{ color: "#C7C7CC", fontSize: 13 }}>›</div>
                         </div>
@@ -2244,11 +2340,11 @@ export default function App() {
                     padding: "14px 20px",
                     borderBottom: "1px solid #F2F2F7",
                     display: "grid",
-                    gridTemplateColumns: "2fr 1fr 1fr 1fr 40px",
+                    gridTemplateColumns: "2fr 1fr 1fr 1fr 72px",
                     gap: 8,
                     fontSize: 11,
                     fontWeight: 600,
-                    color: "#8E8E93",
+                    color: "#6C6C70",
                     textTransform: "uppercase",
                     letterSpacing: "0.5px",
                   }}
@@ -2270,7 +2366,7 @@ export default function App() {
                         padding: "12px 20px",
                         borderBottom: index < filteredExpenses.length - 1 ? "1px solid #F2F2F7" : "none",
                         display: "grid",
-                        gridTemplateColumns: "2fr 1fr 1fr 1fr auto",
+                        gridTemplateColumns: "2fr 1fr 1fr 1fr 72px",
                         gap: 8,
                         alignItems: "center",
                         background: isEditing ? colorSet.bg : "transparent",
@@ -2337,6 +2433,14 @@ export default function App() {
                               const n = parseFloat(editingExpenseAmountStr);
                               updateExpense(item.id, "amount", isNaN(n) ? item.amount : n);
                             }}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") {
+                                const n = parseFloat(editingExpenseAmountStr);
+                                updateExpense(item.id, "amount", isNaN(n) ? item.amount : n);
+                                setEditingExpense(null);
+                              }
+                              if (e.key === "Escape") setEditingExpense(null);
+                            }}
                             style={{
                               width: "100%", border: "none",
                               borderBottom: `2px solid ${colorSet.accent}`,
@@ -2347,7 +2451,7 @@ export default function App() {
                         ) : (
                           <div>
                             <div style={{ fontSize: 14, fontWeight: 600 }}>€{fmt(item.amount)}</div>
-                            <div style={{ fontSize: 11, color: "#8E8E93" }}>€{fmt(monthly)}{t("perMo")}</div>
+                            <div style={{ fontSize: 11, color: "#6C6C70" }}>€{fmt(monthly)}{t("perMo")}</div>
                           </div>
                         )}
                       </div>
@@ -2367,7 +2471,7 @@ export default function App() {
                             ))}
                           </select>
                         ) : (
-                          <span style={{ fontSize: 12, color: "#8E8E93" }}>{t.freq(item.frequency)}</span>
+                          <span style={{ fontSize: 12, color: "#6C6C70" }}>{t.freq(item.frequency)}</span>
                         )}
                       </div>
                       <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
@@ -2378,6 +2482,7 @@ export default function App() {
                               updateExpense(item.id, "amount", isNaN(n) ? item.amount : n);
                               setEditingExpense(null);
                             }}
+                            aria-label={t("btn_done")}
                             style={{
                               width: 28, height: 28, borderRadius: "50%", border: "none",
                               background: "#E8FFF0", color: "#34C759", cursor: "pointer",
@@ -2389,6 +2494,7 @@ export default function App() {
                         )}
                         <button
                           onClick={() => deleteExpense(item.id)}
+                          aria-label={t("btn_delete")}
                           style={{
                             width: 28, height: 28, borderRadius: "50%", border: "none",
                             background: "#FFE5E5", color: "#FF3B30", cursor: "pointer",
@@ -2408,7 +2514,7 @@ export default function App() {
                       padding: "14px 20px",
                       borderTop: "2px solid #007AFF",
                       display: "grid",
-                      gridTemplateColumns: "2fr 1fr 1fr 1fr 40px",
+                      gridTemplateColumns: "2fr 1fr 1fr 1fr 72px",
                       gap: 8,
                       alignItems: "center",
                       background: "#F0F4FF",
@@ -2543,7 +2649,7 @@ export default function App() {
                   />
                   <div style={{ display: "flex", gap: 10 }}>
                     <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: 11, color: "#8E8E93", marginBottom: 4 }}>{t("col_category")}</div>
+                      <div style={{ fontSize: 11, color: "#6C6C70", marginBottom: 4 }}>{t("col_category")}</div>
                       <select
                         value={newExpense.category}
                         onChange={e => setNewExpense(c => ({ ...c, category: e.target.value }))}
@@ -2557,7 +2663,7 @@ export default function App() {
                   </div>
                   <div style={{ display: "flex", gap: 10 }}>
                     <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: 11, color: "#8E8E93", marginBottom: 4 }}>{t("col_amount")} (€)</div>
+                      <div style={{ fontSize: 11, color: "#6C6C70", marginBottom: 4 }}>{t("col_amount")} (€)</div>
                       <input
                         type="text"
                         inputMode="decimal"
@@ -2573,7 +2679,7 @@ export default function App() {
                       />
                     </div>
                     <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: 11, color: "#8E8E93", marginBottom: 4 }}>{t("col_frequency")}</div>
+                      <div style={{ fontSize: 11, color: "#6C6C70", marginBottom: 4 }}>{t("col_frequency")}</div>
                       <select
                         value={newExpense.frequency}
                         onChange={e => setNewExpense(c => ({ ...c, frequency: e.target.value }))}
@@ -2629,7 +2735,7 @@ export default function App() {
               <span style={{ fontSize: 14, fontWeight: 600, color: "#3C3C43" }}>{t("totalExpenses")}</span>
               <span style={{ fontSize: 20, fontWeight: 700, color: "#FF3B30", textAlign: "right" }}>
                 €{fmt(totalExpenses)}
-                <span style={{ fontSize: 12, color: "#8E8E93", fontWeight: 400 }}>{t("perMo")}</span>
+                <span style={{ fontSize: 12, color: "#6C6C70", fontWeight: 400 }}>{t("perMo")}</span>
               </span>
             </div>
           </div>
@@ -2668,12 +2774,13 @@ export default function App() {
                           />
                           <div style={{ display: "flex", gap: 10 }}>
                             <div style={{ flex: 1 }}>
-                              <div style={{ fontSize: 11, color: "#8E8E93", marginBottom: 4 }}>{t("col_amount")} (€)</div>
+                              <div style={{ fontSize: 11, color: "#6C6C70", marginBottom: 4 }}>{t("col_amount")} (€)</div>
                               <input
                                 type="text"
                                 inputMode="decimal"
-                                value={item.amount}
-                                onChange={e => updateIncome(item.id, "amount", e.target.value)}
+                                value={editingIncomeAmountStr}
+                                onChange={e => setEditingIncomeAmountStr(e.target.value)}
+                                onBlur={() => commitIncomeAmount(item.id)}
                                 style={{
                                   fontSize: 16, fontWeight: 700, color: "#34C759", width: "100%",
                                   border: "none", borderBottom: "2px solid #34C759",
@@ -2682,7 +2789,7 @@ export default function App() {
                               />
                             </div>
                             <div style={{ flex: 1 }}>
-                              <div style={{ fontSize: 11, color: "#8E8E93", marginBottom: 4 }}>{t("col_frequency")}</div>
+                              <div style={{ fontSize: 11, color: "#6C6C70", marginBottom: 4 }}>{t("col_frequency")}</div>
                               <select
                                 value={item.frequency}
                                 onChange={e => updateIncome(item.id, "frequency", e.target.value)}
@@ -2704,7 +2811,7 @@ export default function App() {
                               🗑 {t("btn_delete")}
                             </button>
                             <button
-                              onClick={() => setEditingIncome(null)}
+                              onClick={() => { commitIncomeAmount(item.id); setEditingIncome(null); }}
                               style={{ padding: "7px 18px", borderRadius: 10, border: "none", background: "#34C759", color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer" }}
                             >
                               {t("btn_done")}
@@ -2714,15 +2821,15 @@ export default function App() {
                       ) : (
                         <div
                           style={{ display: "flex", alignItems: "center", gap: 12, cursor: "pointer" }}
-                          onClick={() => setEditingIncome(item.id)}
+                          onClick={() => startEditingIncome(item)}
                         >
                           <div style={{ flex: 1 }}>
                             <div style={{ fontSize: 14, fontWeight: 600, color: "#1C1C1E", marginBottom: 2 }}>{item.name}</div>
-                            <div style={{ fontSize: 12, color: "#8E8E93" }}>{t.freq(item.frequency)}</div>
+                            <div style={{ fontSize: 12, color: "#6C6C70" }}>{t.freq(item.frequency)}</div>
                           </div>
                           <div style={{ textAlign: "right", flexShrink: 0 }}>
                             <div style={{ fontSize: 15, fontWeight: 700, color: "#34C759" }}>€{fmt(item.amount)}</div>
-                            <div style={{ fontSize: 11, color: "#8E8E93" }}>€{fmt(monthly)}{t("perMo")}</div>
+                            <div style={{ fontSize: 11, color: "#6C6C70" }}>€{fmt(monthly)}{t("perMo")}</div>
                           </div>
                           <div style={{ color: "#C7C7CC", fontSize: 13 }}>›</div>
                         </div>
@@ -2744,7 +2851,7 @@ export default function App() {
                     />
                     <div style={{ display: "flex", gap: 10 }}>
                       <div style={{ flex: 1 }}>
-                        <div style={{ fontSize: 11, color: "#8E8E93", marginBottom: 4 }}>{t("col_amount")} (€)</div>
+                        <div style={{ fontSize: 11, color: "#6C6C70", marginBottom: 4 }}>{t("col_amount")} (€)</div>
                         <input
                           type="text" inputMode="decimal" placeholder="0"
                           value={newIncome.amount || ""}
@@ -2754,7 +2861,7 @@ export default function App() {
                         />
                       </div>
                       <div style={{ flex: 1 }}>
-                        <div style={{ fontSize: 11, color: "#8E8E93", marginBottom: 4 }}>{t("col_frequency")}</div>
+                        <div style={{ fontSize: 11, color: "#6C6C70", marginBottom: 4 }}>{t("col_frequency")}</div>
                         <select
                           value={newIncome.frequency}
                           onChange={e => setNewIncome(c => ({ ...c, frequency: e.target.value }))}
@@ -2796,11 +2903,11 @@ export default function App() {
                     padding: "14px 20px",
                     borderBottom: "1px solid #F2F2F7",
                     display: "grid",
-                    gridTemplateColumns: "2fr 1fr 1fr 40px",
+                    gridTemplateColumns: "2fr 1fr 1fr 72px",
                     gap: 8,
                     fontSize: 11,
                     fontWeight: 600,
-                    color: "#8E8E93",
+                    color: "#6C6C70",
                     textTransform: "uppercase",
                     letterSpacing: "0.5px",
                   }}
@@ -2820,17 +2927,19 @@ export default function App() {
                         padding: "14px 20px",
                         borderBottom: index < income.length - 1 ? "1px solid #F2F2F7" : "none",
                         display: "grid",
-                        gridTemplateColumns: "2fr 1fr 1fr auto",
+                        gridTemplateColumns: "2fr 1fr 1fr 72px",
                         gap: 8,
                         alignItems: "center",
                         background: isEditing ? "#F0FFF4" : "transparent",
                       }}
                     >
-                      <div onClick={() => setEditingIncome(isEditing ? null : item.id)} style={{ cursor: "pointer" }}>
+                      <div onClick={() => (isEditing ? null : startEditingIncome(item))} style={{ cursor: isEditing ? "default" : "pointer" }}>
                         {isEditing ? (
                           <input
+                            autoFocus
                             value={item.name}
                             onChange={(event) => updateIncome(item.id, "name", event.target.value)}
+                            onKeyDown={(e) => { if (e.key === "Enter") { commitIncomeAmount(item.id); setEditingIncome(null); } if (e.key === "Escape") setEditingIncome(null); }}
                             style={{ width: "100%", border: "none", borderBottom: "2px solid #34C759", background: "transparent", fontSize: 15, fontWeight: 600, outline: "none" }}
                           />
                         ) : (
@@ -2840,15 +2949,18 @@ export default function App() {
                       <div style={{ textAlign: "right" }}>
                         {isEditing ? (
                           <input
-                            type="number"
-                            value={item.amount}
-                            onChange={(event) => updateIncome(item.id, "amount", event.target.value)}
+                            type="text"
+                            inputMode="decimal"
+                            value={editingIncomeAmountStr}
+                            onChange={(event) => setEditingIncomeAmountStr(event.target.value)}
+                            onBlur={() => commitIncomeAmount(item.id)}
+                            onKeyDown={(e) => { if (e.key === "Enter") { commitIncomeAmount(item.id); setEditingIncome(null); } if (e.key === "Escape") setEditingIncome(null); }}
                             style={{ width: "100%", border: "none", borderBottom: "2px solid #34C759", background: "transparent", fontSize: 16, fontWeight: 700, outline: "none", textAlign: "right" }}
                           />
                         ) : (
                           <div>
                             <div style={{ fontSize: 16, fontWeight: 700, color: "#34C759" }}>€{fmt(item.amount)}</div>
-                            <div style={{ fontSize: 11, color: "#8E8E93" }}>€{fmt(monthly)}{t("perMo")}</div>
+                            <div style={{ fontSize: 11, color: "#6C6C70" }}>€{fmt(monthly)}{t("perMo")}</div>
                           </div>
                         )}
                       </div>
@@ -2864,18 +2976,22 @@ export default function App() {
                             ))}
                           </select>
                         ) : (
-                          <span style={{ fontSize: 13, color: "#8E8E93" }}>{t.freq(item.frequency)}</span>
+                          <span style={{ fontSize: 13, color: "#6C6C70" }}>{t.freq(item.frequency)}</span>
                         )}
                       </div>
                       <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
                         {isEditing && (
                           <button
+                            onClick={() => { commitIncomeAmount(item.id); setEditingIncome(null); }}
+                            aria-label={t("btn_done")}
+                            style={{ width: 28, height: 28, borderRadius: "50%", border: "none", background: "#E8FFF0", color: "#34C759", cursor: "pointer", fontSize: 16, display: "flex", alignItems: "center", justifyContent: "center" }}
                           >
                             ✓
                           </button>
                         )}
                         <button
                           onClick={() => deleteIncome(item.id)}
+                          aria-label={t("btn_delete")}
                           style={{ width: 28, height: 28, borderRadius: "50%", border: "none", background: "#FFE5E5", color: "#FF3B30", cursor: "pointer", fontSize: 14, display: "flex", alignItems: "center", justifyContent: "center" }}
                         >
                           ×
@@ -2885,7 +3001,7 @@ export default function App() {
                   );
                 })}
                 {addingIncome ? (
-                  <div style={{ padding: "14px 20px", borderTop: "2px solid #34C759", display: "grid", gridTemplateColumns: "2fr 1fr 1fr 40px", gap: 8, alignItems: "center", background: "#F0FFF4" }}>
+                  <div style={{ padding: "14px 20px", borderTop: "2px solid #34C759", display: "grid", gridTemplateColumns: "2fr 1fr 1fr 72px", gap: 8, alignItems: "center", background: "#F0FFF4" }}>
                     <input
                       placeholder={t("ph_incomeSource")}
                       value={newIncome.name}
@@ -2936,7 +3052,7 @@ export default function App() {
                   key={card.label}
                   style={{ background: "#fff", borderRadius: 14, padding: "16px 18px", boxShadow: "0 2px 8px rgba(0,0,0,0.06)", textAlign: "center" }}
                 >
-                  <div style={{ fontSize: 11, color: "#8E8E93", fontWeight: 500, marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                  <div style={{ fontSize: 11, color: "#6C6C70", fontWeight: 500, marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.5px" }}>
                     {card.label}
                   </div>
                   <div style={{ fontSize: 24, fontWeight: 700, color: card.color }}>€{fmt(card.value)}</div>
@@ -2976,7 +3092,7 @@ export default function App() {
                             style={{ fontSize: 15, fontWeight: 600, color: "#1C1C1E", border: "none", borderBottom: "2px solid #30D158", background: "transparent", outline: "none", width: "100%", paddingBottom: 2 }}
                           />
                           <div style={{ flex: 1 }}>
-                            <div style={{ fontSize: 11, color: "#8E8E93", marginBottom: 4 }}>{t("col_balance")} (€)</div>
+                            <div style={{ fontSize: 11, color: "#6C6C70", marginBottom: 4 }}>{t("col_balance")} (€)</div>
                             <input
                               type="text" inputMode="decimal"
                               value={account.amount}
@@ -2990,7 +3106,7 @@ export default function App() {
                           </div>
                           <div style={{ display: "flex", gap: 10 }}>
                             <div style={{ flex: 1 }}>
-                              <div style={{ fontSize: 11, color: "#8E8E93", marginBottom: 4 }}>{t("goal_targetAmount")}</div>
+                              <div style={{ fontSize: 11, color: "#6C6C70", marginBottom: 4 }}>{t("goal_targetAmount")}</div>
                               <input
                                 type="text" inputMode="decimal" placeholder={t("goal_optional")}
                                 value={account.target ?? ""}
@@ -3003,7 +3119,7 @@ export default function App() {
                               />
                             </div>
                             <div style={{ flex: 1 }}>
-                              <div style={{ fontSize: 11, color: "#8E8E93", marginBottom: 4 }}>{t("goal_targetMonth")}</div>
+                              <div style={{ fontSize: 11, color: "#6C6C70", marginBottom: 4 }}>{t("goal_targetMonth")}</div>
                               <input
                                 type="month"
                                 value={account.targetMonth ?? ""}
@@ -3014,7 +3130,7 @@ export default function App() {
                           </div>
                           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 4 }}>
                             <button
-                              onClick={() => setSavingsAccounts(s => s.filter(a => a.id !== account.id))}
+                              onClick={() => deleteSavings(account.id)}
                               style={{ padding: "7px 14px", borderRadius: 10, border: "none", background: "#FF3B3015", color: "#FF3B30", fontSize: 13, fontWeight: 600, cursor: "pointer" }}
                             >
                               🗑 {t("btn_delete")}
@@ -3035,7 +3151,7 @@ export default function App() {
                           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
                             <div style={{ flex: 1 }}>
                               <div style={{ fontSize: 14, fontWeight: 600, color: "#1C1C1E", marginBottom: 2 }}>{account.name}</div>
-                              <div style={{ fontSize: 12, color: "#8E8E93" }}>{t("col_balance")}</div>
+                              <div style={{ fontSize: 12, color: "#6C6C70" }}>{t("col_balance")}</div>
                             </div>
                             <div style={{ textAlign: "right", flexShrink: 0 }}>
                               <div style={{ fontSize: 15, fontWeight: 700, color: "#30D158" }}>€{fmt(account.amount || 0)}</div>
@@ -3061,7 +3177,7 @@ export default function App() {
                             return (
                               <div style={{ marginTop: 10 }}>
                                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4, gap: 8 }}>
-                                  <span style={{ fontSize: 11, color: "#8E8E93" }}>
+                                  <span style={{ fontSize: 11, color: "#6C6C70" }}>
                                     🎯 {t("goal_label")}: €{fmt(target)}
                                     {account.targetMonth && /^\d{4}-\d{2}$/.test(account.targetMonth) ? ` · ${account.targetMonth}` : ""}
                                   </span>
@@ -3073,7 +3189,7 @@ export default function App() {
                                   <div style={{ width: `${goalPct}%`, height: "100%", background: "#30D158", borderRadius: 4, transition: "width 0.6s ease" }} />
                                 </div>
                                 {neededLine && (
-                                  <div style={{ fontSize: 11, color: "#8E8E93", marginTop: 4 }}>{neededLine}</div>
+                                  <div style={{ fontSize: 11, color: "#6C6C70", marginTop: 4 }}>{neededLine}</div>
                                 )}
                               </div>
                             );
@@ -3093,7 +3209,7 @@ export default function App() {
                       style={{ fontSize: 15, fontWeight: 600, border: "none", borderBottom: "2px solid #30D158", background: "transparent", outline: "none", paddingBottom: 2 }}
                     />
                     <div>
-                      <div style={{ fontSize: 11, color: "#8E8E93", marginBottom: 4 }}>{t("col_balance")} (€)</div>
+                      <div style={{ fontSize: 11, color: "#6C6C70", marginBottom: 4 }}>{t("col_balance")} (€)</div>
                       <input
                         type="text" inputMode="decimal" placeholder="0"
                         value={newSavings.amount || ""}
@@ -3104,7 +3220,7 @@ export default function App() {
                     </div>
                     <div style={{ display: "flex", gap: 10 }}>
                       <div style={{ flex: 1 }}>
-                        <div style={{ fontSize: 11, color: "#8E8E93", marginBottom: 4 }}>{t("goal_targetAmount")}</div>
+                        <div style={{ fontSize: 11, color: "#6C6C70", marginBottom: 4 }}>{t("goal_targetAmount")}</div>
                         <input
                           type="text" inputMode="decimal" placeholder={t("goal_optional")}
                           value={newSavings.target || ""}
@@ -3113,7 +3229,7 @@ export default function App() {
                         />
                       </div>
                       <div style={{ flex: 1 }}>
-                        <div style={{ fontSize: 11, color: "#8E8E93", marginBottom: 4 }}>{t("goal_targetMonth")}</div>
+                        <div style={{ fontSize: 11, color: "#6C6C70", marginBottom: 4 }}>{t("goal_targetMonth")}</div>
                         <input
                           type="month"
                           value={newSavings.targetMonth || ""}
@@ -3166,7 +3282,7 @@ export default function App() {
             {/* Monthly investment section */}
             <div style={{ background: "#fff", borderRadius: 18, padding: 22, boxShadow: "0 2px 12px rgba(0,0,0,0.06)" }}>
               <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 4 }}>💹 {t("monthlyInvestment")}</div>
-              <div style={{ fontSize: 12, color: "#8E8E93", marginBottom: 14 }}>{t("savings_sub")}</div>
+              <div style={{ fontSize: 12, color: "#6C6C70", marginBottom: 14 }}>{t("savings_sub")}</div>
               <div style={{ position: "relative", marginBottom: 14 }} ref={investMenuRef}>
                 <button
                   onClick={() => { setShowInvestMenu(v => !v); setInvestCustomInput(""); }}
@@ -3189,19 +3305,21 @@ export default function App() {
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: 12, flexDirection: isMobile ? "column" : "row" }}>
                 <input
-                  type="range" min={0} max={1000} step={10} value={invest}
+                  type="range" min={0} max={investSliderMax} step={10} value={invest}
                   onChange={(event) => setInvest(Number(event.target.value))}
                   style={{ flex: 1, width: "100%", accentColor: "#007AFF" }}
                 />
                 <div style={{ background: "#F2F2F7", borderRadius: 10, padding: "6px 12px", minWidth: isMobile ? "100%" : 80, textAlign: "center" }}>
                   <input
-                    type="number" value={invest}
-                    onChange={(event) => setInvest(parseFloat(event.target.value) || 0)}
+                    type="text" inputMode="decimal" aria-label={t("monthlyInvestment")}
+                    value={investStr}
+                    onChange={(event) => onInvestInput(event.target.value)}
+                    onBlur={onInvestBlur}
                     style={{ width: "100%", border: "none", background: "transparent", textAlign: "center", fontSize: 15, fontWeight: 700, color: "#007AFF", outline: "none" }}
                   />
                 </div>
               </div>
-              <div style={{ marginTop: 10, fontSize: 12, color: "#8E8E93" }}>
+              <div style={{ marginTop: 10, fontSize: 12, color: "#6C6C70" }}>
                 {t("annual")}: <strong style={{ color: "#007AFF" }}>€{fmt(invest * 12)}</strong>
               </div>
             </div>
@@ -3213,7 +3331,7 @@ export default function App() {
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12, marginBottom: 8 }}>
               <div>
                 <h2 style={{ margin: 0, fontSize: 22, fontWeight: 700, color: "#1C1C1E" }}>{t("advisorTitle")}</h2>
-                <p style={{ margin: "4px 0 0", fontSize: 13, color: "#8E8E93" }}>
+                <p style={{ margin: "4px 0 0", fontSize: 13, color: "#6C6C70" }}>
                   {t("advisorSub")}
                 </p>
               </div>
@@ -3246,14 +3364,14 @@ export default function App() {
             )}
 
             {suggestionsLoading && !suggestions && (
-              <div style={{ marginTop: 24, padding: 32, textAlign: "center", color: "#8E8E93", fontSize: 14 }}>
+              <div style={{ marginTop: 24, padding: 32, textAlign: "center", color: "#6C6C70", fontSize: 14 }}>
                 <div style={{ fontSize: 32, marginBottom: 12 }}>💭</div>
                 {t("advisorLoading")}
               </div>
             )}
 
             {!suggestionsLoading && !suggestions && !suggestionsError && (
-              <div style={{ marginTop: 24, padding: 32, textAlign: "center", color: "#8E8E93", fontSize: 14, lineHeight: 1.6 }}>
+              <div style={{ marginTop: 24, padding: 32, textAlign: "center", color: "#6C6C70", fontSize: 14, lineHeight: 1.6 }}>
                 <div style={{ fontSize: 32, marginBottom: 12 }}>🤔</div>
                 {t("advisorEmpty")}
               </div>
@@ -3262,7 +3380,7 @@ export default function App() {
             {suggestions && (
               <div style={{ marginTop: 20, paddingTop: 20, borderTop: "1px solid #F2F2F7" }}>
                 {renderMarkdown(suggestions)}
-                <p style={{ marginTop: 24, fontSize: 11, color: "#8E8E93", fontStyle: "italic" }}>
+                <p style={{ marginTop: 24, fontSize: 11, color: "#6C6C70", fontStyle: "italic" }}>
                   ⚠️ {t("disclaimer")}
                 </p>
               </div>
@@ -3291,68 +3409,37 @@ export default function App() {
         );
       })()}
 
-      {showImport && (
+      {undoInfo && (
         <div
           style={{
-            position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)",
-            display: "flex", alignItems: "center", justifyContent: "center",
-            zIndex: 1000, padding: 16,
+            position: "fixed",
+            left: "50%",
+            bottom: isMobile ? 20 : 28,
+            transform: "translateX(-50%)",
+            zIndex: 3000,
+            display: "flex",
+            alignItems: "center",
+            gap: 14,
+            background: "#1C1C1E",
+            color: "#fff",
+            padding: "12px 16px",
+            borderRadius: 14,
+            boxShadow: "0 8px 30px rgba(0,0,0,0.3)",
+            maxWidth: "calc(100vw - 32px)",
           }}
-          onClick={(e) => { if (e.target === e.currentTarget) setShowImport(false); }}
         >
-          <div style={{
-            background: "#fff", borderRadius: 20, padding: 28, width: "100%", maxWidth: 400,
-            boxShadow: "0 20px 60px rgba(0,0,0,0.2)",
-          }}>
-            <h3 style={{ margin: "0 0 8px", fontSize: 18, fontWeight: 700, color: "#1C1C1E" }}>
-              Import from old account
-            </h3>
-            <p style={{ margin: "0 0 18px", fontSize: 13, color: "#8E8E93", lineHeight: 1.5 }}>
-              Enter your old Clerk user ID (starts with <code style={{ fontFamily: "monospace", background: "#F2F2F7", padding: "1px 4px", borderRadius: 4 }}>user_</code>). You can find it in the Clerk dashboard or your browser&apos;s local storage under a previous session.
-            </p>
-            <input
-              value={importInput}
-              onChange={(e) => setImportInput(e.target.value)}
-              placeholder="user_xxxxxxxxxxxxxxxxxxxxxxxxxxxx"
-              autoFocus
-              style={{
-                width: "100%", padding: "10px 12px", borderRadius: 10, fontSize: 13,
-                border: "1.5px solid #E5E5EA", outline: "none", fontFamily: "monospace",
-                boxSizing: "border-box", marginBottom: 12,
-              }}
-            />
-            {importError && (
-              <p style={{ margin: "0 0 12px", fontSize: 12, color: "#FF3B30" }}>{importError}</p>
-            )}
-            {importSuccess && (
-              <p style={{ margin: "0 0 12px", fontSize: 12, color: "#34C759", fontWeight: 600 }}>
-                ✓ Data imported successfully!
-              </p>
-            )}
-            <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
-              <button
-                onClick={() => setShowImport(false)}
-                style={{
-                  padding: "9px 18px", borderRadius: 12, border: "1.5px solid #E5E5EA",
-                  background: "#fff", color: "#3C3C43", fontSize: 14, fontWeight: 600, cursor: "pointer",
-                }}
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleImportFromOldAccount}
-                disabled={!importInput.trim() || importLoading}
-                style={{
-                  padding: "9px 18px", borderRadius: 12, border: "none",
-                  background: importInput.trim() && !importLoading ? "#007AFF" : "#A0C4FF",
-                  color: "#fff", fontSize: 14, fontWeight: 600,
-                  cursor: importInput.trim() && !importLoading ? "pointer" : "default",
-                }}
-              >
-                {importLoading ? "Importing…" : "Import"}
-              </button>
-            </div>
-          </div>
+          <span style={{ fontSize: 13.5, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+            {t("deletedItem", { name: undoInfo.name })}
+          </span>
+          <button
+            onClick={handleUndo}
+            style={{
+              border: "none", background: "transparent", color: "#5AC8FA",
+              fontSize: 13.5, fontWeight: 700, cursor: "pointer", padding: 0, flexShrink: 0,
+            }}
+          >
+            {t("undo")}
+          </button>
         </div>
       )}
 

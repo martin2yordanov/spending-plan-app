@@ -65,7 +65,7 @@ export function computeHealthScore(totalIncome, totalExpenses, invest, emergency
 export function scoreColor(score) {
   if (score >= 80) return "#34C759";
   if (score >= 60) return "#FF9500";
-  if (score >= 40) return "#FF9500";
+  if (score >= 40) return "#FF6B00";
   return "#FF3B30";
 }
 

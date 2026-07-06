@@ -112,9 +112,9 @@ describe("scoreColor", () => {
     expect(scoreColor(60)).toBe("#FF9500");
     expect(scoreColor(79)).toBe("#FF9500");
   });
-  it("returns orange for score 40-59", () => {
-    expect(scoreColor(40)).toBe("#FF9500");
-    expect(scoreColor(59)).toBe("#FF9500");
+  it("returns a darker orange for score 40-59", () => {
+    expect(scoreColor(40)).toBe("#FF6B00");
+    expect(scoreColor(59)).toBe("#FF6B00");
   });
   it("returns red for score < 40", () => {
     expect(scoreColor(0)).toBe("#FF3B30");
