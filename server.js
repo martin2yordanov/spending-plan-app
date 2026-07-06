@@ -10,7 +10,11 @@ const PORT = process.env.PORT || 3001;
 if (!existsSync(DATA_DIR)) mkdirSync(DATA_DIR, { recursive: true });
 
 const app = express();
-app.use(express.json());
+app.use(express.json({ limit: "256kb" }));
+
+// Same rule as api/data.js: sync codes and Clerk user IDs only. Anything else
+// (e.g. path separators) is rejected before it can reach the filesystem.
+const VALID_ID = /^[A-Za-z0-9_-]{4,64}$/;
 
 function dataFile(id) {
   return join(DATA_DIR, `spending-plan-${id}.json`);
@@ -18,7 +22,7 @@ function dataFile(id) {
 
 app.get("/api/data", (req, res) => {
   const { id } = req.query;
-  if (!id) return res.status(400).json({ error: "Missing id" });
+  if (!id || !VALID_ID.test(id)) return res.status(400).json({ error: "Missing or invalid id" });
   try {
     const file = dataFile(id);
     res.json(existsSync(file) ? JSON.parse(readFileSync(file, "utf8")) : null);
@@ -29,7 +33,7 @@ app.get("/api/data", (req, res) => {
 
 app.post("/api/data", (req, res) => {
   const { id } = req.query;
-  if (!id) return res.status(400).json({ error: "Missing id" });
+  if (!id || !VALID_ID.test(id)) return res.status(400).json({ error: "Missing or invalid id" });
   try {
     writeFileSync(dataFile(id), JSON.stringify(req.body, null, 2), "utf8");
     res.json({ ok: true });

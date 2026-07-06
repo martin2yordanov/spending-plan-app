@@ -78,7 +78,10 @@ A short bullet list (4-6 items) outlining what they should do over the next year
 - Keep total response length manageable — aim for ~700-1000 words of focused, high-density advice.`;
 
 function formatFinancialData({ income, expenses, invest, emergencyMonths, savingsAccounts, categoryLimits, bills }) {
-  const freqToMonthly = (amount, freq) => {
+  // Amounts may arrive as strings (mid-edit saves); coerce before any .toFixed.
+  const num = (v) => Number(v) || 0;
+  const freqToMonthly = (rawAmount, freq) => {
+    const amount = num(rawAmount);
     switch (freq) {
       case "Monthly": return amount;
       case "Annual": return amount / 12;
@@ -91,10 +94,10 @@ function formatFinancialData({ income, expenses, invest, emergencyMonths, saving
 
   const totalIncomeMonthly = (income ?? []).reduce((sum, i) => sum + freqToMonthly(i.amount, i.frequency), 0);
   const totalExpensesMonthly = (expenses ?? []).reduce((sum, e) => sum + freqToMonthly(e.amount, e.frequency), 0);
-  const netMonthly = totalIncomeMonthly - totalExpensesMonthly - (invest ?? 0);
+  const netMonthly = totalIncomeMonthly - totalExpensesMonthly - num(invest);
 
   const incomeLines = (income ?? [])
-    .map((i) => `  - ${i.name}: €${i.amount.toFixed(2)} ${i.frequency} (€${freqToMonthly(i.amount, i.frequency).toFixed(2)}/mo)`)
+    .map((i) => `  - ${i.name}: €${num(i.amount).toFixed(2)} ${i.frequency} (€${freqToMonthly(i.amount, i.frequency).toFixed(2)}/mo)`)
     .join("\n");
 
   const expensesByCategory = {};
@@ -107,7 +110,7 @@ function formatFinancialData({ income, expenses, invest, emergencyMonths, saving
     .map(([cat, items]) => {
       const catTotal = items.reduce((s, e) => s + freqToMonthly(e.amount, e.frequency), 0);
       const itemLines = items
-        .map((e) => `    - ${e.name}: €${e.amount.toFixed(2)} ${e.frequency} (€${freqToMonthly(e.amount, e.frequency).toFixed(2)}/mo)`)
+        .map((e) => `    - ${e.name}: €${num(e.amount).toFixed(2)} ${e.frequency} (€${freqToMonthly(e.amount, e.frequency).toFixed(2)}/mo)`)
         .join("\n");
       return `  ${cat} (€${catTotal.toFixed(2)}/mo total):\n${itemLines}`;
     })
@@ -116,7 +119,7 @@ function formatFinancialData({ income, expenses, invest, emergencyMonths, saving
   const limitLines = Object.entries(categoryLimits ?? {})
     .map(([cat, limit]) => {
       const spent = (expensesByCategory[cat] ?? []).reduce((s, e) => s + freqToMonthly(e.amount, e.frequency), 0);
-      return `  - ${cat}: €${Number(limit).toFixed(2)}/mo limit (currently spending €${spent.toFixed(2)}/mo, ${limit > 0 ? ((spent / limit) * 100).toFixed(0) : "?"}% of limit)`;
+      return `  - ${cat}: €${num(limit).toFixed(2)}/mo limit (currently spending €${spent.toFixed(2)}/mo, ${num(limit) > 0 ? ((spent / num(limit)) * 100).toFixed(0) : "?"}% of limit)`;
     })
     .join("\n");
 
@@ -153,7 +156,7 @@ ${savingsLines || "  (none)"}
 ## Recurring bills (total: €${billsTotal.toFixed(2)}/month)
 ${billLines || "  (none)"}
 
-## Monthly investment contribution: €${(invest ?? 0).toFixed(2)}
+## Monthly investment contribution: €${num(invest).toFixed(2)}
 ## Emergency fund target: ${emergencyMonths ?? 0} months of expenses
 ## Net monthly cashflow (income - expenses - investment): €${netMonthly.toFixed(2)}
 
