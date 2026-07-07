@@ -586,6 +586,11 @@ function DonutChart({ data, total, activeCategory, onCategoryChange }) {
       viewBox={`0 0 ${size} ${size}`}
       style={{ transform: "rotate(-90deg)", overflow: "visible" }}
     >
+      {/* Visual layer: pop-out + thicken on hover. pointerEvents is off so its
+          own animation can never move the hit target it's drawn from — that
+          feedback loop (hover moves the shape -> cursor falls off it ->
+          un-hover -> shape snaps back -> re-hover -> ...) is what caused the
+          flicker at segment edges. */}
       {segments.map((segment, index) => {
         const isActive = activeCategory === segment.name;
         const hasActive = activeCategory !== null;
@@ -593,7 +598,7 @@ function DonutChart({ data, total, activeCategory, onCategoryChange }) {
         const dy = isActive ? POP * Math.sin(segment.midAngle) : 0;
         return (
           <circle
-            key={index}
+            key={`visual-${index}`}
             cx={size / 2}
             cy={size / 2}
             r={r}
@@ -603,12 +608,34 @@ function DonutChart({ data, total, activeCategory, onCategoryChange }) {
             strokeDasharray={segment.dasharray}
             strokeDashoffset={segment.dashoffset}
             strokeLinecap="butt"
+            pointerEvents="none"
             style={{
               transform: `translate(${dx}px, ${dy}px)`,
               transition: "transform 0.22s ease, stroke-width 0.22s ease, opacity 0.22s ease",
               opacity: hasActive && !isActive ? 0.3 : 1,
-              cursor: "pointer",
             }}
+          />
+        );
+      })}
+      {/* Hit-test layer: fixed geometry regardless of hover state, wide
+          enough to cover the popped-out visual so hovering the animated
+          wedge always still counts as hovering its (stationary) hit area. */}
+      {segments.map((segment, index) => {
+        const isActive = activeCategory === segment.name;
+        return (
+          <circle
+            key={`hit-${index}`}
+            cx={size / 2}
+            cy={size / 2}
+            r={r}
+            fill="none"
+            stroke={segment.color}
+            strokeWidth={strokeWidth + POP + 6}
+            strokeDasharray={segment.dasharray}
+            strokeDashoffset={segment.dashoffset}
+            strokeLinecap="butt"
+            pointerEvents="stroke"
+            style={{ opacity: 0, cursor: "pointer" }}
             onMouseEnter={() => onCategoryChange(segment.name)}
             onMouseLeave={() => onCategoryChange(null)}
             onClick={() => onCategoryChange(isActive ? null : segment.name)}
@@ -669,9 +696,14 @@ export default function App() {
   const autoSaveTimerRef = useRef(null);
   const skipNextSaveRef = useRef(false);
   const tabRefs = useRef({});
+  const expensesSectionRef = useRef(null);
+  const incomeSectionRef = useRef(null);
+  const editingExpenseStateRef = useRef({ id: null, amountStr: "" });
+  const editingIncomeStateRef = useRef({ id: null, amountStr: "" });
   const [activeTab, setActiveTab] = useState("overview");
   const [editingIncome, setEditingIncome] = useState(null);
   const [editingIncomeAmountStr, setEditingIncomeAmountStr] = useState("");
+  const [editingIncomeFocusField, setEditingIncomeFocusField] = useState("name");
   const [editingExpense, setEditingExpense] = useState(null);
   const [editingExpenseAmountStr, setEditingExpenseAmountStr] = useState("");
   const [editingExpenseFocusField, setEditingExpenseFocusField] = useState("name");
@@ -886,6 +918,42 @@ export default function App() {
     document.addEventListener("mousedown", handleClick);
     return () => document.removeEventListener("mousedown", handleClick);
   }, [showLangMenu]);
+
+  // Keep refs mirroring the latest in-progress edit so the click-outside
+  // handler below (a stable, mount-once listener) always sees current
+  // values without needing to resubscribe on every keystroke.
+  useEffect(() => {
+    editingExpenseStateRef.current = { id: editingExpense, amountStr: editingExpenseAmountStr };
+  }, [editingExpense, editingExpenseAmountStr]);
+  useEffect(() => {
+    editingIncomeStateRef.current = { id: editingIncome, amountStr: editingIncomeAmountStr };
+  }, [editingIncome, editingIncomeAmountStr]);
+
+  // Clicking outside the Expenses/Income table while a row is being edited
+  // commits the pending amount and closes the row, instead of leaving it
+  // stuck open.
+  useEffect(() => {
+    function handleClickOutsideTables(e) {
+      const exp = editingExpenseStateRef.current;
+      if (exp.id != null && expensesSectionRef.current && !expensesSectionRef.current.contains(e.target)) {
+        updateExpense(exp.id, "amount", exp.amountStr);
+        setEditingExpense(null);
+      }
+      const inc = editingIncomeStateRef.current;
+      if (inc.id != null && incomeSectionRef.current && !incomeSectionRef.current.contains(e.target)) {
+        setIncome((current) =>
+          current.map((item) =>
+            item.id === inc.id ? { ...item, amount: parseAmount(inc.amountStr, item.amount) } : item,
+          ),
+        );
+        setEditingIncome(null);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutsideTables);
+    return () => document.removeEventListener("mousedown", handleClickOutsideTables);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- reads latest state via refs, intentionally mount-once
+  }, []);
+
   const totalIncome = income.reduce((sum, item) => sum + freqToMonthly(item.amount, item.frequency), 0);
   const totalExpenses = expenses.reduce((sum, item) => sum + freqToMonthly(item.amount, item.frequency), 0);
   const totalSavingsBalance = savingsAccounts.reduce((sum, a) => sum + (a.amount || 0), 0);
@@ -1223,9 +1291,10 @@ export default function App() {
 
   // Income amount editing uses a string buffer so decimals ("12.5") survive
   // re-renders; the number is committed on blur/done.
-  const startEditingIncome = (item) => {
+  const startEditingIncome = (item, focusField = "name") => {
     setEditingIncome(item.id);
     setEditingIncomeAmountStr(String(item.amount));
+    setEditingIncomeFocusField(focusField);
   };
   const commitIncomeAmount = (id) => {
     setIncome((current) =>
@@ -2167,7 +2236,7 @@ export default function App() {
         )}
 
         {activeTab === "expenses" && (
-          <div>
+          <div ref={expensesSectionRef}>
             <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
               {["All", ...categories].map((category) => (
                 <button
@@ -2754,7 +2823,7 @@ export default function App() {
         )}
 
         {activeTab === "income" && (
-          <div>
+          <div ref={incomeSectionRef}>
             {/* ── Mobile income card layout ── */}
             {isMobile ? (
               <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 14 }}>
@@ -2945,10 +3014,10 @@ export default function App() {
                         background: isEditing ? "#F0FFF4" : "transparent",
                       }}
                     >
-                      <div onClick={() => (isEditing ? null : startEditingIncome(item))} style={{ cursor: isEditing ? "default" : "pointer" }}>
+                      <div onClick={() => (isEditing ? null : startEditingIncome(item, "name"))} style={{ cursor: isEditing ? "default" : "pointer" }}>
                         {isEditing ? (
                           <input
-                            autoFocus
+                            ref={(el) => { if (el && editingIncomeFocusField === "name") el.focus(); }}
                             value={item.name}
                             onChange={(event) => updateIncome(item.id, "name", event.target.value)}
                             onKeyDown={(e) => { if (e.key === "Enter") { commitIncomeAmount(item.id); setEditingIncome(null); } if (e.key === "Escape") setEditingIncome(null); }}
@@ -2958,9 +3027,13 @@ export default function App() {
                           <span style={{ fontSize: 15, fontWeight: 600 }}>{item.name}</span>
                         )}
                       </div>
-                      <div style={{ textAlign: "right" }}>
+                      <div
+                        onClick={() => (isEditing ? null : startEditingIncome(item, "amount"))}
+                        style={{ textAlign: "right", cursor: isEditing ? "default" : "pointer" }}
+                      >
                         {isEditing ? (
                           <input
+                            ref={(el) => { if (el && editingIncomeFocusField === "amount") { el.focus(); el.select(); } }}
                             type="text"
                             inputMode="decimal"
                             value={editingIncomeAmountStr}
