@@ -674,6 +674,7 @@ export default function App() {
   const [editingIncomeAmountStr, setEditingIncomeAmountStr] = useState("");
   const [editingExpense, setEditingExpense] = useState(null);
   const [editingExpenseAmountStr, setEditingExpenseAmountStr] = useState("");
+  const [editingExpenseFocusField, setEditingExpenseFocusField] = useState("name");
   const [addingExpense, setAddingExpense] = useState(false);
   const [newExpense, setNewExpense] = useState({
     name: "",
@@ -2378,13 +2379,14 @@ export default function App() {
                           if (!isEditing) {
                             setEditingExpense(item.id);
                             setEditingExpenseAmountStr(String(item.amount));
+                            setEditingExpenseFocusField("name");
                           }
                         }}
                         style={{ cursor: isEditing ? "default" : "pointer" }}
                       >
                         {isEditing ? (
                           <input
-                            autoFocus
+                            ref={(el) => { if (el && editingExpenseFocusField === "name") el.focus(); }}
                             value={item.name}
                             onChange={(event) => updateExpense(item.id, "name", event.target.value)}
                             style={{
@@ -2422,9 +2424,19 @@ export default function App() {
                           </span>
                         )}
                       </div>
-                      <div style={{ textAlign: "right" }}>
+                      <div
+                        onClick={() => {
+                          if (!isEditing) {
+                            setEditingExpense(item.id);
+                            setEditingExpenseAmountStr(String(item.amount));
+                            setEditingExpenseFocusField("amount");
+                          }
+                        }}
+                        style={{ textAlign: "right", cursor: isEditing ? "default" : "pointer" }}
+                      >
                         {isEditing ? (
                           <input
+                            ref={(el) => { if (el && editingExpenseFocusField === "amount") { el.focus(); el.select(); } }}
                             type="text"
                             inputMode="decimal"
                             value={editingExpenseAmountStr}
