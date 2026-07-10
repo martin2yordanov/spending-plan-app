@@ -18,6 +18,44 @@ const CATEGORY_COLORS = {
   Savings: { bg: "#F0FFF4", accent: "#30D158", icon: "💰" },
 };
 
+// Emoji choices offered when creating a brand-new category — a small,
+// curated set covering common expense themes (kept short so the grid stays
+// simple on mobile).
+const CATEGORY_EMOJI_CHOICES = [
+  "🛒", "🏠", "💡", "🔥", "🚗", "⛽", "🚌", "✈️",
+  "🏖️", "🎓", "📚", "☕", "🍔", "🍕", "🍺", "🍷",
+  "🎬", "🎮", "🎵", "📱", "💻", "👕", "👟", "🎁",
+  "🏥", "💊", "🐾", "🐶", "🎨", "⚽", "🔧", "📦",
+];
+
+// Deterministic accent color for a custom category that has no explicit
+// color of its own, so re-renders (and reloads) always pick the same shade.
+const CATEGORY_PALETTE = ["#5AC8FA", "#FF6B8A", "#34C759", "#FF9500", "#AF52DE", "#32ADE6", "#FF3B30", "#FFCC00", "#30D158", "#5856D6"];
+function paletteColorForKey(key) {
+  let hash = 0;
+  for (let i = 0; i < key.length; i++) hash = (hash * 31 + key.charCodeAt(i)) >>> 0;
+  return CATEGORY_PALETTE[hash % CATEGORY_PALETTE.length];
+}
+
+// Custom categories (new ones, or renames of built-ins) live in a
+// `customCategories` map keyed by the same stable identifier stored on each
+// expense (`{ [key]: { label?, icon?, color? } }`). These two helpers are
+// the single place that resolves "how does this category look/read" so
+// every render site (chips, dropdowns, charts, modal, PDF) stays in sync.
+function getCategoryMeta(key, customCategories) {
+  const custom = customCategories[key];
+  const base = CATEGORY_COLORS[key];
+  const accent = custom?.color ?? base?.accent ?? paletteColorForKey(key);
+  return {
+    icon: custom?.icon ?? base?.icon ?? "📦",
+    accent,
+    bg: base?.bg ?? `${accent}18`,
+  };
+}
+function getCategoryLabel(key, customCategories, t) {
+  return customCategories[key]?.label ?? t.cat(key);
+}
+
 const DEFAULT_EXPENSES = [
   { id: 1, name: "Hot Water", type: "Utilities", category: "Bills", amount: 0, frequency: "Monthly" },
   { id: 2, name: "Electricity Bill", type: "Utilities", category: "Bills", amount: 0, frequency: "Monthly" },
@@ -360,7 +398,7 @@ const MODAL_CSS = `
 @keyframes sheetOut { from { transform: translateY(0) } to { transform: translateY(100%) } }
 `;
 
-function CategoryModal({ cat, color, icon, catExpenses, closing, onClose, onUpdate, onDelete, t, fmt }) {
+function CategoryModal({ cat, label, color, icon, catExpenses, closing, onClose, onUpdate, onDelete, t, fmt }) {
   const [editingId, setEditingId] = useState(null);
   const [amountStr, setAmountStr] = useState("");
   const catTotal = catExpenses.reduce((s, e) => s + freqToMonthly(e.amount, e.frequency), 0);
@@ -429,7 +467,7 @@ function CategoryModal({ cat, color, icon, catExpenses, closing, onClose, onUpda
                 {t("categoryBreakdown")}
               </div>
               <div style={{ fontSize: 22, fontWeight: 800, color: "#1C1C1E", letterSpacing: "-0.5px" }}>
-                {icon} {t.cat(cat)}
+                {icon} {label}
               </div>
               <div style={{ fontSize: 13, color: color, fontWeight: 600, marginTop: 2 }}>
                 €{fmt(catTotal)} / {t.freq("Monthly").toLowerCase()}
@@ -556,6 +594,151 @@ function CategoryModal({ cat, color, icon, catExpenses, closing, onClose, onUpda
                 </div>
               );
             })}
+          </div>
+        </div>
+      </div>
+    </>
+  );
+}
+
+// Bottom-sheet dialog for creating a brand-new expense category: a name
+// field plus a small curated emoji grid. Mirrors CategoryModal's visual
+// language (same slide-up sheet, same MODAL_CSS keyframes) so it reads as
+// a natural extension of the app rather than a bolted-on feature.
+function NewCategoryModal({ closing, onClose, onCreate, existingLabels, t }) {
+  const [name, setName] = useState("");
+  const [icon, setIcon] = useState(null);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    const scrollY = window.scrollY;
+    const prev = { overflow: document.body.style.overflow, position: document.body.style.position, top: document.body.style.top, width: document.body.style.width };
+    document.body.style.overflow = "hidden";
+    document.body.style.position = "fixed";
+    document.body.style.top = `-${scrollY}px`;
+    document.body.style.width = "100%";
+    const onKey = (e) => { if (e.key === "Escape") onClose(); };
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.body.style.overflow = prev.overflow;
+      document.body.style.position = prev.position;
+      document.body.style.top = prev.top;
+      document.body.style.width = prev.width;
+      window.scrollTo(0, scrollY);
+    };
+  }, [onClose]);
+
+  const handleCreate = () => {
+    const trimmed = name.trim();
+    if (!trimmed || !icon) return;
+    if (existingLabels.some((l) => l.toLowerCase() === trimmed.toLowerCase())) {
+      setError(t("categoryExists"));
+      return;
+    }
+    onCreate(trimmed, icon);
+  };
+
+  return (
+    <>
+      <style>{MODAL_CSS}</style>
+      <div
+        onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+        style={{
+          position: "fixed", inset: 0, zIndex: 2000,
+          display: "flex", alignItems: "flex-end", justifyContent: "center",
+          animation: `${closing ? "backdropOut" : "backdropIn"} 0.3s ease forwards`,
+          background: closing ? "rgba(0,0,0,0.45)" : "rgba(0,0,0,0)",
+        }}
+      >
+        <div
+          style={{
+            background: "#fff",
+            borderRadius: "24px 24px 0 0",
+            width: "100%",
+            maxWidth: 420,
+            maxHeight: "88vh",
+            overflowY: "auto",
+            display: "flex",
+            flexDirection: "column",
+            padding: "22px 22px 28px",
+            animation: `${closing ? "sheetOut" : "sheetIn"} 0.3s cubic-bezier(0.32,0.72,0,1) forwards`,
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 18 }}>
+            <div style={{ fontSize: 18, fontWeight: 800, color: "#1C1C1E" }}>{t("createCategoryTitle")}</div>
+            <button
+              onClick={onClose}
+              aria-label={t("close")}
+              style={{
+                width: 32, height: 32, borderRadius: "50%", border: "none",
+                background: "#F2F2F7", cursor: "pointer", fontSize: 14, color: "#3C3C43", fontWeight: 700,
+                display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+              }}
+            >✕</button>
+          </div>
+
+          <input
+            autoFocus
+            placeholder={t("ph_categoryName")}
+            value={name}
+            onChange={(e) => { setName(e.target.value); setError(null); }}
+            onKeyDown={(e) => { if (e.key === "Enter") handleCreate(); }}
+            style={{
+              fontSize: 16, fontWeight: 600, color: "#1C1C1E",
+              border: "none", borderBottom: "2px solid #007AFF",
+              background: "transparent", outline: "none", padding: "6px 0",
+            }}
+          />
+          {error && (
+            <div style={{ fontSize: 12, color: "#FF3B30", marginTop: 6 }}>{error}</div>
+          )}
+
+          <div style={{ fontSize: 11, color: "#6C6C70", textTransform: "uppercase", letterSpacing: 0.5, margin: "20px 0 10px" }}>
+            {t("pickEmoji")}
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(42px, 1fr))", gap: 8 }}>
+            {CATEGORY_EMOJI_CHOICES.map((e) => {
+              const selected = icon === e;
+              return (
+                <button
+                  key={e}
+                  onClick={() => setIcon(e)}
+                  aria-label={e}
+                  style={{
+                    width: 42, height: 42, borderRadius: 12,
+                    border: selected ? "2px solid #007AFF" : "1.5px solid transparent",
+                    background: selected ? "#E3F0FF" : "#F9F9FB",
+                    fontSize: 20, cursor: "pointer",
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    transition: "all 0.15s ease",
+                  }}
+                >
+                  {e}
+                </button>
+              );
+            })}
+          </div>
+
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 22 }}>
+            <button
+              onClick={onClose}
+              style={{ padding: "9px 18px", borderRadius: 12, border: "1.5px solid #E5E5EA", background: "#fff", color: "#3C3C43", fontSize: 14, fontWeight: 600, cursor: "pointer" }}
+            >
+              {t("btn_cancel")}
+            </button>
+            <button
+              onClick={handleCreate}
+              disabled={!name.trim() || !icon}
+              style={{
+                padding: "9px 18px", borderRadius: 12, border: "none",
+                background: name.trim() && icon ? "#007AFF" : "#A0C4FF",
+                color: "#fff", fontSize: 14, fontWeight: 600,
+                cursor: name.trim() && icon ? "pointer" : "default",
+              }}
+            >
+              + {t("btn_create")}
+            </button>
           </div>
         </div>
       </div>
@@ -729,6 +912,12 @@ export default function App() {
   const [newBill, setNewBill] = useState({ name: "", amount: 0, dueDay: 1 });
   const [savedFlag, setSavedFlag] = useState(false);
   const [filterCat, setFilterCat] = useState("All");
+  const [customCategories, setCustomCategories] = useState({}); // { [key]: { label?, icon?, color? } }
+  const [showNewCategoryModal, setShowNewCategoryModal] = useState(false);
+  const [newCategoryModalClosing, setNewCategoryModalClosing] = useState(false);
+  const [renamingCategory, setRenamingCategory] = useState(null);
+  const [renameInput, setRenameInput] = useState("");
+  const lastCategoryTapRef = useRef({ key: null, time: 0 });
   const [suggestions, setSuggestions] = useState("");
   const [suggestionsLoading, setSuggestionsLoading] = useState(false);
   const [suggestionsError, setSuggestionsError] = useState(null);
@@ -755,6 +944,11 @@ export default function App() {
     setTimeout(() => { setCatModalCat(null); setCatModalClosing(false); }, 300);
   }, []);
 
+  const closeNewCategoryModal = useCallback(() => {
+    setNewCategoryModalClosing(true);
+    setTimeout(() => { setShowNewCategoryModal(false); setNewCategoryModalClosing(false); }, 300);
+  }, []);
+
   // Keep the editable investment text field in sync when the value changes
   // from elsewhere (slider, loading saved data).
   useEffect(() => { setInvestStr(String(invest)); }, [invest]);
@@ -775,6 +969,61 @@ export default function App() {
     });
   }, []);
 
+  // Every category the app knows about — the fixed built-ins plus any
+  // custom ones the user created — regardless of whether an expense
+  // currently uses it. Drives the filter chips and every category <select>.
+  const allCategoryKeys = useMemo(() => {
+    const keys = [...new Set([...Object.keys(CATEGORY_COLORS), ...Object.keys(customCategories)])];
+    return keys.sort((a, b) => getCategoryLabel(a, customCategories, t).localeCompare(getCategoryLabel(b, customCategories, t)));
+  }, [customCategories, t]);
+
+  // Single/double click (or tap) unification: a normal click/tap selects
+  // the filter as before; a second one landing within the window opens
+  // rename. Works the same for touch and mouse, so it doesn't depend on the
+  // browser's native dblclick timing/support.
+  const handleCategoryChipActivate = useCallback((category) => {
+    if (category === "All") { setFilterCat("All"); return; }
+    const now = Date.now();
+    const last = lastCategoryTapRef.current;
+    if (last.key === category && now - last.time < 400) {
+      lastCategoryTapRef.current = { key: null, time: 0 };
+      setRenamingCategory(category);
+      setRenameInput(getCategoryLabel(category, customCategories, t));
+    } else {
+      lastCategoryTapRef.current = { key: category, time: now };
+      setFilterCat(category);
+    }
+  }, [customCategories, t]);
+
+  const openRenameCategory = useCallback((category) => {
+    setRenamingCategory(category);
+    setRenameInput(getCategoryLabel(category, customCategories, t));
+  }, [customCategories, t]);
+
+  const commitRenameCategory = useCallback(() => {
+    setRenamingCategory((key) => {
+      const label = renameInput.trim();
+      if (key && label) {
+        setCustomCategories((current) => ({ ...current, [key]: { ...current[key], label } }));
+      }
+      return null;
+    });
+    setRenameInput("");
+  }, [renameInput]);
+
+  const cancelRenameCategory = useCallback(() => {
+    setRenamingCategory(null);
+    setRenameInput("");
+  }, []);
+
+  const handleCreateCategory = useCallback((name, icon) => {
+    const key = name.trim();
+    if (!key) return;
+    setCustomCategories((current) => ({ ...current, [key]: { icon } }));
+    setFilterCat(key);
+    closeNewCategoryModal();
+  }, [closeNewCategoryModal]);
+
   useEffect(() => {
     // Logged out: show example demo data, no backend reads/writes.
     if (!auth?.userId) {
@@ -785,6 +1034,7 @@ export default function App() {
       setEmergencyMonths(3);
       setCategoryLimits({});
       setBills([]);
+      setCustomCategories({});
       setLoadError(null);
       setLoaded(true);
       return;
@@ -807,6 +1057,7 @@ export default function App() {
           if (saved.savingsAccounts) setSavingsAccounts(saved.savingsAccounts);
           if (saved.categoryLimits) setCategoryLimits(saved.categoryLimits);
           if (saved.bills) setBills(saved.bills);
+          if (saved.customCategories) setCustomCategories(saved.customCategories);
           setLoaded(true);
         } else {
           // Brand-new account: check for pre-auth sync code data first.
@@ -828,6 +1079,7 @@ export default function App() {
               if (legacy.savingsAccounts) setSavingsAccounts(legacy.savingsAccounts);
               if (legacy.categoryLimits) setCategoryLimits(legacy.categoryLimits);
               if (legacy.bills) setBills(legacy.bills);
+              if (legacy.customCategories) setCustomCategories(legacy.customCategories);
               saveData(userId, legacy).finally(() => { if (!cancelled) setLoaded(true); });
             } else {
               // Truly new account: seed example data and run walkthrough.
@@ -869,7 +1121,7 @@ export default function App() {
     setSaveError(false);
     if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
     autoSaveTimerRef.current = setTimeout(() => {
-      saveData(auth.userId, { income, expenses, invest, investLabel, emergencyMonths, savingsAccounts, categoryLimits, bills })
+      saveData(auth.userId, { income, expenses, invest, investLabel, emergencyMonths, savingsAccounts, categoryLimits, bills, customCategories })
         .then(() => {
           setIsDirty(false);
           setSaveError(false);
@@ -882,7 +1134,7 @@ export default function App() {
         });
     }, 2000);
     return () => { if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current); };
-  }, [loaded, income, expenses, invest, investLabel, emergencyMonths, savingsAccounts, categoryLimits, bills, auth?.userId]);
+  }, [loaded, income, expenses, invest, investLabel, emergencyMonths, savingsAccounts, categoryLimits, bills, customCategories, auth?.userId]);
 
   // Warn before leaving with unsaved (or failed-to-save) changes.
   useEffect(() => {
@@ -983,7 +1235,7 @@ export default function App() {
       value: expenses
         .filter((item) => item.category === category)
         .reduce((sum, item) => sum + freqToMonthly(item.amount, item.frequency), 0),
-      color: (CATEGORY_COLORS[category] || CATEGORY_COLORS.Other).accent,
+      color: getCategoryMeta(category, customCategories).accent,
     }))
     .sort((a, b) => b.value - a.value);
 
@@ -1044,7 +1296,7 @@ export default function App() {
     if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
     setSaveError(false);
     setIsDirty(true);
-    saveData(auth.userId, { income, expenses, invest, investLabel, emergencyMonths, savingsAccounts, categoryLimits, bills })
+    saveData(auth.userId, { income, expenses, invest, investLabel, emergencyMonths, savingsAccounts, categoryLimits, bills, customCategories })
       .then(() => {
         setIsDirty(false);
         setSaveError(false);
@@ -1055,7 +1307,7 @@ export default function App() {
         setIsDirty(false);
         setSaveError(true);
       });
-  }, [emergencyMonths, expenses, income, invest, investLabel, loaded, auth, savingsAccounts, categoryLimits, bills]);
+  }, [emergencyMonths, expenses, income, invest, investLabel, loaded, auth, savingsAccounts, categoryLimits, bills, customCategories]);
 
   const handleExportPDF = useCallback(() => {
     const date = new Date().toLocaleDateString("en-GB", { year: "numeric", month: "long", day: "numeric" });
@@ -1083,7 +1335,7 @@ export default function App() {
         </tr>`).join("");
       return `
         <tr style="background:#f5f5f7">
-          <td colspan="3" style="padding:8px 10px;font-weight:700;font-size:12px">${(CATEGORY_COLORS[cat] || CATEGORY_COLORS.Other).icon} ${t.cat(cat)}</td>
+          <td colspan="3" style="padding:8px 10px;font-weight:700;font-size:12px">${getCategoryMeta(cat, customCategories).icon} ${getCategoryLabel(cat, customCategories, t)}</td>
           <td style="padding:8px 10px;text-align:right;font-weight:700;font-size:12px">€${fmt(catTotal)}${t("perMo")}</td>
         </tr>${itemRows}`;
     }).join("");
@@ -1252,7 +1504,7 @@ export default function App() {
     a.click();
     document.body.removeChild(a);
     setTimeout(() => URL.revokeObjectURL(url), 30000);
-  }, [income, expenses, invest, investLabel, emergencyMonths, savingsAccounts, bills, syncId, auth, t]);
+  }, [income, expenses, invest, investLabel, emergencyMonths, savingsAccounts, bills, customCategories, syncId, auth, t]);
 
   const updateExpense = (id, field, value) => {
     setExpenses((current) =>
@@ -1763,7 +2015,7 @@ export default function App() {
                         return ac ? (
                           <>
                             <div style={{ fontSize: 15, fontWeight: 700, color: ac.color }}>€{fmt(ac.value)}</div>
-                            <div style={{ fontSize: 10, color: "#6C6C70", maxWidth: 60, lineHeight: 1.2 }}>{t.cat(ac.name)}</div>
+                            <div style={{ fontSize: 10, color: "#6C6C70", maxWidth: 60, lineHeight: 1.2 }}>{getCategoryLabel(ac.name, customCategories, t)}</div>
                           </>
                         ) : null;
                       })() : (
@@ -1794,7 +2046,7 @@ export default function App() {
                             transform: isActive ? "scale(1.6)" : "scale(1)",
                             transition: "transform 0.22s ease",
                           }} />
-                          <div style={{ flex: 1, fontSize: 12, color: "#3C3C43", fontWeight: isActive ? 700 : 500 }}>{t.cat(item.name)}</div>
+                          <div style={{ flex: 1, fontSize: 12, color: "#3C3C43", fontWeight: isActive ? 700 : 500 }}>{getCategoryLabel(item.name, customCategories, t)}</div>
                           <div style={{ fontSize: 12, fontWeight: 600, color: "#1C1C1E" }}>€{fmt(item.value)}</div>
                         </div>
                       );
@@ -1844,7 +2096,7 @@ export default function App() {
                       >
                         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4, gap: 10 }}>
                           <span style={{ fontSize: 12, fontWeight: isActive ? 700 : 500, color: isActive ? "#1C1C1E" : "#3C3C43", display: "flex", alignItems: "center", gap: 6 }}>
-                            {(CATEGORY_COLORS[item.name] || CATEGORY_COLORS.Other).icon} {t.cat(item.name)}
+                            {getCategoryMeta(item.name, customCategories).icon} {getCategoryLabel(item.name, customCategories, t)}
                             {overLimit && (
                               <span style={{ fontSize: 10, fontWeight: 700, color: "#fff", background: "#FF3B30", padding: "1px 6px", borderRadius: 6, whiteSpace: "nowrap" }}>
                                 {t("overLimit")}
@@ -2237,34 +2489,86 @@ export default function App() {
 
         {activeTab === "expenses" && (
           <div ref={expensesSectionRef}>
-            <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
-              {["All", ...categories].map((category) => (
-                <button
-                  key={category}
-                  onClick={() => setFilterCat(category)}
-                  style={{
-                    padding: "6px 14px",
-                    borderRadius: 20,
-                    border: "none",
-                    cursor: "pointer",
-                    fontSize: 13,
-                    fontWeight: 500,
-                    background: filterCat === category ? CATEGORY_COLORS[category]?.accent || "#007AFF" : "#fff",
-                    color: filterCat === category ? "#fff" : "#3C3C43",
-                    boxShadow: "0 1px 4px rgba(0,0,0,0.08)",
-                    transition: "all 0.2s",
-                  }}
-                >
-                  {category !== "All" && `${CATEGORY_COLORS[category]?.icon || ""} `}{category === "All" ? t("all") : t.cat(category)}
-                </button>
-              ))}
+            <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap", alignItems: "center" }}>
+              {["All", ...allCategoryKeys].map((category) => {
+                if (category !== "All" && renamingCategory === category) {
+                  const meta = getCategoryMeta(category, customCategories);
+                  return (
+                    <input
+                      key={category}
+                      autoFocus
+                      value={renameInput}
+                      onChange={(e) => setRenameInput(e.target.value)}
+                      onBlur={commitRenameCategory}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") commitRenameCategory();
+                        if (e.key === "Escape") cancelRenameCategory();
+                      }}
+                      size={Math.max(6, renameInput.length + 1)}
+                      style={{
+                        padding: "5px 13px",
+                        borderRadius: 20,
+                        border: `1.5px solid ${meta.accent}`,
+                        fontSize: 13,
+                        fontWeight: 600,
+                        color: "#1C1C1E",
+                        outline: "none",
+                        background: "#fff",
+                        boxShadow: "0 1px 4px rgba(0,0,0,0.08)",
+                      }}
+                    />
+                  );
+                }
+                const meta = category !== "All" ? getCategoryMeta(category, customCategories) : null;
+                const label = category === "All" ? t("all") : getCategoryLabel(category, customCategories, t);
+                return (
+                  <button
+                    key={category}
+                    onClick={() => handleCategoryChipActivate(category)}
+                    onDoubleClick={() => category !== "All" && openRenameCategory(category)}
+                    title={category !== "All" ? t("hint_renameCategory") : undefined}
+                    style={{
+                      padding: "6px 14px",
+                      borderRadius: 20,
+                      border: "none",
+                      cursor: "pointer",
+                      fontSize: 13,
+                      fontWeight: 500,
+                      background: filterCat === category ? meta?.accent || "#007AFF" : "#fff",
+                      color: filterCat === category ? "#fff" : "#3C3C43",
+                      boxShadow: "0 1px 4px rgba(0,0,0,0.08)",
+                      transition: "all 0.2s",
+                    }}
+                  >
+                    {meta && `${meta.icon} `}{label}
+                  </button>
+                );
+              })}
+              <button
+                onClick={() => setShowNewCategoryModal(true)}
+                style={{
+                  padding: "6px 14px",
+                  borderRadius: 20,
+                  border: "1.5px dashed #C7C7CC",
+                  cursor: "pointer",
+                  fontSize: 13,
+                  fontWeight: 600,
+                  background: "transparent",
+                  color: "#007AFF",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 4,
+                }}
+              >
+                + {t("newCategory")}
+              </button>
             </div>
 
             {/* ── Mobile card layout ── */}
             {isMobile ? (
               <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                 {filteredExpenses.map((item) => {
-                  const colorSet = CATEGORY_COLORS[item.category] || CATEGORY_COLORS.Other;
+                  const colorSet = getCategoryMeta(item.category, customCategories);
                   const color = colorSet.accent;
                   const isEditing = editingExpense === item.id;
                   const monthly = freqToMonthly(item.amount, item.frequency);
@@ -2303,8 +2607,8 @@ export default function App() {
                                   outline: "none", paddingBottom: 2, color: "#1C1C1E",
                                 }}
                               >
-                                {Object.keys(CATEGORY_COLORS).map(cat => (
-                                  <option key={cat} value={cat}>{t.cat(cat)}</option>
+                                {allCategoryKeys.map(cat => (
+                                  <option key={cat} value={cat}>{getCategoryLabel(cat, customCategories, t)}</option>
                                 ))}
                               </select>
                             </div>
@@ -2385,7 +2689,7 @@ export default function App() {
                                 fontSize: 11, color: colorSet.accent, fontWeight: 600,
                                 background: colorSet.bg, padding: "2px 7px", borderRadius: 5,
                               }}>
-                                {colorSet.icon} {t.cat(item.category)}
+                                {colorSet.icon} {getCategoryLabel(item.category, customCategories, t)}
                               </span>
                               <span style={{ fontSize: 12, color: "#6C6C70" }}>· {t.freq(item.frequency)}</span>
                             </div>
@@ -2427,7 +2731,7 @@ export default function App() {
                 </div>
                 {filteredExpenses.map((item, index) => {
                   const monthly = freqToMonthly(item.amount, item.frequency);
-                  const colorSet = CATEGORY_COLORS[item.category] || CATEGORY_COLORS.Other;
+                  const colorSet = getCategoryMeta(item.category, customCategories);
                   const isEditing = editingExpense === item.id;
                   return (
                     <div
@@ -2480,8 +2784,8 @@ export default function App() {
                               padding: "2px 0", width: "100%",
                             }}
                           >
-                            {Object.keys(CATEGORY_COLORS).map((category) => (
-                              <option key={category} value={category}>{t.cat(category)}</option>
+                            {allCategoryKeys.map((category) => (
+                              <option key={category} value={category}>{getCategoryLabel(category, customCategories, t)}</option>
                             ))}
                           </select>
                         ) : (
@@ -2489,7 +2793,7 @@ export default function App() {
                             fontSize: 12, color: colorSet.accent, fontWeight: 600,
                             background: colorSet.bg, padding: "3px 8px", borderRadius: 6,
                           }}>
-                            {colorSet.icon} {t.cat(item.category)}
+                            {colorSet.icon} {getCategoryLabel(item.category, customCategories, t)}
                           </span>
                         )}
                       </div>
@@ -2620,8 +2924,8 @@ export default function App() {
                       onChange={(event) => setNewExpense((current) => ({ ...current, category: event.target.value }))}
                       style={{ border: "none", borderBottom: "2px solid #007AFF", background: "transparent", fontSize: 12, outline: "none" }}
                     >
-                      {Object.keys(CATEGORY_COLORS).map((category) => (
-                        <option key={category} value={category}>{t.cat(category)}</option>
+                      {allCategoryKeys.map((category) => (
+                        <option key={category} value={category}>{getCategoryLabel(category, customCategories, t)}</option>
                       ))}
                     </select>
                     <input
@@ -2736,8 +3040,8 @@ export default function App() {
                         onChange={e => setNewExpense(c => ({ ...c, category: e.target.value }))}
                         style={{ fontSize: 13, width: "100%", border: "none", borderBottom: "2px solid #007AFF", background: "transparent", outline: "none" }}
                       >
-                        {Object.keys(CATEGORY_COLORS).map(cat => (
-                          <option key={cat} value={cat}>{t.cat(cat)}</option>
+                        {allCategoryKeys.map(cat => (
+                          <option key={cat} value={cat}>{getCategoryLabel(cat, customCategories, t)}</option>
                         ))}
                       </select>
                     </div>
@@ -3476,11 +3780,12 @@ export default function App() {
 
       {catModalCat && (() => {
         const catInfo = categoryTotals.find(c => c.name === catModalCat);
-        const icon = (CATEGORY_COLORS[catModalCat] || CATEGORY_COLORS.Other).icon;
+        const icon = getCategoryMeta(catModalCat, customCategories).icon;
         const catExpenses = expenses.filter(e => e.category === catModalCat);
         return (
           <CategoryModal
             cat={catModalCat}
+            label={getCategoryLabel(catModalCat, customCategories, t)}
             color={catInfo?.color || "#007AFF"}
             icon={icon}
             catExpenses={catExpenses}
@@ -3493,6 +3798,16 @@ export default function App() {
           />
         );
       })()}
+
+      {showNewCategoryModal && (
+        <NewCategoryModal
+          closing={newCategoryModalClosing}
+          onClose={closeNewCategoryModal}
+          onCreate={handleCreateCategory}
+          existingLabels={allCategoryKeys.map((k) => getCategoryLabel(k, customCategories, t))}
+          t={t}
+        />
+      )}
 
       {undoInfo && (
         <div
