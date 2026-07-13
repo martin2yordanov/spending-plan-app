@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { freqToMonthly, fmt, computeHealthScore, scoreColor, scoreLabelKey, parseAmount } from "../utils.js";
+import { freqToMonthly, fmt, computeHealthScore, computeEmergencyFundCoverage, emergencyFundWeight, scoreColor, scoreLabelKey, parseAmount } from "../utils.js";
 
 describe("freqToMonthly", () => {
   it("returns amount unchanged for Monthly", () => {
@@ -68,38 +68,92 @@ describe("parseAmount", () => {
 });
 
 describe("computeHealthScore", () => {
+  // The 4th argument is Emergency Fund coverage in euros (real money,
+  // weighted per computeEmergencyFundCoverage) — not a chosen target-months
+  // value. monthsCovered is derived internally as coverage / (expenses + invest).
   it("returns null for zero income", () => {
-    expect(computeHealthScore(0, 1000, 100, 3)).toBeNull();
+    expect(computeHealthScore(0, 1000, 100, 3000)).toBeNull();
   });
   it("returns null for negative income", () => {
-    expect(computeHealthScore(-1, 100, 10, 3)).toBeNull();
+    expect(computeHealthScore(-1, 100, 10, 300)).toBeNull();
   });
   it("returns a score between 0 and 100", () => {
-    const result = computeHealthScore(5000, 2000, 500, 6);
+    const result = computeHealthScore(5000, 2000, 500, 15000);
     expect(result.total).toBeGreaterThanOrEqual(0);
     expect(result.total).toBeLessThanOrEqual(100);
   });
-  it("shows 'None' for emergencyMonths === 0", () => {
+  it("shows 'None' for zero coverage", () => {
     const result = computeHealthScore(5000, 2000, 500, 0);
     const emergencyBreakdown = result.breakdown.find(b => b.labelKey === "score_emergencyFund");
     expect(emergencyBreakdown.value).toBe("None");
   });
-  it("shows months label for non-zero emergencyMonths", () => {
-    const result = computeHealthScore(5000, 2000, 500, 3);
+  it("shows months label derived from real coverage, not a target", () => {
+    // monthlyOutflow = 2000 (expenses) + 500 (invest) = 2500; 7500 / 2500 = 3mo.
+    const result = computeHealthScore(5000, 2000, 500, 7500);
     const emergencyBreakdown = result.breakdown.find(b => b.labelKey === "score_emergencyFund");
     expect(emergencyBreakdown.value).toBe("3mo");
   });
-  it("gives max score for excellent finances", () => {
-    const result = computeHealthScore(10000, 2000, 1500, 6);
+  it("gives max score for excellent finances with 6+ months covered", () => {
+    // monthlyOutflow = 2000 + 1500 = 3500; need >= 21000 for 6mo.
+    const result = computeHealthScore(10000, 2000, 1500, 21000);
     expect(result.total).toBe(100);
   });
+  it("does not give a full emergency score just because a large target was picked with no real coverage", () => {
+    // Regression guard: previously the 4th arg was the chosen target
+    // (0/3/6/12), so picking "12" alone maxed this pillar with €0 saved.
+    const result = computeHealthScore(5000, 2000, 500, 0);
+    const emergencyBreakdown = result.breakdown.find(b => b.labelKey === "score_emergencyFund");
+    expect(emergencyBreakdown.score).toBe(0);
+  });
   it("has correct breakdown keys", () => {
-    const result = computeHealthScore(5000, 2000, 500, 3);
+    const result = computeHealthScore(5000, 2000, 500, 3000);
     const keys = result.breakdown.map(b => b.labelKey);
     expect(keys).toContain("score_savingsRate");
     expect(keys).toContain("score_emergencyFund");
     expect(keys).toContain("score_investmentRate");
     expect(keys).toContain("score_expenseRatio");
+  });
+});
+
+describe("emergencyFundWeight", () => {
+  it("weights cash and emergency-fund accounts at 100%", () => {
+    expect(emergencyFundWeight("cash")).toBe(1);
+    expect(emergencyFundWeight("emergency")).toBe(1);
+  });
+  it("discounts investment accounts to 80%", () => {
+    expect(emergencyFundWeight("investment")).toBe(0.8);
+  });
+  it("defaults untyped/unknown accounts to cash (100%) for backward compatibility", () => {
+    expect(emergencyFundWeight(undefined)).toBe(1);
+    expect(emergencyFundWeight("something-unrecognized")).toBe(1);
+  });
+});
+
+describe("computeEmergencyFundCoverage", () => {
+  it("returns zero for no accounts", () => {
+    expect(computeEmergencyFundCoverage([])).toEqual({ dedicated: 0, fromSavings: 0, total: 0 });
+  });
+  it("returns zero for undefined input", () => {
+    expect(computeEmergencyFundCoverage(undefined)).toEqual({ dedicated: 0, fromSavings: 0, total: 0 });
+  });
+  it("counts untyped accounts as cash, in full (pre-existing data)", () => {
+    const result = computeEmergencyFundCoverage([{ amount: 500 }]);
+    expect(result.fromSavings).toBe(500);
+    expect(result.total).toBe(500);
+  });
+  it("counts investment accounts at the discounted weight", () => {
+    const result = computeEmergencyFundCoverage([{ amount: 1000, type: "investment" }]);
+    expect(result.fromSavings).toBe(800);
+    expect(result.total).toBe(800);
+  });
+  it("matches the worked example: €500 dedicated + €2,000 savings = €2,500 total", () => {
+    const result = computeEmergencyFundCoverage([
+      { amount: 500, type: "emergency" },
+      { amount: 2000, type: "cash" },
+    ]);
+    expect(result.dedicated).toBe(500);
+    expect(result.fromSavings).toBe(2000);
+    expect(result.total).toBe(2500);
   });
 });
 

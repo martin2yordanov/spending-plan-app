@@ -123,16 +123,33 @@ function formatFinancialData({ income, expenses, invest, emergencyMonths, saving
     })
     .join("\n");
 
+  // Mirrors src/utils.js's computeEmergencyFundCoverage/emergencyFundWeight.
+  // Duplicated rather than imported because this is a separate serverless
+  // function with no shared module boundary with the client bundle (same
+  // reason freqToMonthly above is a local copy, not an import).
+  const EMERGENCY_FUND_WEIGHTS = { cash: 1, emergency: 1, investment: 0.8 };
+  let emergencyDedicated = 0;
+  let emergencyFromSavings = 0;
   const savingsLines = (savingsAccounts ?? [])
     .map((a) => {
       const balance = Number(a.amount) || 0;
       const target = Number(a.target) || 0;
+      const weight = EMERGENCY_FUND_WEIGHTS[a.type] ?? EMERGENCY_FUND_WEIGHTS.cash;
+      const weighted = balance * weight;
+      if (a.type === "emergency") emergencyDedicated += weighted;
+      else emergencyFromSavings += weighted;
       const goal = target > 0
         ? ` — goal: €${target.toFixed(2)}${a.targetMonth ? ` by ${a.targetMonth}` : ""} (${((balance / target) * 100).toFixed(0)}% funded)`
         : "";
-      return `  - ${a.name}: €${balance.toFixed(2)}${goal}`;
+      const typeNote = a.type === "emergency" ? " [dedicated emergency fund]"
+        : a.type === "investment" ? " [investment, counts at 80% toward emergency coverage]"
+        : "";
+      return `  - ${a.name}: €${balance.toFixed(2)}${typeNote}${goal}`;
     })
     .join("\n");
+  const emergencyCoverageTotal = emergencyDedicated + emergencyFromSavings;
+  const monthlyOutflow = totalExpensesMonthly + num(invest);
+  const monthsCovered = monthlyOutflow > 0 ? emergencyCoverageTotal / monthlyOutflow : 0;
 
   const billsTotal = (bills ?? []).reduce((s, b) => s + (Number(b.amount) || 0), 0);
   const billLines = (bills ?? [])
@@ -157,7 +174,10 @@ ${savingsLines || "  (none)"}
 ${billLines || "  (none)"}
 
 ## Monthly investment contribution: €${num(invest).toFixed(2)}
-## Emergency fund target: ${emergencyMonths ?? 0} months of expenses
+## Emergency fund
+Target: ${emergencyMonths ?? 0} months of expenses
+Current coverage: €${emergencyCoverageTotal.toFixed(2)} total — €${emergencyDedicated.toFixed(2)} from dedicated emergency savings + €${emergencyFromSavings.toFixed(2)} from other liquid savings/investments (investments discounted to 80% for market risk). This covers approximately ${monthsCovered.toFixed(1)} months of expenses.
+Note: Emergency fund coverage includes ALL eligible savings/investments the user has, not only money explicitly labeled "Emergency Fund" — treat the "Current coverage" figure above as their real safety net when assessing risk, not just dedicated emergency savings alone.
 ## Net monthly cashflow (income - expenses - investment): €${netMonthly.toFixed(2)}
 
 Provide specific, actionable advice based on these exact numbers.`;

@@ -19,15 +19,52 @@ export function fmt(n) {
   }).format(Math.round(n));
 }
 
-export function computeHealthScore(totalIncome, totalExpenses, invest, emergencyMonths) {
+// A savings account's balance counts toward Emergency Fund coverage at a
+// weight that reflects how reliably it could be tapped in an emergency.
+// Cash and a dedicated emergency-fund account are equally liquid (100%);
+// invested balances (ETFs/stocks) are liquid within days but could have to
+// be sold at a loss during a downturn, so only a discounted share counts.
+export const EMERGENCY_FUND_WEIGHTS = { cash: 1, emergency: 1, investment: 0.8 };
+
+export function emergencyFundWeight(type) {
+  return EMERGENCY_FUND_WEIGHTS[type] ?? EMERGENCY_FUND_WEIGHTS.cash;
+}
+
+/**
+ * Emergency Fund coverage is not just money explicitly labeled "Emergency
+ * Fund" — it's the user's real financial safety net, so every savings
+ * account contributes (at its weight). Accounts don't need a `type` field;
+ * anything untyped is treated as plain cash (100%), which is what keeps
+ * pre-existing accounts working unchanged (no data migration needed).
+ * Returns a breakdown, not just a total, so the UI/report can explain
+ * where the number comes from instead of presenting an opaque sum.
+ */
+export function computeEmergencyFundCoverage(savingsAccounts) {
+  let dedicated = 0; // accounts explicitly marked as the emergency fund
+  let fromSavings = 0; // everything else that still counts (cash + discounted investments)
+  for (const account of savingsAccounts ?? []) {
+    const weighted = (Number(account.amount) || 0) * emergencyFundWeight(account.type);
+    if (account.type === "emergency") dedicated += weighted;
+    else fromSavings += weighted;
+  }
+  return { dedicated, fromSavings, total: dedicated + fromSavings };
+}
+
+export function computeHealthScore(totalIncome, totalExpenses, invest, emergencyCoverage) {
   if (totalIncome <= 0) return null;
   const net = totalIncome - totalExpenses - invest;
   const savingsRate  = net / totalIncome;
   const investRate   = invest / totalIncome;
   const expenseRatio = totalExpenses / totalIncome;
+  // Same "monthly outflow" the Emergency Fund target is built from
+  // (essential expenses + the recurring investment commitment), so a
+  // coverage amount that fully funds the target also scores as 6 months
+  // here. Measured from the user's real coverage, not their target choice.
+  const monthlyOutflow = totalExpenses + invest;
+  const monthsCovered = monthlyOutflow > 0 ? emergencyCoverage / monthlyOutflow : 0;
 
   const savingsScore   = Math.round(Math.min(1, Math.max(0, savingsRate / 0.20)) * 25);
-  const emergencyScore = Math.round(Math.min(1, emergencyMonths / 6) * 25);
+  const emergencyScore = Math.round(Math.min(1, monthsCovered / 6) * 25);
   const investScore    = Math.round(Math.min(1, Math.max(0, investRate / 0.10)) * 25);
   const expenseScore   = Math.round(Math.min(1, Math.max(0, (0.90 - expenseRatio) / 0.40)) * 25);
 
@@ -42,9 +79,9 @@ export function computeHealthScore(totalIncome, totalExpenses, invest, emergency
       },
       {
         labelKey: "score_emergencyFund", score: emergencyScore,
-        value: emergencyMonths === 0 ? "None" : `${emergencyMonths}mo`, target: "6mo",
+        value: monthsCovered <= 0 ? "None" : `${Math.round(monthsCovered * 10) / 10}mo`, target: "6mo",
         noteKey: emergencyScore < 25 ? "note_emergency" : null,
-        noteVars: { x: fmt(totalExpenses * 6) },
+        noteVars: { x: fmt(Math.max(0, monthlyOutflow * 6 - emergencyCoverage)) },
       },
       {
         labelKey: "score_investmentRate", score: investScore,

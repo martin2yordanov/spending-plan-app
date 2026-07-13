@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useUser, SignInButton, UserButton } from "@clerk/clerk-react";
 import { LANGUAGES, LANG_KEY, makeT } from "./i18n";
-import { FREQUENCIES, freqToMonthly, fmt, computeHealthScore, scoreColor, scoreLabelKey, parseAmount } from "./utils.js";
+import { FREQUENCIES, freqToMonthly, fmt, computeHealthScore, computeEmergencyFundCoverage, scoreColor, scoreLabelKey, parseAmount } from "./utils.js";
 
 export const CLERK_ENABLED = !!import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
 
@@ -902,7 +902,7 @@ export default function App() {
   const [newIncome, setNewIncome] = useState({ name: "", amount: 0, frequency: "Monthly" });
   const [savingsAccounts, setSavingsAccounts] = useState([]);
   const [addingSavings, setAddingSavings] = useState(false);
-  const [newSavings, setNewSavings] = useState({ name: "", amount: 0, target: "", targetMonth: "" });
+  const [newSavings, setNewSavings] = useState({ name: "", amount: 0, target: "", targetMonth: "", type: "cash" });
   const [editingSavings, setEditingSavings] = useState(null);
   const [categoryLimits, setCategoryLimits] = useState({});
   const [editingLimitCat, setEditingLimitCat] = useState(null);
@@ -1241,6 +1241,11 @@ export default function App() {
 
   const monthlyExpenses = totalExpenses + investMonthly;
   const emergencyTarget = monthlyExpenses * emergencyMonths;
+  // Emergency Fund coverage is the user's real safety net, not just money
+  // explicitly labeled "Emergency Fund" — every savings account contributes,
+  // weighted by how reliably it could be tapped (see computeEmergencyFundCoverage).
+  const emergencyCoverage = useMemo(() => computeEmergencyFundCoverage(savingsAccounts), [savingsAccounts]);
+  const emergencyCoveragePct = emergencyTarget > 0 ? (emergencyCoverage.total / emergencyTarget) * 100 : 0;
 
   // Safe-to-spend: what's left this month spread over the remaining days (incl. today).
   const now = new Date();
@@ -1315,7 +1320,7 @@ export default function App() {
     const tExpenses = expenses.reduce((s, e) => s + freqToMonthly(e.amount, e.frequency), 0);
     const tInvest = invest;
     const tSavings = tIncome - tExpenses - tInvest;
-    const score = computeHealthScore(tIncome, tExpenses, tInvest, emergencyMonths);
+    const score = computeHealthScore(tIncome, tExpenses, tInvest, emergencyCoverage.total);
 
     const expensesByCat = {};
     for (const e of expenses) {
@@ -1355,7 +1360,10 @@ export default function App() {
               <td style="padding:4px 8px;text-align:right;font-weight:700;color:${scoreColor(b.score * 4)}">${b.score}/25</td>
             </tr>`).join("")}
         </table>
-      </div>` : "";
+      </div>
+      <p style="margin-top:14px;font-size:12.5px;color:#555;line-height:1.5">
+        ${t("report_emergencyCoverage", { total: fmt(emergencyCoverage.total), dedicated: fmt(emergencyCoverage.dedicated), savings: fmt(emergencyCoverage.fromSavings) })}
+      </p>` : "";
 
     const savingsHtml = (savingsAccounts && savingsAccounts.length) ? `
       <h2 style="font-size:15px;font-weight:700;margin:28px 0 10px;padding-bottom:6px;border-bottom:2px solid #30D158;color:#30D158">${t("savings_title")}</h2>
@@ -1366,8 +1374,11 @@ export default function App() {
             const bal = Number(a.amount) || 0;
             const target = Number(a.target) || 0;
             const goal = target > 0 ? `€${fmt(target)}${a.targetMonth ? ` · ${a.targetMonth}` : ""} (${((bal / target) * 100).toFixed(0)}%)` : "—";
+            const typeTag = a.type === "emergency" ? ` <span style="font-size:10px;color:#007AFF">(${t("type_emergency")})</span>`
+              : a.type === "investment" ? ` <span style="font-size:10px;color:#AF52DE">(${t("type_investment")}, 80%)</span>`
+              : "";
             return `<tr>
-              <td style="padding:6px 10px;border-bottom:1px solid #f0f0f0;font-weight:600">${a.name}</td>
+              <td style="padding:6px 10px;border-bottom:1px solid #f0f0f0;font-weight:600">${a.name}${typeTag}</td>
               <td style="padding:6px 10px;border-bottom:1px solid #f0f0f0;color:#888">${goal}</td>
               <td style="padding:6px 10px;border-bottom:1px solid #f0f0f0;text-align:right;font-weight:700;color:#30D158">€${fmt(bal)}</td>
             </tr>`;
@@ -1504,7 +1515,7 @@ export default function App() {
     a.click();
     document.body.removeChild(a);
     setTimeout(() => URL.revokeObjectURL(url), 30000);
-  }, [income, expenses, invest, investLabel, emergencyMonths, savingsAccounts, bills, customCategories, syncId, auth, t]);
+  }, [income, expenses, invest, investLabel, emergencyMonths, emergencyCoverage, savingsAccounts, bills, customCategories, syncId, auth, t]);
 
   const updateExpense = (id, field, value) => {
     setExpenses((current) =>
@@ -2269,7 +2280,7 @@ export default function App() {
               <div style={{ background: "#fff", borderRadius: 18, padding: 22, boxShadow: "0 2px 12px rgba(0,0,0,0.06)" }}>
                 <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 4 }}>🛡️ {t("emergencyFund")}</div>
                 <div style={{ fontSize: 12, color: "#6C6C70", marginBottom: 14 }}>{t("emergencySub")}</div>
-                <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
+                <div style={{ display: "flex", gap: 8, marginBottom: 14 }}>
                   {[0, 3, 6, 12].map((months) => (
                     <button
                       key={months}
@@ -2290,16 +2301,55 @@ export default function App() {
                     </button>
                   ))}
                 </div>
+
+                {/* Current coverage: dedicated Emergency Fund entries + eligible
+                    savings/investments, weighted by liquidity. Shown regardless
+                    of the target above, since "how protected am I right now"
+                    matters even before a goal is set. */}
+                <div style={{ padding: "12px 14px", background: "#F0F7FF", borderRadius: 12, marginBottom: emergencyMonths > 0 ? 14 : 0 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 10 }}>
+                    <span style={{ fontSize: 12, color: "#3C3C43", fontWeight: 500 }}>{t("currentCoverage")}</span>
+                    <span style={{ fontSize: 20, fontWeight: 800, color: "#007AFF" }}>€{fmt(emergencyCoverage.total)}</span>
+                  </div>
+                  {emergencyCoverage.total > 0 && (
+                    <div style={{ fontSize: 11, color: "#6C6C70", marginTop: 4 }}>
+                      {[
+                        emergencyCoverage.dedicated > 0 ? t("coverageFromDedicated", { x: fmt(emergencyCoverage.dedicated) }) : null,
+                        emergencyCoverage.fromSavings > 0 ? t("coverageFromSavings", { x: fmt(emergencyCoverage.fromSavings) }) : null,
+                      ].filter(Boolean).join(" · ")}
+                    </div>
+                  )}
+                  <div style={{ fontSize: 11, color: "#8E8E93", marginTop: 6, lineHeight: 1.4 }}>
+                    {t("emergencyIncludesSavingsNote")}
+                  </div>
+                </div>
+
                 {emergencyMonths === 0 ? (
                   <div style={{ fontSize: 13, color: "#FF3B30", fontWeight: 500 }}>
                     {t("noFundNote")}
                   </div>
                 ) : (
                   <>
-                    <div style={{ fontSize: 13, color: "#3C3C43" }}>
-                      {t("target")}: <strong style={{ fontSize: 18, color: "#FF9500" }}>€{fmt(emergencyTarget)}</strong>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 4, gap: 10 }}>
+                      <span style={{ fontSize: 13, color: "#3C3C43" }}>
+                        {t("target")}: <strong style={{ fontSize: 18, color: "#FF9500" }}>€{fmt(emergencyTarget)}</strong>
+                      </span>
+                      <span style={{ fontSize: 13, fontWeight: 700, color: emergencyCoveragePct >= 100 ? "#34C759" : "#3C3C43" }}>
+                        {emergencyCoveragePct >= 100 ? t("goal_reached") : `${emergencyCoveragePct.toFixed(0)}%`}
+                      </span>
                     </div>
-                    <div style={{ fontSize: 11, color: "#6C6C70", marginTop: 2 }}>
+                    <div style={{ background: "#F2F2F7", borderRadius: 4, height: 6, overflow: "hidden" }}>
+                      <div
+                        style={{
+                          width: `${Math.min(emergencyCoveragePct, 100)}%`,
+                          height: "100%",
+                          background: emergencyCoveragePct >= 100 ? "#34C759" : "#007AFF",
+                          borderRadius: 4,
+                          transition: "width 0.6s ease",
+                        }}
+                      />
+                    </div>
+                    <div style={{ fontSize: 11, color: "#6C6C70", marginTop: 6 }}>
                       {t("perMonthMonths", { x: fmt(monthlyExpenses), n: emergencyMonths })}
                     </div>
                   </>
@@ -2431,7 +2481,7 @@ export default function App() {
             </div>
 
             {(() => {
-              const score = computeHealthScore(totalIncome, totalExpenses, investMonthly, emergencyMonths);
+              const score = computeHealthScore(totalIncome, totalExpenses, investMonthly, emergencyCoverage.total);
               if (!score) return null;
               const color = scoreColor(score.total);
               const weakest = [...score.breakdown].filter(b => b.noteKey).sort((a, b) => a.score - b.score)[0];
@@ -3493,6 +3543,29 @@ export default function App() {
                               style={{ fontSize: 16, fontWeight: 700, color: "#30D158", width: "100%", border: "none", borderBottom: "2px solid #30D158", background: "transparent", outline: "none", paddingBottom: 2 }}
                             />
                           </div>
+                          <div>
+                            <div style={{ fontSize: 11, color: "#6C6C70", marginBottom: 4 }}>{t("accountType")}</div>
+                            <div style={{ display: "flex", gap: 6 }}>
+                              {["cash", "emergency", "investment"].map((type) => (
+                                <button
+                                  key={type}
+                                  type="button"
+                                  onClick={() => setSavingsAccounts(s => s.map(a => a.id === account.id ? { ...a, type } : a))}
+                                  style={{
+                                    flex: 1, padding: "6px 4px", borderRadius: 8, border: "none", cursor: "pointer",
+                                    fontSize: 11, fontWeight: 600,
+                                    background: (account.type || "cash") === type ? "#30D158" : "#F2F2F7",
+                                    color: (account.type || "cash") === type ? "#fff" : "#3C3C43",
+                                  }}
+                                >
+                                  {t(`type_${type}`)}
+                                </button>
+                              ))}
+                            </div>
+                            {account.type === "investment" && (
+                              <div style={{ fontSize: 10, color: "#6C6C70", marginTop: 4 }}>{t("investmentWeightNote")}</div>
+                            )}
+                          </div>
                           <div style={{ display: "flex", gap: 10 }}>
                             <div style={{ flex: 1 }}>
                               <div style={{ fontSize: 11, color: "#6C6C70", marginBottom: 4 }}>{t("goal_targetAmount")}</div>
@@ -3539,7 +3612,19 @@ export default function App() {
                         <div style={{ cursor: "pointer" }} onClick={() => setEditingSavings(account.id)}>
                           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
                             <div style={{ flex: 1 }}>
-                              <div style={{ fontSize: 14, fontWeight: 600, color: "#1C1C1E", marginBottom: 2 }}>{account.name}</div>
+                              <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 2 }}>
+                                <div style={{ fontSize: 14, fontWeight: 600, color: "#1C1C1E" }}>{account.name}</div>
+                                {account.type === "emergency" && (
+                                  <span style={{ fontSize: 10, fontWeight: 700, color: "#007AFF", background: "#007AFF15", padding: "1px 6px", borderRadius: 6 }}>
+                                    🛡️ {t("type_emergency")}
+                                  </span>
+                                )}
+                                {account.type === "investment" && (
+                                  <span style={{ fontSize: 10, fontWeight: 700, color: "#AF52DE", background: "#AF52DE15", padding: "1px 6px", borderRadius: 6 }}>
+                                    📈 {t("type_investment")}
+                                  </span>
+                                )}
+                              </div>
                               <div style={{ fontSize: 12, color: "#6C6C70" }}>{t("col_balance")}</div>
                             </div>
                             <div style={{ textAlign: "right", flexShrink: 0 }}>
@@ -3607,6 +3692,26 @@ export default function App() {
                         style={{ fontSize: 16, fontWeight: 700, color: "#30D158", width: "100%", border: "none", borderBottom: "2px solid #30D158", background: "transparent", outline: "none", paddingBottom: 2 }}
                       />
                     </div>
+                    <div>
+                      <div style={{ fontSize: 11, color: "#6C6C70", marginBottom: 4 }}>{t("accountType")}</div>
+                      <div style={{ display: "flex", gap: 6 }}>
+                        {["cash", "emergency", "investment"].map((type) => (
+                          <button
+                            key={type}
+                            type="button"
+                            onClick={() => setNewSavings(c => ({ ...c, type }))}
+                            style={{
+                              flex: 1, padding: "6px 4px", borderRadius: 8, border: "none", cursor: "pointer",
+                              fontSize: 11, fontWeight: 600,
+                              background: (newSavings.type || "cash") === type ? "#30D158" : "#F2F2F7",
+                              color: (newSavings.type || "cash") === type ? "#fff" : "#3C3C43",
+                            }}
+                          >
+                            {t(`type_${type}`)}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
                     <div style={{ display: "flex", gap: 10 }}>
                       <div style={{ flex: 1 }}>
                         <div style={{ fontSize: 11, color: "#6C6C70", marginBottom: 4 }}>{t("goal_targetAmount")}</div>
@@ -3628,7 +3733,7 @@ export default function App() {
                       </div>
                     </div>
                     <div style={{ display: "flex", justifyContent: "space-between" }}>
-                      <button onClick={() => { setAddingSavings(false); setNewSavings({ name: "", amount: 0, target: "", targetMonth: "" }); }} style={{ padding: "7px 14px", borderRadius: 10, border: "none", background: "#F2F2F7", color: "#3C3C43", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
+                      <button onClick={() => { setAddingSavings(false); setNewSavings({ name: "", amount: 0, target: "", targetMonth: "", type: "cash" }); }} style={{ padding: "7px 14px", borderRadius: 10, border: "none", background: "#F2F2F7", color: "#3C3C43", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
                         {t("btn_cancel")}
                       </button>
                       <button
@@ -3640,8 +3745,9 @@ export default function App() {
                             amount: parseFloat(newSavings.amount) || 0,
                             target: parseFloat(newSavings.target) > 0 ? parseFloat(newSavings.target) : "",
                             targetMonth: newSavings.targetMonth || "",
+                            type: newSavings.type || "cash",
                           }]);
-                          setNewSavings({ name: "", amount: 0, target: "", targetMonth: "" });
+                          setNewSavings({ name: "", amount: 0, target: "", targetMonth: "", type: "cash" });
                           setAddingSavings(false);
                         }}
                         style={{ padding: "7px 18px", borderRadius: 10, border: "none", background: "#30D158", color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer" }}
