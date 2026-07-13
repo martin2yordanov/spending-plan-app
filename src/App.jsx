@@ -20,12 +20,15 @@ const CATEGORY_COLORS = {
 
 // Emoji choices offered when creating a brand-new category — a small,
 // curated set covering common expense themes (kept short so the grid stays
-// simple on mobile).
+// simple on mobile). Changing this list is always safe for existing data:
+// a category stores the actual emoji character it was created with (see
+// getCategoryMeta), not an index/reference into this array, so categories
+// created with an emoji later removed from here keep rendering it fine.
 const CATEGORY_EMOJI_CHOICES = [
-  "🛒", "🏠", "💡", "🔥", "🚗", "⛽", "🚌", "✈️",
+  "🛒", "🏠", "💡", "👩", "👨", "🚗", "⛽", "🚌", "✈️",
   "🏖️", "🎓", "📚", "☕", "🍔", "🍕", "🍺", "🍷",
   "🎬", "🎮", "🎵", "📱", "💻", "👕", "👟", "🎁",
-  "🏥", "💊", "🐾", "🐶", "🎨", "⚽", "🔧", "📦",
+  "🏥", "💊", "🐱", "🐶", "🎨", "⚽", "🔧", "📦",
 ];
 
 // Deterministic accent color for a custom category that has no explicit
@@ -908,8 +911,6 @@ export default function App() {
   const [editingLimitCat, setEditingLimitCat] = useState(null);
   const [limitInput, setLimitInput] = useState("");
   const [bills, setBills] = useState([]);
-  const [addingBill, setAddingBill] = useState(false);
-  const [newBill, setNewBill] = useState({ name: "", amount: 0, dueDay: 1 });
   const [savedFlag, setSavedFlag] = useState(false);
   const [filterCat, setFilterCat] = useState("All");
   const [customCategories, setCustomCategories] = useState({}); // { [key]: { label?, icon?, color? } }
@@ -1253,28 +1254,6 @@ export default function App() {
   const daysLeftInMonth = daysInMonth - now.getDate() + 1;
   const safeToSpendDaily = savings / daysLeftInMonth;
 
-  // Bills sorted by next due date, with days-until for reminder coloring.
-  const sortedBills = useMemo(() => {
-    const today = new Date();
-    const startOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-    return bills
-      .map((bill) => {
-        const day = Math.min(Math.max(1, Math.round(bill.dueDay) || 1), 31);
-        let year = today.getFullYear();
-        let month = today.getMonth();
-        if (day < today.getDate()) {
-          month += 1;
-          if (month > 11) { month = 0; year += 1; }
-        }
-        const lastDay = new Date(year, month + 1, 0).getDate();
-        const due = new Date(year, month, Math.min(day, lastDay));
-        const daysUntil = Math.round((due - startOfToday) / 86400000);
-        return { ...bill, due, daysUntil };
-      })
-      .sort((a, b) => a.daysUntil - b.daysUntil);
-  }, [bills]);
-  const billsTotal = bills.reduce((sum, bill) => sum + (parseFloat(bill.amount) || 0), 0);
-
   const generateSuggestions = useCallback(async () => {
     setSuggestionsLoading(true);
     setSuggestionsError(null);
@@ -1601,21 +1580,6 @@ export default function App() {
     setIncome((current) => [...current, { ...newIncome, id: Date.now() }]);
     setNewIncome({ name: "", amount: 0, frequency: "Monthly" });
     setAddingIncome(false);
-  };
-
-  const deleteBill = (id) => {
-    const removed = bills.find((b) => b.id === id);
-    const idx = bills.findIndex((b) => b.id === id);
-    if (!removed) return;
-    deleteWithUndo(
-      removed.name,
-      () => setBills((current) => current.filter((b) => b.id !== id)),
-      () => setBills((current) => {
-        const next = current.slice();
-        next.splice(Math.min(idx, next.length), 0, removed);
-        return next;
-      }),
-    );
   };
 
   const deleteSavings = (id) => {
@@ -1945,7 +1909,7 @@ export default function App() {
                   color: savings >= 0 ? "#007AFF" : "#FF3B30",
                   sub: savings >= 0 ? t("card_afterAll") : t("card_overBudget"),
                   pct: totalIncome > 0 ? (savings / totalIncome) * 100 : null,
-                  tab: null,
+                  tab: "savings",
                 },
               ].map((card) => (
                 <div
@@ -2277,24 +2241,24 @@ export default function App() {
                 </div>
               </div>
 
-              <div style={{ background: "#fff", borderRadius: 18, padding: 22, boxShadow: "0 2px 12px rgba(0,0,0,0.06)" }}>
-                <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 4 }}>🛡️ {t("emergencyFund")}</div>
-                <div style={{ fontSize: 12, color: "#6C6C70", marginBottom: 14 }}>{t("emergencySub")}</div>
-                <div style={{ display: "flex", gap: 8, marginBottom: 14 }}>
+              <div style={{ background: "#fff", borderRadius: 18, padding: 18, boxShadow: "0 2px 12px rgba(0,0,0,0.06)" }}>
+                <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 2 }}>🛡️ {t("emergencyFund")}</div>
+                <div style={{ fontSize: 11, color: "#6C6C70", marginBottom: 10 }}>{t("emergencySub")}</div>
+                <div style={{ display: "flex", gap: 6, marginBottom: 10 }}>
                   {[0, 3, 6, 12].map((months) => (
                     <button
                       key={months}
                       onClick={() => setEmergencyMonths(months)}
                       style={{
                         flex: 1,
-                        padding: "8px 0",
-                        borderRadius: 10,
+                        padding: "6px 0",
+                        borderRadius: 8,
                         border: "none",
                         cursor: "pointer",
                         background: emergencyMonths === months ? (months === 0 ? "#FF3B30" : "#007AFF") : "#F2F2F7",
                         color: emergencyMonths === months ? "#fff" : "#3C3C43",
                         fontWeight: 600,
-                        fontSize: 13,
+                        fontSize: 12,
                       }}
                     >
                       {months === 0 ? t("noFund") : `${months}m`}
@@ -2303,42 +2267,32 @@ export default function App() {
                 </div>
 
                 {/* Current coverage: dedicated Emergency Fund entries + eligible
-                    savings/investments, weighted by liquidity. Shown regardless
+                    savings/investments, weighted by liquidity — shown regardless
                     of the target above, since "how protected am I right now"
-                    matters even before a goal is set. */}
-                <div style={{ padding: "12px 14px", background: "#F0F7FF", borderRadius: 12, marginBottom: emergencyMonths > 0 ? 14 : 0 }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 10 }}>
-                    <span style={{ fontSize: 12, color: "#3C3C43", fontWeight: 500 }}>{t("currentCoverage")}</span>
-                    <span style={{ fontSize: 20, fontWeight: 800, color: "#007AFF" }}>€{fmt(emergencyCoverage.total)}</span>
-                  </div>
-                  {emergencyCoverage.total > 0 && (
-                    <div style={{ fontSize: 11, color: "#6C6C70", marginTop: 4 }}>
-                      {[
-                        emergencyCoverage.dedicated > 0 ? t("coverageFromDedicated", { x: fmt(emergencyCoverage.dedicated) }) : null,
-                        emergencyCoverage.fromSavings > 0 ? t("coverageFromSavings", { x: fmt(emergencyCoverage.fromSavings) }) : null,
-                      ].filter(Boolean).join(" · ")}
-                    </div>
-                  )}
-                  <div style={{ fontSize: 11, color: "#8E8E93", marginTop: 6, lineHeight: 1.4 }}>
-                    {t("emergencyIncludesSavingsNote")}
-                  </div>
+                    matters even before a goal is set. Kept as one compact block
+                    (rather than a separate boxed section) to keep this card's
+                    height in line with Monthly Investment alongside it. */}
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 3 }}>
+                  <span style={{ fontSize: 12, color: "#3C3C43", fontWeight: 500 }}>{t("currentCoverage")}</span>
+                  <span style={{ fontSize: 17, fontWeight: 800, color: "#007AFF" }}>€{fmt(emergencyCoverage.total)}</span>
                 </div>
+                {(() => {
+                  const breakdown = [
+                    emergencyCoverage.dedicated > 0 ? t("coverageFromDedicated", { x: fmt(emergencyCoverage.dedicated) }) : null,
+                    emergencyCoverage.fromSavings > 0 ? t("coverageFromSavings", { x: fmt(emergencyCoverage.fromSavings) }) : null,
+                  ].filter(Boolean).join(" · ");
+                  return breakdown ? (
+                    <div style={{ fontSize: 10.5, color: "#6C6C70", marginBottom: emergencyMonths > 0 ? 6 : 0 }}>{breakdown}</div>
+                  ) : null;
+                })()}
 
                 {emergencyMonths === 0 ? (
-                  <div style={{ fontSize: 13, color: "#FF3B30", fontWeight: 500 }}>
-                    {t("noFundNote")}
-                  </div>
+                  emergencyCoverage.total === 0 && (
+                    <div style={{ fontSize: 12, color: "#FF3B30", fontWeight: 500 }}>{t("noFundNote")}</div>
+                  )
                 ) : (
                   <>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 4, gap: 10 }}>
-                      <span style={{ fontSize: 13, color: "#3C3C43" }}>
-                        {t("target")}: <strong style={{ fontSize: 18, color: "#FF9500" }}>€{fmt(emergencyTarget)}</strong>
-                      </span>
-                      <span style={{ fontSize: 13, fontWeight: 700, color: emergencyCoveragePct >= 100 ? "#34C759" : "#3C3C43" }}>
-                        {emergencyCoveragePct >= 100 ? t("goal_reached") : `${emergencyCoveragePct.toFixed(0)}%`}
-                      </span>
-                    </div>
-                    <div style={{ background: "#F2F2F7", borderRadius: 4, height: 6, overflow: "hidden" }}>
+                    <div style={{ background: "#F2F2F7", borderRadius: 4, height: 5, overflow: "hidden" }}>
                       <div
                         style={{
                           width: `${Math.min(emergencyCoveragePct, 100)}%`,
@@ -2349,135 +2303,15 @@ export default function App() {
                         }}
                       />
                     </div>
-                    <div style={{ fontSize: 11, color: "#6C6C70", marginTop: 6 }}>
-                      {t("perMonthMonths", { x: fmt(monthlyExpenses), n: emergencyMonths })}
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginTop: 4 }}>
+                      <span style={{ fontSize: 10.5, color: "#6C6C70" }}>{t("target")}: €{fmt(emergencyTarget)}</span>
+                      <span style={{ fontSize: 11, fontWeight: 700, color: emergencyCoveragePct >= 100 ? "#34C759" : "#3C3C43" }}>
+                        {emergencyCoveragePct >= 100 ? t("goal_reached") : `${emergencyCoveragePct.toFixed(0)}%`}
+                      </span>
                     </div>
                   </>
                 )}
               </div>
-            </div>
-
-            <div style={{ background: "#fff", borderRadius: 18, padding: 22, boxShadow: "0 2px 12px rgba(0,0,0,0.06)", marginTop: 14 }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4, gap: 10, flexWrap: "wrap" }}>
-                <div style={{ fontSize: 15, fontWeight: 600 }}>🔔 {t("bills_title")}</div>
-                {bills.length > 0 && (
-                  <div style={{ fontSize: 13, color: "#6C6C70" }}>
-                    {t("bills_total")}: <strong style={{ color: "#1C1C1E" }}>€{fmt(billsTotal)}{t("perMo")}</strong>
-                  </div>
-                )}
-              </div>
-              <div style={{ fontSize: 12, color: "#6C6C70", marginBottom: 14 }}>{t("bills_sub")}</div>
-              {sortedBills.length === 0 && !addingBill && (
-                <div style={{ fontSize: 13, color: "#6C6C70", padding: "8px 0 14px" }}>{t("bills_empty")}</div>
-              )}
-              <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 12 }}>
-                {sortedBills.map((bill) => {
-                  const urgent = bill.daysUntil <= 3;
-                  const soon = !urgent && bill.daysUntil <= 7;
-                  const dueColor = urgent ? "#FF3B30" : soon ? "#FF9500" : "#6C6C70";
-                  const dueLabel = bill.daysUntil === 0
-                    ? t("bill_dueToday")
-                    : bill.daysUntil === 1
-                      ? t("bill_dueTomorrow")
-                      : t("bill_dueInDays", { n: bill.daysUntil });
-                  return (
-                    <div
-                      key={bill.id}
-                      style={{
-                        display: "flex", alignItems: "center", gap: 12,
-                        padding: "10px 12px", borderRadius: 12,
-                        background: urgent ? "#FF3B300D" : soon ? "#FF95000D" : "#F9F9FB",
-                        border: `1.5px solid ${urgent ? "#FF3B3030" : soon ? "#FF950030" : "transparent"}`,
-                      }}
-                    >
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: 14, fontWeight: 600, color: "#1C1C1E", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{bill.name}</div>
-                        <div style={{ fontSize: 11, color: "#6C6C70" }}>{t("bill_dayOfMonth", { d: bill.dueDay })}</div>
-                      </div>
-                      <span style={{ fontSize: 11, fontWeight: 700, color: dueColor, background: `${dueColor}15`, padding: "3px 8px", borderRadius: 8, whiteSpace: "nowrap", flexShrink: 0 }}>
-                        {dueLabel}
-                      </span>
-                      <div style={{ fontSize: 15, fontWeight: 700, color: "#1C1C1E", flexShrink: 0 }}>€{fmt(bill.amount)}</div>
-                      <button
-                        onClick={() => deleteBill(bill.id)}
-                        aria-label={t("btn_delete")}
-                        style={{
-                          width: 24, height: 24, borderRadius: "50%", border: "none",
-                          background: "#FFE5E5", color: "#FF3B30", cursor: "pointer", fontSize: 13,
-                          display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
-                        }}
-                      >
-                        ×
-                      </button>
-                    </div>
-                  );
-                })}
-              </div>
-              {addingBill ? (
-                <div style={{ display: "flex", flexDirection: "column", gap: 12, padding: "14px", borderRadius: 12, border: "2px solid #007AFF", background: "#F0F4FF" }}>
-                  <input
-                    autoFocus
-                    placeholder={t("ph_billName")}
-                    value={newBill.name}
-                    onChange={(e) => setNewBill((c) => ({ ...c, name: e.target.value }))}
-                    style={{ fontSize: 14, fontWeight: 600, border: "none", borderBottom: "2px solid #007AFF", background: "transparent", outline: "none", paddingBottom: 2 }}
-                  />
-                  <div style={{ display: "flex", gap: 10 }}>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: 11, color: "#6C6C70", marginBottom: 4 }}>{t("col_amount")} (€)</div>
-                      <input
-                        type="text" inputMode="decimal" placeholder="0"
-                        value={newBill.amount || ""}
-                        onChange={(e) => setNewBill((c) => ({ ...c, amount: e.target.value }))}
-                        style={{ fontSize: 15, fontWeight: 700, color: "#007AFF", width: "100%", border: "none", borderBottom: "2px solid #007AFF", background: "transparent", outline: "none", paddingBottom: 2 }}
-                      />
-                    </div>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: 11, color: "#6C6C70", marginBottom: 4 }}>{t("bill_dueDay")}</div>
-                      <select
-                        value={newBill.dueDay}
-                        onChange={(e) => setNewBill((c) => ({ ...c, dueDay: Number(e.target.value) }))}
-                        style={{ fontSize: 13, width: "100%", border: "none", borderBottom: "2px solid #007AFF", background: "transparent", outline: "none", paddingBottom: 2, color: "#1C1C1E" }}
-                      >
-                        {Array.from({ length: 31 }, (_, i) => i + 1).map((d) => (
-                          <option key={d} value={d}>{d}</option>
-                        ))}
-                      </select>
-                    </div>
-                  </div>
-                  <div style={{ display: "flex", justifyContent: "space-between" }}>
-                    <button
-                      onClick={() => { setAddingBill(false); setNewBill({ name: "", amount: 0, dueDay: 1 }); }}
-                      style={{ padding: "7px 14px", borderRadius: 10, border: "none", background: "#F2F2F7", color: "#3C3C43", fontSize: 13, fontWeight: 600, cursor: "pointer" }}
-                    >
-                      {t("btn_cancel")}
-                    </button>
-                    <button
-                      onClick={() => {
-                        if (!newBill.name) return;
-                        setBills((current) => [...current, { id: Date.now(), name: newBill.name, amount: parseFloat(newBill.amount) || 0, dueDay: Math.min(Math.max(1, Math.round(newBill.dueDay) || 1), 31) }]);
-                        setNewBill({ name: "", amount: 0, dueDay: 1 });
-                        setAddingBill(false);
-                      }}
-                      style={{ padding: "7px 18px", borderRadius: 10, border: "none", background: "#007AFF", color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer" }}
-                    >
-                      + {t("addBill")}
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <button
-                  onClick={() => setAddingBill(true)}
-                  style={{
-                    width: "100%", padding: "12px", borderRadius: 12,
-                    border: "2px dashed #C7C7CC", background: "transparent",
-                    color: "#007AFF", fontSize: 13, fontWeight: 600, cursor: "pointer",
-                    display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
-                  }}
-                >
-                  <span style={{ fontSize: 16, lineHeight: 1 }}>+</span> {t("addBill")}
-                </button>
-              )}
             </div>
 
             {(() => {
@@ -2823,9 +2657,19 @@ export default function App() {
                           <span style={{ fontSize: 14, fontWeight: 500 }}>{item.name}</span>
                         )}
                       </div>
-                      <div>
+                      <div
+                        onClick={() => {
+                          if (!isEditing) {
+                            setEditingExpense(item.id);
+                            setEditingExpenseAmountStr(String(item.amount));
+                            setEditingExpenseFocusField("category");
+                          }
+                        }}
+                        style={{ cursor: isEditing ? "default" : "pointer" }}
+                      >
                         {isEditing ? (
                           <select
+                            ref={(el) => { if (el && editingExpenseFocusField === "category") el.focus(); }}
                             value={item.category}
                             onChange={(event) => updateExpense(item.id, "category", event.target.value)}
                             style={{
