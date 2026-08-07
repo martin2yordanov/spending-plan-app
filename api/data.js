@@ -1,5 +1,13 @@
 import Redis from "ioredis";
 
+// ioredis embeds the whole connection string — password included — in its
+// connection error messages ("connect ENOENT redis://default:hunter2@host").
+// Those messages otherwise reach both the runtime logs and the HTTP response,
+// so scrub any credentials before anything is surfaced.
+function redact(message) {
+  return String(message ?? "Internal error").replace(/rediss?:\/\/\S*/gi, "redis://[redacted]");
+}
+
 let _client = null;
 function getClient() {
   if (!process.env.REDIS_URL) throw new Error("REDIS_URL env var is not set");
@@ -9,6 +17,10 @@ function getClient() {
       maxRetriesPerRequest: 2,
       enableReadyCheck: false,
     });
+    // Without a listener ioredis reports connection failures as unhandled
+    // 'error' events, which print the raw URL. Commands still reject on their
+    // own, so this only replaces that logging with a scrubbed line.
+    _client.on("error", (err) => console.error("[api/data] redis:", redact(err?.message)));
   }
   return _client;
 }
@@ -34,7 +46,7 @@ export default async function handler(req, res) {
     }
     res.status(405).end();
   } catch (err) {
-    console.error("[api/data]", err?.message ?? err);
-    res.status(500).json({ error: err?.message ?? "Internal error" });
+    console.error("[api/data]", redact(err?.message ?? err));
+    res.status(500).json({ error: redact(err?.message ?? err) });
   }
 }
