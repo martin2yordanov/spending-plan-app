@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useUser, SignInButton, UserButton } from "@clerk/clerk-react";
 import { LANGUAGES, LANG_KEY, makeT } from "./i18n";
-import { FREQUENCIES, freqToMonthly, fmt, computeHealthScore, computeEmergencyFundCoverage, scoreColor, scoreLabelKey, parseAmount } from "./utils.js";
+import { FREQUENCIES, freqToMonthly, fmt, computeHealthScore, computeEmergencyFundCoverage, scoreColor, scoreLabelKey, parseAmount, CURRENCIES, CURRENCY_KEY, DEFAULT_CURRENCY, currencyMeta, makeMoney, conversionRate, convertAmount } from "./utils.js";
 
 export const CLERK_ENABLED = !!import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
 
@@ -473,7 +473,7 @@ function CategoryModal({ cat, label, color, icon, catExpenses, closing, onClose,
                 {icon} {label}
               </div>
               <div style={{ fontSize: 13, color: color, fontWeight: 600, marginTop: 2 }}>
-                €{fmt(catTotal)} / {t.freq("Monthly").toLowerCase()}
+                {money(catTotal)} / {t.freq("Monthly").toLowerCase()}
               </div>
             </div>
             <button
@@ -525,7 +525,7 @@ function CategoryModal({ cat, label, color, icon, catExpenses, closing, onClose,
                       />
                       <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
                         <div style={{ flex: 1 }}>
-                          <div style={{ fontSize: 11, color: "#6C6C70", marginBottom: 4 }}>{t("col_amount")} (€)</div>
+                          <div style={{ fontSize: 11, color: "#6C6C70", marginBottom: 4 }}>{t("col_amount")} ({curSymbol})</div>
                           <input
                             type="text"
                             inputMode="decimal"
@@ -585,11 +585,11 @@ function CategoryModal({ cat, label, color, icon, catExpenses, closing, onClose,
                       <div style={{ flex: 1 }}>
                         <div style={{ fontSize: 14, fontWeight: 600, color: "#1C1C1E", marginBottom: 2 }}>{expense.name}</div>
                         <div style={{ fontSize: 12, color: "#6C6C70" }}>
-                          €{fmt(expense.amount)} · {t.freq(expense.frequency)}
+                          {money(expense.amount)} · {t.freq(expense.frequency)}
                         </div>
                       </div>
                       <div style={{ textAlign: "right", flexShrink: 0 }}>
-                        <div style={{ fontSize: 15, fontWeight: 700, color: color }}>€{fmt(monthly)}<span style={{ fontSize: 11, fontWeight: 400, color: "#6C6C70" }}>/mo</span></div>
+                        <div style={{ fontSize: 15, fontWeight: 700, color: color }}>{money(monthly)}<span style={{ fontSize: 11, fontWeight: 400, color: "#6C6C70" }}>/mo</span></div>
                       </div>
                       <div style={{ color: "#C7C7CC", fontSize: 13 }}>›</div>
                     </div>
@@ -887,6 +887,25 @@ export default function App() {
     setShowLangMenu(false);
     try { localStorage.setItem(LANG_KEY, code); } catch { /* ignore */ }
   }, []);
+
+  // Display currency. Mirrors the language picker, but is also persisted with
+  // the plan so it follows the account across devices rather than living only
+  // in this browser (the stored value wins on load).
+  const [currency, setCurrency] = useState(() => {
+    try { return localStorage.getItem(CURRENCY_KEY) || DEFAULT_CURRENCY; } catch { return DEFAULT_CURRENCY; }
+  });
+  const [showCurMenu, setShowCurMenu] = useState(false);
+  const curMenuRef = useRef(null);
+  // Pending switch awaiting the convert-or-relabel choice: { from, to }.
+  const [curConvertAsk, setCurConvertAsk] = useState(null);
+  const money = useMemo(() => makeMoney(currency), [currency]);
+  const curSymbol = currencyMeta(currency).symbol;
+
+  const applyCurrency = useCallback((code) => {
+    setCurrency(code);
+    try { localStorage.setItem(CURRENCY_KEY, code); } catch { /* ignore */ }
+  }, []);
+
   const autoSaveTimerRef = useRef(null);
   const skipNextSaveRef = useRef(false);
   const tabRefs = useRef({});
@@ -919,6 +938,47 @@ export default function App() {
   const [editingLimitCat, setEditingLimitCat] = useState(null);
   const [limitInput, setLimitInput] = useState("");
   const [bills, setBills] = useState([]);
+
+  const changeCurrency = useCallback((code) => {
+    setShowCurMenu(false);
+    if (code === currency) return;
+    // For the pegged EUR/BGN pair the amounts can be restated exactly, so ask
+    // rather than silently relabelling numbers as a different currency.
+    const rate = conversionRate(currency, code);
+    if (rate != null && rate !== 1) {
+      setCurConvertAsk({ from: currency, to: code });
+      return;
+    }
+    applyCurrency(code);
+  }, [currency, applyCurrency]);
+
+  // Restates every stored amount in the new currency. Declared after the state
+  // it writes to, since this file has had TDZ regressions before.
+  const confirmCurrencyConvert = useCallback((shouldConvert) => {
+    const ask = curConvertAsk;
+    setCurConvertAsk(null);
+    if (!ask) return;
+    if (shouldConvert) {
+      const conv = (n) => convertAmount(n, ask.from, ask.to);
+      setIncome((rows) => rows.map((r) => ({ ...r, amount: conv(r.amount) })));
+      setExpenses((rows) => rows.map((r) => ({ ...r, amount: conv(r.amount) })));
+      setInvest((v) => conv(v));
+      setSavingsAccounts((rows) => rows.map((r) => ({
+        ...r,
+        amount: conv(r.amount),
+        // Goal targets are money too, so they have to move with the balance.
+        ...(r.target === "" || r.target == null ? {} : { target: conv(Number(r.target)) }),
+      })));
+      setCategoryLimits((limits) => {
+        const next = {};
+        for (const k in limits) next[k] = conv(limits[k]);
+        return next;
+      });
+      setBills((rows) => rows.map((r) => ({ ...r, amount: conv(r.amount) })));
+    }
+    applyCurrency(ask.to);
+  }, [curConvertAsk, applyCurrency]);
+
   const [savedFlag, setSavedFlag] = useState(false);
   const [filterCat, setFilterCat] = useState("All");
   const [customCategories, setCustomCategories] = useState({}); // { [key]: { label?, icon?, color? } }
@@ -1067,6 +1127,7 @@ export default function App() {
           if (saved.categoryLimits) setCategoryLimits(saved.categoryLimits);
           if (saved.bills) setBills(saved.bills);
           if (saved.customCategories) setCustomCategories(saved.customCategories);
+          if (saved.currency) applyCurrency(saved.currency);
           setLoaded(true);
         } else {
           // Brand-new account: check for pre-auth sync code data first.
@@ -1089,6 +1150,7 @@ export default function App() {
               if (legacy.categoryLimits) setCategoryLimits(legacy.categoryLimits);
               if (legacy.bills) setBills(legacy.bills);
               if (legacy.customCategories) setCustomCategories(legacy.customCategories);
+              if (legacy.currency) applyCurrency(legacy.currency);
               saveData(userId, legacy).finally(() => { if (!cancelled) setLoaded(true); });
             } else {
               // Truly new account: seed example data and run walkthrough.
@@ -1130,7 +1192,7 @@ export default function App() {
     setSaveError(false);
     if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
     autoSaveTimerRef.current = setTimeout(() => {
-      saveData(auth.userId, { income, expenses, invest, investLabel, emergencyMonths, savingsAccounts, categoryLimits, bills, customCategories })
+      saveData(auth.userId, { income, expenses, invest, investLabel, emergencyMonths, savingsAccounts, categoryLimits, bills, customCategories, currency })
         .then(() => {
           setIsDirty(false);
           setSaveError(false);
@@ -1143,7 +1205,7 @@ export default function App() {
         });
     }, 2000);
     return () => { if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current); };
-  }, [loaded, income, expenses, invest, investLabel, emergencyMonths, savingsAccounts, categoryLimits, bills, customCategories, auth?.userId]);
+  }, [loaded, income, expenses, invest, investLabel, emergencyMonths, savingsAccounts, categoryLimits, bills, customCategories, currency, auth?.userId]);
 
   // Warn before leaving with unsaved (or failed-to-save) changes.
   useEffect(() => {
@@ -1179,6 +1241,17 @@ export default function App() {
     document.addEventListener("mousedown", handleClick);
     return () => document.removeEventListener("mousedown", handleClick);
   }, [showLangMenu]);
+
+  useEffect(() => {
+    if (!showCurMenu) return;
+    function handleClick(e) {
+      if (curMenuRef.current && !curMenuRef.current.contains(e.target)) {
+        setShowCurMenu(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [showCurMenu]);
 
   // Keep refs mirroring the latest in-progress edit so the click-outside
   // handler below (a stable, mount-once listener) always sees current
@@ -1269,7 +1342,7 @@ export default function App() {
       const res = await fetch("/api/suggestions", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ income, expenses, invest, investLabel, emergencyMonths, savingsAccounts, totalSavingsBalance, categoryLimits, bills, lang }),
+        body: JSON.stringify({ income, expenses, invest, investLabel, emergencyMonths, savingsAccounts, totalSavingsBalance, categoryLimits, bills, lang, currency }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data?.error ?? `API ${res.status}`);
@@ -1280,7 +1353,7 @@ export default function App() {
     } finally {
       setSuggestionsLoading(false);
     }
-  }, [income, expenses, invest, investLabel, emergencyMonths, savingsAccounts, totalSavingsBalance, categoryLimits, bills, lang, t]);
+  }, [income, expenses, invest, investLabel, emergencyMonths, savingsAccounts, totalSavingsBalance, categoryLimits, bills, lang, t, money, currency]);
 
   // Manual retry used by the "Couldn't save" indicator in the header.
   const retrySave = useCallback(() => {
@@ -1288,7 +1361,7 @@ export default function App() {
     if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
     setSaveError(false);
     setIsDirty(true);
-    saveData(auth.userId, { income, expenses, invest, investLabel, emergencyMonths, savingsAccounts, categoryLimits, bills, customCategories })
+    saveData(auth.userId, { income, expenses, invest, investLabel, emergencyMonths, savingsAccounts, categoryLimits, bills, customCategories, currency })
       .then(() => {
         setIsDirty(false);
         setSaveError(false);
@@ -1299,7 +1372,7 @@ export default function App() {
         setIsDirty(false);
         setSaveError(true);
       });
-  }, [emergencyMonths, expenses, income, invest, investLabel, loaded, auth, savingsAccounts, categoryLimits, bills, customCategories]);
+  }, [emergencyMonths, expenses, income, invest, investLabel, loaded, auth, savingsAccounts, categoryLimits, bills, customCategories, currency]);
 
   // Copies a plan saved under some other id into the signed-in account. Reads
   // through the same /api/data endpoint, so a plain sync code works too.
@@ -1328,6 +1401,7 @@ export default function App() {
       if (data.categoryLimits) setCategoryLimits(data.categoryLimits);
       if (data.bills) setBills(data.bills);
       if (data.customCategories) setCustomCategories(data.customCategories);
+      if (data.currency) applyCurrency(data.currency);
       setImportSuccess(true);
       setImportInput("");
       window.setTimeout(() => { setShowImport(false); setImportSuccess(false); }, 1600);
@@ -1344,7 +1418,7 @@ export default function App() {
     const tExpenses = expenses.reduce((s, e) => s + freqToMonthly(e.amount, e.frequency), 0);
     const tInvest = invest;
     const tSavings = tIncome - tExpenses - tInvest;
-    const score = computeHealthScore(tIncome, tExpenses, tInvest, emergencyCoverage.total);
+    const score = computeHealthScore(tIncome, tExpenses, tInvest, emergencyCoverage.total, money);
 
     const expensesByCat = {};
     for (const e of expenses) {
@@ -1358,14 +1432,14 @@ export default function App() {
       const itemRows = items.map(e => `
         <tr>
           <td style="padding:5px 10px;border-bottom:1px solid #f0f0f0;color:#444">${e.name}</td>
-          <td style="padding:5px 10px;border-bottom:1px solid #f0f0f0;text-align:right">€${fmt(e.amount)}</td>
+          <td style="padding:5px 10px;border-bottom:1px solid #f0f0f0;text-align:right">${money(e.amount)}</td>
           <td style="padding:5px 10px;border-bottom:1px solid #f0f0f0;color:#888">${t.freq(e.frequency)}</td>
-          <td style="padding:5px 10px;border-bottom:1px solid #f0f0f0;text-align:right;color:#555">€${fmt(freqToMonthly(e.amount, e.frequency))}${t("perMo")}</td>
+          <td style="padding:5px 10px;border-bottom:1px solid #f0f0f0;text-align:right;color:#555">${money(freqToMonthly(e.amount, e.frequency))}${t("perMo")}</td>
         </tr>`).join("");
       return `
         <tr style="background:#f5f5f7">
           <td colspan="3" style="padding:8px 10px;font-weight:700;font-size:12px">${getCategoryMeta(cat, customCategories).icon} ${getCategoryLabel(cat, customCategories, t)}</td>
-          <td style="padding:8px 10px;text-align:right;font-weight:700;font-size:12px">€${fmt(catTotal)}${t("perMo")}</td>
+          <td style="padding:8px 10px;text-align:right;font-weight:700;font-size:12px">${money(catTotal)}${t("perMo")}</td>
         </tr>${itemRows}`;
     }).join("");
 
@@ -1386,7 +1460,7 @@ export default function App() {
         </table>
       </div>
       <p style="margin-top:14px;font-size:12.5px;color:#555;line-height:1.5">
-        ${t("report_emergencyCoverage", { total: fmt(emergencyCoverage.total), dedicated: fmt(emergencyCoverage.dedicated), savings: fmt(emergencyCoverage.fromSavings) })}
+        ${t("report_emergencyCoverage", { total: money(emergencyCoverage.total), dedicated: money(emergencyCoverage.dedicated), savings: money(emergencyCoverage.fromSavings) })}
       </p>` : "";
 
     const savingsHtml = (savingsAccounts && savingsAccounts.length) ? `
@@ -1397,17 +1471,17 @@ export default function App() {
           ${savingsAccounts.map(a => {
             const bal = Number(a.amount) || 0;
             const target = Number(a.target) || 0;
-            const goal = target > 0 ? `€${fmt(target)}${a.targetMonth ? ` · ${a.targetMonth}` : ""} (${((bal / target) * 100).toFixed(0)}%)` : "—";
+            const goal = target > 0 ? `${money(target)}${a.targetMonth ? ` · ${a.targetMonth}` : ""} (${((bal / target) * 100).toFixed(0)}%)` : "—";
             const typeTag = a.type === "emergency" ? ` <span style="font-size:10px;color:#007AFF">(${t("type_emergency")})</span>`
               : a.type === "investment" ? ` <span style="font-size:10px;color:#AF52DE">(${t("type_investment")}, 80%)</span>`
               : "";
             return `<tr>
               <td style="padding:6px 10px;border-bottom:1px solid #f0f0f0;font-weight:600">${a.name}${typeTag}</td>
               <td style="padding:6px 10px;border-bottom:1px solid #f0f0f0;color:#888">${goal}</td>
-              <td style="padding:6px 10px;border-bottom:1px solid #f0f0f0;text-align:right;font-weight:700;color:#30D158">€${fmt(bal)}</td>
+              <td style="padding:6px 10px;border-bottom:1px solid #f0f0f0;text-align:right;font-weight:700;color:#30D158">${money(bal)}</td>
             </tr>`;
           }).join("")}
-          <tr><td colspan="2" style="padding:8px 10px;font-weight:700">${t("totalSavings")}</td><td style="padding:8px 10px;text-align:right;font-weight:800;color:#30D158">€${fmt(savingsAccounts.reduce((s, a) => s + (Number(a.amount) || 0), 0))}</td></tr>
+          <tr><td colspan="2" style="padding:8px 10px;font-weight:700">${t("totalSavings")}</td><td style="padding:8px 10px;text-align:right;font-weight:800;color:#30D158">${money(savingsAccounts.reduce((s, a) => s + (Number(a.amount) || 0), 0))}</td></tr>
         </tbody>
       </table>` : "";
 
@@ -1419,9 +1493,9 @@ export default function App() {
           ${bills.map(b => `<tr>
             <td style="padding:6px 10px;border-bottom:1px solid #f0f0f0;font-weight:600">${b.name}</td>
             <td style="padding:6px 10px;border-bottom:1px solid #f0f0f0;color:#888">${t("bill_dayOfMonth", { d: b.dueDay })}</td>
-            <td style="padding:6px 10px;border-bottom:1px solid #f0f0f0;text-align:right;font-weight:700">€${fmt(Number(b.amount) || 0)}</td>
+            <td style="padding:6px 10px;border-bottom:1px solid #f0f0f0;text-align:right;font-weight:700">${money(Number(b.amount) || 0)}</td>
           </tr>`).join("")}
-          <tr><td colspan="2" style="padding:8px 10px;font-weight:700">${t("bills_total")}</td><td style="padding:8px 10px;text-align:right;font-weight:800">€${fmt(bills.reduce((s, b) => s + (Number(b.amount) || 0), 0))}</td></tr>
+          <tr><td colspan="2" style="padding:8px 10px;font-weight:700">${t("bills_total")}</td><td style="padding:8px 10px;text-align:right;font-weight:800">${money(bills.reduce((s, b) => s + (Number(b.amount) || 0), 0))}</td></tr>
         </tbody>
       </table>` : "";
 
@@ -1489,10 +1563,10 @@ export default function App() {
 
   <div style="display:flex;gap:12px;margin:8px 0 4px">
     ${[
-      [t("card_monthlyIncome"),  `€${fmt(tIncome)}`,              "#34C759"],
-      [t("card_monthlyExpenses"),`€${fmt(tExpenses)}`,            "#FF3B30"],
-      [t("monthlyInvestment"),   `€${fmt(tInvest)}`,              "#007AFF"],
-      [tSavings >= 0 ? t("card_netSavings") : t("card_deficit"), `€${fmt(Math.abs(tSavings))}`, tSavings >= 0 ? "#007AFF" : "#FF3B30"],
+      [t("card_monthlyIncome"),  `${money(tIncome)}`,              "#34C759"],
+      [t("card_monthlyExpenses"),`${money(tExpenses)}`,            "#FF3B30"],
+      [t("monthlyInvestment"),   `${money(tInvest)}`,              "#007AFF"],
+      [tSavings >= 0 ? t("card_netSavings") : t("card_deficit"), `${money(Math.abs(tSavings))}`, tSavings >= 0 ? "#007AFF" : "#FF3B30"],
     ].map(([label, value, color]) => `
       <div style="flex:1;padding:14px;background:#f8f8f8;border-radius:8px">
         <div style="font-size:10px;color:#888;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">${label}</div>
@@ -1510,8 +1584,8 @@ export default function App() {
         <tr>
           <td style="padding:6px 10px;border-bottom:1px solid #f0f0f0;font-weight:600">${i.name}</td>
           <td style="padding:6px 10px;border-bottom:1px solid #f0f0f0;color:#888">${t.freq(i.frequency)}</td>
-          <td style="padding:6px 10px;border-bottom:1px solid #f0f0f0">€${fmt(i.amount)}</td>
-          <td style="padding:6px 10px;border-bottom:1px solid #f0f0f0;text-align:right;font-weight:700;color:#34C759">€${fmt(freqToMonthly(i.amount, i.frequency))}${t("perMo")}</td>
+          <td style="padding:6px 10px;border-bottom:1px solid #f0f0f0">${money(i.amount)}</td>
+          <td style="padding:6px 10px;border-bottom:1px solid #f0f0f0;text-align:right;font-weight:700;color:#34C759">${money(freqToMonthly(i.amount, i.frequency))}${t("perMo")}</td>
         </tr>`).join("")}
     </tbody>
   </table>
@@ -1539,7 +1613,7 @@ export default function App() {
     a.click();
     document.body.removeChild(a);
     setTimeout(() => URL.revokeObjectURL(url), 30000);
-  }, [income, expenses, invest, investLabel, emergencyMonths, emergencyCoverage, savingsAccounts, bills, customCategories, syncId, auth, t]);
+  }, [income, expenses, invest, investLabel, emergencyMonths, emergencyCoverage, savingsAccounts, bills, customCategories, syncId, auth, t, currency]);
 
   const updateExpense = (id, field, value) => {
     setExpenses((current) =>
@@ -1707,6 +1781,42 @@ export default function App() {
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 {isSignedIn && saveStatus}
+                {/* Currency icon — mirrors the language icon beside it. */}
+                <div style={{ position: "relative" }} ref={curMenuRef}>
+                  <button
+                    onClick={() => setShowCurMenu(v => !v)}
+                    aria-label={t("currency")}
+                    style={{
+                      width: 34, height: 34, borderRadius: "50%", border: "1.5px solid #E5E5EA",
+                      background: showCurMenu ? "#F2F2F7" : "#fff", cursor: "pointer",
+                      fontSize: 15, fontWeight: 700, color: "#3C3C43",
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                    }}
+                  >
+                    {curSymbol}
+                  </button>
+                  {showCurMenu && (
+                    <div style={{
+                      position: "absolute", top: "calc(100% + 8px)", right: 0,
+                      background: "#fff", border: "1.5px solid #E5E5EA", borderRadius: 12,
+                      padding: 6, minWidth: 190, boxShadow: "0 8px 32px rgba(0,0,0,0.12)", zIndex: 200,
+                    }}>
+                      {CURRENCIES.map(c => (
+                        <button key={c.code} onClick={() => changeCurrency(c.code)} style={{
+                          display: "flex", alignItems: "center", gap: 8, width: "100%",
+                          padding: "8px 10px", borderRadius: 8, border: "none", cursor: "pointer",
+                          fontSize: 14, fontWeight: currency === c.code ? 700 : 500,
+                          background: currency === c.code ? "#F2F2F7" : "transparent", color: "#1C1C1E", textAlign: "left",
+                        }}>
+                          <span style={{ fontSize: 16 }}>{c.flag}</span>
+                          <span style={{ width: 22, fontWeight: 700 }}>{c.symbol}</span>
+                          {c.code}
+                          {currency === c.code && <span style={{ marginLeft: "auto", color: "#007AFF" }}>✓</span>}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
                 {/* Language icon */}
                 <div style={{ position: "relative" }} ref={langMenuRef}>
                   <button
@@ -1820,6 +1930,44 @@ export default function App() {
               ))}
             </div>
             {isSignedIn && saveStatus}
+            {/* Currency picker — same affordance as the language picker beside it. */}
+            <div style={{ position: "relative" }} ref={curMenuRef}>
+              <button
+                onClick={() => setShowCurMenu((v) => !v)}
+                title={t("currency")}
+                aria-label={t("currency")}
+                style={{
+                  padding: "7px 12px", borderRadius: 20, border: "1.5px solid #E5E5EA",
+                  cursor: "pointer", fontSize: 13, fontWeight: 600,
+                  background: showCurMenu ? "#F2F2F7" : "#fff", color: "#3C3C43",
+                  display: "flex", alignItems: "center", gap: 6,
+                }}
+              >
+                {curSymbol} {currency}
+              </button>
+              {showCurMenu && (
+                <div style={{
+                  position: "absolute", top: "calc(100% + 8px)", right: 0,
+                  background: "#fff", border: "1.5px solid #E5E5EA", borderRadius: 12,
+                  padding: 6, minWidth: 190, boxShadow: "0 8px 32px rgba(0,0,0,0.12)", zIndex: 200,
+                }}>
+                  {CURRENCIES.map((c) => (
+                    <button key={c.code} onClick={() => changeCurrency(c.code)} style={{
+                      display: "flex", alignItems: "center", gap: 8, width: "100%",
+                      padding: "8px 10px", borderRadius: 8, border: "none", cursor: "pointer",
+                      fontSize: 14, fontWeight: currency === c.code ? 700 : 500,
+                      background: currency === c.code ? "#F2F2F7" : "transparent",
+                      color: "#1C1C1E", textAlign: "left",
+                    }}>
+                      <span style={{ fontSize: 16 }}>{c.flag}</span>
+                      <span style={{ width: 22, fontWeight: 700 }}>{c.symbol}</span>
+                      {c.code}
+                      {currency === c.code && <span style={{ marginLeft: "auto", color: "#007AFF" }}>✓</span>}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
             <div style={{ position: "relative" }} ref={langMenuRef}>
               <button
                 onClick={() => setShowLangMenu((v) => !v)}
@@ -1924,14 +2072,14 @@ export default function App() {
                   {savings >= 0 ? `☀️ ${t("sts_title")}` : `⚠️ ${t("sts_overTitle")}`}
                 </div>
                 <div style={{ fontSize: 34, fontWeight: 800, letterSpacing: "-1px", lineHeight: 1.1 }}>
-                  €{fmt(Math.abs(safeToSpendDaily))}
+                  {money(Math.abs(safeToSpendDaily))}
                   <span style={{ fontSize: 15, fontWeight: 500, opacity: 0.85 }}>{t("sts_perDay")}</span>
                 </div>
               </div>
               <div style={{ textAlign: isMobile ? "left" : "right", fontSize: 13, fontWeight: 500, opacity: 0.95, lineHeight: 1.5 }}>
                 {savings >= 0
-                  ? t("sts_leftThisMonth", { x: fmt(savings) })
-                  : t("sts_overThisMonth", { x: fmt(Math.abs(savings)) })}
+                  ? t("sts_leftThisMonth", { x: money(savings) })
+                  : t("sts_overThisMonth", { x: money(Math.abs(savings)) })}
                 <br />
                 {t("sts_daysLeft", { n: daysLeftInMonth })}
               </div>
@@ -1988,7 +2136,7 @@ export default function App() {
                       {card.label}
                     </div>
                     <div style={{ fontSize: 28, fontWeight: 700, color: card.color, letterSpacing: "-1px" }}>
-                      €{fmt(card.value)}
+                      {money(card.value)}
                     </div>
                     <div style={{ fontSize: 12, color: "#6C6C70", marginTop: 4 }}>{card.sub}</div>
                   </div>
@@ -2034,13 +2182,13 @@ export default function App() {
                         const ac = donutData.find(d => d.name === activeCategory);
                         return ac ? (
                           <>
-                            <div style={{ fontSize: 15, fontWeight: 700, color: ac.color }}>€{fmt(ac.value)}</div>
+                            <div style={{ fontSize: 15, fontWeight: 700, color: ac.color }}>{money(ac.value)}</div>
                             <div style={{ fontSize: 10, color: "#6C6C70", maxWidth: 60, lineHeight: 1.2 }}>{getCategoryLabel(ac.name, customCategories, t)}</div>
                           </>
                         ) : null;
                       })() : (
                         <>
-                          <div style={{ fontSize: 18, fontWeight: 700, color: "#1C1C1E" }}>€{fmt(totalExpenses)}</div>
+                          <div style={{ fontSize: 18, fontWeight: 700, color: "#1C1C1E" }}>{money(totalExpenses)}</div>
                           <div style={{ fontSize: 11, color: "#6C6C70" }}>{t("total")}</div>
                         </>
                       )}
@@ -2067,7 +2215,7 @@ export default function App() {
                             transition: "transform 0.22s ease",
                           }} />
                           <div style={{ flex: 1, fontSize: 12, color: "#3C3C43", fontWeight: isActive ? 700 : 500 }}>{getCategoryLabel(item.name, customCategories, t)}</div>
-                          <div style={{ fontSize: 12, fontWeight: 600, color: "#1C1C1E" }}>€{fmt(item.value)}</div>
+                          <div style={{ fontSize: 12, fontWeight: 600, color: "#1C1C1E" }}>{money(item.value)}</div>
                         </div>
                       );
                     })}
@@ -2129,9 +2277,9 @@ export default function App() {
                             )}
                           </span>
                           <span style={{ fontSize: 12, fontWeight: 600, textAlign: "right" }}>
-                            €{fmt(item.value)}{" "}
+                            {money(item.value)}{" "}
                             <span style={{ color: overLimit ? "#FF3B30" : nearLimit ? "#FF9500" : "#6C6C70", fontWeight: limit > 0 ? 600 : 400 }}>
-                              {limit > 0 ? `/ €${fmt(limit)} (${limitPct.toFixed(0)}%)` : `(${pct.toFixed(0)}%)`}
+                              {limit > 0 ? `/ ${money(limit)} (${limitPct.toFixed(0)}%)` : `(${pct.toFixed(0)}%)`}
                             </span>
                           </span>
                         </div>
@@ -2156,7 +2304,7 @@ export default function App() {
                                 value={limitInput}
                                 onChange={(e) => setLimitInput(e.target.value)}
                                 onKeyDown={(e) => { if (e.key === "Enter") commitLimit(); if (e.key === "Escape") { setEditingLimitCat(null); setLimitInput(""); } }}
-                                placeholder={t("ph_limit")}
+                                placeholder={t("ph_limit", { c: curSymbol })}
                                 style={{
                                   width: 90, fontSize: 12, fontWeight: 600, color: item.color,
                                   border: "none", borderBottom: `2px solid ${item.color}`,
@@ -2282,7 +2430,7 @@ export default function App() {
                   </div>
                 </div>
                 <div style={{ marginTop: 10, fontSize: 12, color: "#6C6C70" }}>
-                  {t("annual")}: <strong style={{ color: "#007AFF" }}>€{fmt(invest * 12)}</strong>
+                  {t("annual")}: <strong style={{ color: "#007AFF" }}>{money(invest * 12)}</strong>
                 </div>
               </div>
 
@@ -2319,12 +2467,12 @@ export default function App() {
                     height in line with Monthly Investment alongside it. */}
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 3 }}>
                   <span style={{ fontSize: 12, color: "#3C3C43", fontWeight: 500 }}>{t("currentCoverage")}</span>
-                  <span style={{ fontSize: 17, fontWeight: 800, color: "#007AFF" }}>€{fmt(emergencyCoverage.total)}</span>
+                  <span style={{ fontSize: 17, fontWeight: 800, color: "#007AFF" }}>{money(emergencyCoverage.total)}</span>
                 </div>
                 {(() => {
                   const breakdown = [
-                    emergencyCoverage.dedicated > 0 ? t("coverageFromDedicated", { x: fmt(emergencyCoverage.dedicated) }) : null,
-                    emergencyCoverage.fromSavings > 0 ? t("coverageFromSavings", { x: fmt(emergencyCoverage.fromSavings) }) : null,
+                    emergencyCoverage.dedicated > 0 ? t("coverageFromDedicated", { x: money(emergencyCoverage.dedicated) }) : null,
+                    emergencyCoverage.fromSavings > 0 ? t("coverageFromSavings", { x: money(emergencyCoverage.fromSavings) }) : null,
                   ].filter(Boolean).join(" · ");
                   return breakdown ? (
                     <div style={{ fontSize: 10.5, color: "#6C6C70", marginBottom: emergencyMonths > 0 ? 6 : 0 }}>{breakdown}</div>
@@ -2349,7 +2497,7 @@ export default function App() {
                       />
                     </div>
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginTop: 4 }}>
-                      <span style={{ fontSize: 10.5, color: "#6C6C70" }}>{t("target")}: €{fmt(emergencyTarget)}</span>
+                      <span style={{ fontSize: 10.5, color: "#6C6C70" }}>{t("target")}: {money(emergencyTarget)}</span>
                       <span style={{ fontSize: 11, fontWeight: 700, color: emergencyCoveragePct >= 100 ? "#34C759" : "#3C3C43" }}>
                         {emergencyCoveragePct >= 100 ? t("goal_reached") : `${emergencyCoveragePct.toFixed(0)}%`}
                       </span>
@@ -2360,7 +2508,7 @@ export default function App() {
             </div>
 
             {(() => {
-              const score = computeHealthScore(totalIncome, totalExpenses, investMonthly, emergencyCoverage.total);
+              const score = computeHealthScore(totalIncome, totalExpenses, investMonthly, emergencyCoverage.total, money);
               if (!score) return null;
               const color = scoreColor(score.total);
               const weakest = [...score.breakdown].filter(b => b.noteKey).sort((a, b) => a.score - b.score)[0];
@@ -2544,7 +2692,7 @@ export default function App() {
                           </div>
                           <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
                             <div style={{ flex: 1 }}>
-                              <div style={{ fontSize: 11, color: "#6C6C70", marginBottom: 4 }}>{t("col_amount")} (€)</div>
+                              <div style={{ fontSize: 11, color: "#6C6C70", marginBottom: 4 }}>{t("col_amount")} ({curSymbol})</div>
                               <input
                                 type="text"
                                 inputMode="decimal"
@@ -2624,8 +2772,8 @@ export default function App() {
                             </div>
                           </div>
                           <div style={{ textAlign: "right", flexShrink: 0 }}>
-                            <div style={{ fontSize: 15, fontWeight: 700, color }}>€{fmt(item.amount)}</div>
-                            <div style={{ fontSize: 11, color: "#6C6C70" }}>€{fmt(monthly)}{t("perMo")}</div>
+                            <div style={{ fontSize: 15, fontWeight: 700, color }}>{money(item.amount)}</div>
+                            <div style={{ fontSize: 11, color: "#6C6C70" }}>{money(monthly)}{t("perMo")}</div>
                           </div>
                           <div style={{ color: "#C7C7CC", fontSize: 13 }}>›</div>
                         </div>
@@ -2774,8 +2922,8 @@ export default function App() {
                           />
                         ) : (
                           <div>
-                            <div style={{ fontSize: 14, fontWeight: 600 }}>€{fmt(item.amount)}</div>
-                            <div style={{ fontSize: 11, color: "#6C6C70" }}>€{fmt(monthly)}{t("perMo")}</div>
+                            <div style={{ fontSize: 14, fontWeight: 600 }}>{money(item.amount)}</div>
+                            <div style={{ fontSize: 11, color: "#6C6C70" }}>{money(monthly)}{t("perMo")}</div>
                           </div>
                         )}
                       </div>
@@ -2987,7 +3135,7 @@ export default function App() {
                   </div>
                   <div style={{ display: "flex", gap: 10 }}>
                     <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: 11, color: "#6C6C70", marginBottom: 4 }}>{t("col_amount")} (€)</div>
+                      <div style={{ fontSize: 11, color: "#6C6C70", marginBottom: 4 }}>{t("col_amount")} ({curSymbol})</div>
                       <input
                         type="text"
                         inputMode="decimal"
@@ -3058,7 +3206,7 @@ export default function App() {
             >
               <span style={{ fontSize: 14, fontWeight: 600, color: "#3C3C43" }}>{t("totalExpenses")}</span>
               <span style={{ fontSize: 20, fontWeight: 700, color: "#FF3B30", textAlign: "right" }}>
-                €{fmt(totalExpenses)}
+                {money(totalExpenses)}
                 <span style={{ fontSize: 12, color: "#6C6C70", fontWeight: 400 }}>{t("perMo")}</span>
               </span>
             </div>
@@ -3098,7 +3246,7 @@ export default function App() {
                           />
                           <div style={{ display: "flex", gap: 10 }}>
                             <div style={{ flex: 1 }}>
-                              <div style={{ fontSize: 11, color: "#6C6C70", marginBottom: 4 }}>{t("col_amount")} (€)</div>
+                              <div style={{ fontSize: 11, color: "#6C6C70", marginBottom: 4 }}>{t("col_amount")} ({curSymbol})</div>
                               <input
                                 type="text"
                                 inputMode="decimal"
@@ -3152,8 +3300,8 @@ export default function App() {
                             <div style={{ fontSize: 12, color: "#6C6C70" }}>{t.freq(item.frequency)}</div>
                           </div>
                           <div style={{ textAlign: "right", flexShrink: 0 }}>
-                            <div style={{ fontSize: 15, fontWeight: 700, color: "#34C759" }}>€{fmt(item.amount)}</div>
-                            <div style={{ fontSize: 11, color: "#6C6C70" }}>€{fmt(monthly)}{t("perMo")}</div>
+                            <div style={{ fontSize: 15, fontWeight: 700, color: "#34C759" }}>{money(item.amount)}</div>
+                            <div style={{ fontSize: 11, color: "#6C6C70" }}>{money(monthly)}{t("perMo")}</div>
                           </div>
                           <div style={{ color: "#C7C7CC", fontSize: 13 }}>›</div>
                         </div>
@@ -3175,7 +3323,7 @@ export default function App() {
                     />
                     <div style={{ display: "flex", gap: 10 }}>
                       <div style={{ flex: 1 }}>
-                        <div style={{ fontSize: 11, color: "#6C6C70", marginBottom: 4 }}>{t("col_amount")} (€)</div>
+                        <div style={{ fontSize: 11, color: "#6C6C70", marginBottom: 4 }}>{t("col_amount")} ({curSymbol})</div>
                         <input
                           type="text" inputMode="decimal" placeholder="0"
                           value={newIncome.amount || ""}
@@ -3287,8 +3435,8 @@ export default function App() {
                           />
                         ) : (
                           <div>
-                            <div style={{ fontSize: 16, fontWeight: 700, color: "#34C759" }}>€{fmt(item.amount)}</div>
-                            <div style={{ fontSize: 11, color: "#6C6C70" }}>€{fmt(monthly)}{t("perMo")}</div>
+                            <div style={{ fontSize: 16, fontWeight: 700, color: "#34C759" }}>{money(item.amount)}</div>
+                            <div style={{ fontSize: 11, color: "#6C6C70" }}>{money(monthly)}{t("perMo")}</div>
                           </div>
                         )}
                       </div>
@@ -3383,7 +3531,7 @@ export default function App() {
                   <div style={{ fontSize: 11, color: "#6C6C70", fontWeight: 500, marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.5px" }}>
                     {card.label}
                   </div>
-                  <div style={{ fontSize: 24, fontWeight: 700, color: card.color }}>€{fmt(card.value)}</div>
+                  <div style={{ fontSize: 24, fontWeight: 700, color: card.color }}>{money(card.value)}</div>
                 </div>
               ))}
             </div>
@@ -3420,7 +3568,7 @@ export default function App() {
                             style={{ fontSize: 15, fontWeight: 600, color: "#1C1C1E", border: "none", borderBottom: "2px solid #30D158", background: "transparent", outline: "none", width: "100%", paddingBottom: 2 }}
                           />
                           <div style={{ flex: 1 }}>
-                            <div style={{ fontSize: 11, color: "#6C6C70", marginBottom: 4 }}>{t("col_balance")} (€)</div>
+                            <div style={{ fontSize: 11, color: "#6C6C70", marginBottom: 4 }}>{t("col_balance")} ({curSymbol})</div>
                             <input
                               type="text" inputMode="decimal"
                               value={account.amount}
@@ -3457,7 +3605,7 @@ export default function App() {
                           </div>
                           <div style={{ display: "flex", gap: 10 }}>
                             <div style={{ flex: 1 }}>
-                              <div style={{ fontSize: 11, color: "#6C6C70", marginBottom: 4 }}>{t("goal_targetAmount")}</div>
+                              <div style={{ fontSize: 11, color: "#6C6C70", marginBottom: 4 }}>{t("goal_targetAmount", { c: curSymbol })}</div>
                               <input
                                 type="text" inputMode="decimal" placeholder={t("goal_optional")}
                                 value={account.target ?? ""}
@@ -3517,7 +3665,7 @@ export default function App() {
                               <div style={{ fontSize: 12, color: "#6C6C70" }}>{t("col_balance")}</div>
                             </div>
                             <div style={{ textAlign: "right", flexShrink: 0 }}>
-                              <div style={{ fontSize: 15, fontWeight: 700, color: "#30D158" }}>€{fmt(account.amount || 0)}</div>
+                              <div style={{ fontSize: 15, fontWeight: 700, color: "#30D158" }}>{money(account.amount || 0)}</div>
                             </div>
                             <div style={{ color: "#C7C7CC", fontSize: 13 }}>›</div>
                           </div>
@@ -3534,14 +3682,14 @@ export default function App() {
                               const monthsLeft = (ty - today.getFullYear()) * 12 + (tm - 1 - today.getMonth());
                               const monthlyNeeded = monthsLeft > 0 ? (target - balance) / monthsLeft : target - balance;
                               neededLine = monthsLeft > 0
-                                ? t("goal_needed", { x: fmt(monthlyNeeded) })
-                                : t("goal_pastDue", { x: fmt(target - balance) });
+                                ? t("goal_needed", { x: money(monthlyNeeded) })
+                                : t("goal_pastDue", { x: money(target - balance) });
                             }
                             return (
                               <div style={{ marginTop: 10 }}>
                                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4, gap: 8 }}>
                                   <span style={{ fontSize: 11, color: "#6C6C70" }}>
-                                    🎯 {t("goal_label")}: €{fmt(target)}
+                                    🎯 {t("goal_label")}: {money(target)}
                                     {account.targetMonth && /^\d{4}-\d{2}$/.test(account.targetMonth) ? ` · ${account.targetMonth}` : ""}
                                   </span>
                                   <span style={{ fontSize: 11, fontWeight: 700, color: reached ? "#30D158" : "#3C3C43" }}>
@@ -3572,7 +3720,7 @@ export default function App() {
                       style={{ fontSize: 15, fontWeight: 600, border: "none", borderBottom: "2px solid #30D158", background: "transparent", outline: "none", paddingBottom: 2 }}
                     />
                     <div>
-                      <div style={{ fontSize: 11, color: "#6C6C70", marginBottom: 4 }}>{t("col_balance")} (€)</div>
+                      <div style={{ fontSize: 11, color: "#6C6C70", marginBottom: 4 }}>{t("col_balance")} ({curSymbol})</div>
                       <input
                         type="text" inputMode="decimal" placeholder="0"
                         value={newSavings.amount || ""}
@@ -3603,7 +3751,7 @@ export default function App() {
                     </div>
                     <div style={{ display: "flex", gap: 10 }}>
                       <div style={{ flex: 1 }}>
-                        <div style={{ fontSize: 11, color: "#6C6C70", marginBottom: 4 }}>{t("goal_targetAmount")}</div>
+                        <div style={{ fontSize: 11, color: "#6C6C70", marginBottom: 4 }}>{t("goal_targetAmount", { c: curSymbol })}</div>
                         <input
                           type="text" inputMode="decimal" placeholder={t("goal_optional")}
                           value={newSavings.target || ""}
@@ -3658,7 +3806,7 @@ export default function App() {
               {savingsAccounts.length > 0 && (
                 <div style={{ marginTop: 12, background: "#fff", borderRadius: 14, padding: "14px 20px", boxShadow: "0 2px 8px rgba(0,0,0,0.06)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                   <span style={{ fontSize: 14, fontWeight: 600, color: "#3C3C43" }}>{t("totalSavings")}</span>
-                  <span style={{ fontSize: 20, fontWeight: 700, color: "#30D158" }}>€{fmt(totalSavingsBalance)}</span>
+                  <span style={{ fontSize: 20, fontWeight: 700, color: "#30D158" }}>{money(totalSavingsBalance)}</span>
                 </div>
               )}
             </div>
@@ -3704,7 +3852,7 @@ export default function App() {
                 </div>
               </div>
               <div style={{ marginTop: 10, fontSize: 12, color: "#6C6C70" }}>
-                {t("annual")}: <strong style={{ color: "#007AFF" }}>€{fmt(invest * 12)}</strong>
+                {t("annual")}: <strong style={{ color: "#007AFF" }}>{money(invest * 12)}</strong>
               </div>
             </div>
           </div>
@@ -3852,6 +4000,53 @@ export default function App() {
           >
             {t("undo")}
           </button>
+        </div>
+      )}
+
+      {curConvertAsk && (
+        <div
+          style={{
+            position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            padding: 16, zIndex: 450,
+          }}
+        >
+          <div style={{ background: "#fff", borderRadius: 18, padding: 22, width: "100%", maxWidth: 430, boxShadow: "0 12px 48px rgba(0,0,0,0.2)" }}>
+            <div style={{ fontSize: 17, fontWeight: 700, marginBottom: 10 }}>
+              {t("curConvertTitle", { to: curConvertAsk.to })}
+            </div>
+            <p style={{ margin: "0 0 12px", fontSize: 12.5, color: "#3C3C43", lineHeight: 1.55 }}>
+              {t("curConvertBody", { from: curConvertAsk.from, to: curConvertAsk.to })}
+            </p>
+            {/* A concrete before/after removes the ambiguity about which way the
+                rate is applied. */}
+            <p style={{ margin: "0 0 16px", fontSize: 12, color: "#6C6C70", background: "#F7F7FA", borderRadius: 8, padding: "8px 10px" }}>
+              {t("curConvertExample", {
+                before: makeMoney(curConvertAsk.from)(1000),
+                after: makeMoney(curConvertAsk.to)(convertAmount(1000, curConvertAsk.from, curConvertAsk.to)),
+              })}
+            </p>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "flex-end" }}>
+              <button
+                onClick={() => confirmCurrencyConvert(false)}
+                style={{
+                  padding: "9px 14px", borderRadius: 10, border: "1.5px solid #E5E5EA",
+                  background: "#fff", color: "#3C3C43", fontSize: 13, fontWeight: 600, cursor: "pointer",
+                }}
+              >
+                {t("curConvertKeep")}
+              </button>
+              <button
+                onClick={() => confirmCurrencyConvert(true)}
+                style={{
+                  padding: "9px 14px", borderRadius: 10, border: "none",
+                  background: "#007AFF", color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer",
+                }}
+              >
+                {t("curConvertDo")}
+              </button>
+            </div>
+          </div>
         </div>
       )}
 

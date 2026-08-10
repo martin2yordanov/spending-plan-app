@@ -1,5 +1,49 @@
 export const FREQUENCIES = ["Monthly", "Annual", "Weekly", "Quarterly", "Bi-weekly"];
 
+// `suffix` follows local convention: the lev is written after the amount
+// ("20 лв"), the others before it ("€20").
+export const CURRENCIES = [
+  { code: "EUR", symbol: "€",  flag: "🇪🇺", label: "Euro",            suffix: false },
+  { code: "BGN", symbol: "лв", flag: "🇧🇬", label: "Български лев",    suffix: true  },
+  { code: "USD", symbol: "$",  flag: "🇺🇸", label: "US Dollar",        suffix: false },
+  { code: "GBP", symbol: "£",  flag: "🇬🇧", label: "British Pound",    suffix: false },
+];
+
+export const CURRENCY_KEY = "spending_currency";
+export const DEFAULT_CURRENCY = "EUR";
+
+// Bulgaria's currency board fixes the lev to the euro at this rate, which is
+// also the official euro-adoption conversion rate — so EUR<->BGN is exact
+// rather than a market quote that would go stale.
+export const BGN_PER_EUR = 1.95583;
+
+export function currencyMeta(code) {
+  return CURRENCIES.find((c) => c.code === code) ?? CURRENCIES[0];
+}
+
+// Returns a formatter for the given currency. Kept as a factory so callers
+// bind it once per render rather than passing the code to every call site.
+export function makeMoney(code) {
+  const meta = currencyMeta(code);
+  return (amount) => (meta.suffix ? `${fmt(amount)} ${meta.symbol}` : `${meta.symbol}${fmt(amount)}`);
+}
+
+// Only the pegged EUR/BGN pair can be converted offline. Anything else returns
+// null so the caller can offer a relabel-only switch instead of inventing a rate.
+export function conversionRate(from, to) {
+  if (from === to) return 1;
+  if (from === "BGN" && to === "EUR") return 1 / BGN_PER_EUR;
+  if (from === "EUR" && to === "BGN") return BGN_PER_EUR;
+  return null;
+}
+
+// Rounds to cents; amounts are entered by hand, so sub-cent precision is noise.
+export function convertAmount(amount, from, to) {
+  const rate = conversionRate(from, to);
+  if (rate == null) return amount;
+  return Math.round(amount * rate * 100) / 100;
+}
+
 export function freqToMonthly(amount, freq) {
   switch (freq) {
     case "Monthly":   return amount;
@@ -50,7 +94,9 @@ export function computeEmergencyFundCoverage(savingsAccounts) {
   return { dedicated, fromSavings, total: dedicated + fromSavings };
 }
 
-export function computeHealthScore(totalIncome, totalExpenses, invest, emergencyCoverage) {
+// `money` formats the amounts embedded in the improvement notes. It defaults
+// to the bare number formatter so existing callers keep working.
+export function computeHealthScore(totalIncome, totalExpenses, invest, emergencyCoverage, money = fmt) {
   if (totalIncome <= 0) return null;
   const net = totalIncome - totalExpenses - invest;
   const savingsRate  = net / totalIncome;
@@ -75,25 +121,25 @@ export function computeHealthScore(totalIncome, totalExpenses, invest, emergency
         labelKey: "score_savingsRate", score: savingsScore,
         value: `${(savingsRate * 100).toFixed(0)}%`, target: "≥20%",
         noteKey: savingsScore < 25 ? "note_savings" : null,
-        noteVars: { x: fmt(Math.max(0, totalIncome * 0.20 - net)) },
+        noteVars: { x: money(Math.max(0, totalIncome * 0.20 - net)) },
       },
       {
         labelKey: "score_emergencyFund", score: emergencyScore,
         value: monthsCovered <= 0 ? "None" : `${Math.round(monthsCovered * 10) / 10}mo`, target: "6mo",
         noteKey: emergencyScore < 25 ? "note_emergency" : null,
-        noteVars: { x: fmt(Math.max(0, monthlyOutflow * 6 - emergencyCoverage)) },
+        noteVars: { x: money(Math.max(0, monthlyOutflow * 6 - emergencyCoverage)) },
       },
       {
         labelKey: "score_investmentRate", score: investScore,
         value: `${(investRate * 100).toFixed(0)}%`, target: "≥10%",
         noteKey: investScore < 25 ? "note_invest" : null,
-        noteVars: { x: fmt(Math.max(0, totalIncome * 0.10 - invest)) },
+        noteVars: { x: money(Math.max(0, totalIncome * 0.10 - invest)) },
       },
       {
         labelKey: "score_expenseRatio", score: expenseScore,
         value: `${(expenseRatio * 100).toFixed(0)}%`, target: "≤50%",
         noteKey: expenseScore < 25 ? "note_expense" : null,
-        noteVars: { p: (expenseRatio * 100).toFixed(0), x: fmt(Math.max(0, totalExpenses - totalIncome * 0.50)) },
+        noteVars: { p: (expenseRatio * 100).toFixed(0), x: money(Math.max(0, totalExpenses - totalIncome * 0.50)) },
       },
     ],
   };

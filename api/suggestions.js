@@ -51,8 +51,8 @@ A 2-3 sentence summary of where they stand. Include their monthly net cashflow, 
 
 ### 🎯 Top Priorities
 3-5 numbered recommendations, ranked by impact. Each one should:
-- State the specific action (e.g. "Reduce annual Holidays budget from €X to €Y")
-- Quantify the monthly impact (e.g. "Saves ~€Z/month")
+- State the specific action (e.g. "Reduce annual Holidays budget from X to Y")
+- Quantify the monthly impact (e.g. "Saves ~Z/month")
 - Briefly explain why this matters now
 
 ### ✂️ Expense Optimization
@@ -74,10 +74,13 @@ A short bullet list (4-6 items) outlining what they should do over the next year
 - Never invent numbers not present in their data.
 - Acknowledge uncertainty when the data doesn't tell the full story (e.g. "I don't see your debt obligations, so adjust this if you carry credit-card balances at high APRs").
 - Don't moralize about spending choices. The user decides what to value; your job is to optimize toward their goals, not judge them.
-- Use European currency convention (€) since the app uses euros.
+- Use the same currency symbol that appears in the figures you are given; never convert to another currency.
 - Keep total response length manageable — aim for ~700-1000 words of focused, high-density advice.`;
 
-function formatFinancialData({ income, expenses, invest, emergencyMonths, savingsAccounts, categoryLimits, bills }) {
+const CURRENCY_SYMBOLS = { EUR: "\u20ac", BGN: "\u043b\u0432", USD: "$", GBP: "\u00a3" };
+
+function formatFinancialData({ income, expenses, invest, emergencyMonths, savingsAccounts, categoryLimits, bills, currency }) {
+  const sym = CURRENCY_SYMBOLS[currency] ?? CURRENCY_SYMBOLS.EUR;
   // Amounts may arrive as strings (mid-edit saves); coerce before any .toFixed.
   const num = (v) => Number(v) || 0;
   const freqToMonthly = (rawAmount, freq) => {
@@ -97,7 +100,7 @@ function formatFinancialData({ income, expenses, invest, emergencyMonths, saving
   const netMonthly = totalIncomeMonthly - totalExpensesMonthly - num(invest);
 
   const incomeLines = (income ?? [])
-    .map((i) => `  - ${i.name}: €${num(i.amount).toFixed(2)} ${i.frequency} (€${freqToMonthly(i.amount, i.frequency).toFixed(2)}/mo)`)
+    .map((i) => `  - ${i.name}: ${sym}${num(i.amount).toFixed(2)} ${i.frequency} (${sym}${freqToMonthly(i.amount, i.frequency).toFixed(2)}/mo)`)
     .join("\n");
 
   const expensesByCategory = {};
@@ -110,16 +113,16 @@ function formatFinancialData({ income, expenses, invest, emergencyMonths, saving
     .map(([cat, items]) => {
       const catTotal = items.reduce((s, e) => s + freqToMonthly(e.amount, e.frequency), 0);
       const itemLines = items
-        .map((e) => `    - ${e.name}: €${num(e.amount).toFixed(2)} ${e.frequency} (€${freqToMonthly(e.amount, e.frequency).toFixed(2)}/mo)`)
+        .map((e) => `    - ${e.name}: ${sym}${num(e.amount).toFixed(2)} ${e.frequency} (${sym}${freqToMonthly(e.amount, e.frequency).toFixed(2)}/mo)`)
         .join("\n");
-      return `  ${cat} (€${catTotal.toFixed(2)}/mo total):\n${itemLines}`;
+      return `  ${cat} (${sym}${catTotal.toFixed(2)}/mo total):\n${itemLines}`;
     })
     .join("\n");
 
   const limitLines = Object.entries(categoryLimits ?? {})
     .map(([cat, limit]) => {
       const spent = (expensesByCategory[cat] ?? []).reduce((s, e) => s + freqToMonthly(e.amount, e.frequency), 0);
-      return `  - ${cat}: €${num(limit).toFixed(2)}/mo limit (currently spending €${spent.toFixed(2)}/mo, ${num(limit) > 0 ? ((spent / num(limit)) * 100).toFixed(0) : "?"}% of limit)`;
+      return `  - ${cat}: ${sym}${num(limit).toFixed(2)}/mo limit (currently spending ${sym}${spent.toFixed(2)}/mo, ${num(limit) > 0 ? ((spent / num(limit)) * 100).toFixed(0) : "?"}% of limit)`;
     })
     .join("\n");
 
@@ -139,12 +142,12 @@ function formatFinancialData({ income, expenses, invest, emergencyMonths, saving
       if (a.type === "emergency") emergencyDedicated += weighted;
       else emergencyFromSavings += weighted;
       const goal = target > 0
-        ? ` — goal: €${target.toFixed(2)}${a.targetMonth ? ` by ${a.targetMonth}` : ""} (${((balance / target) * 100).toFixed(0)}% funded)`
+        ? ` — goal: ${sym}${target.toFixed(2)}${a.targetMonth ? ` by ${a.targetMonth}` : ""} (${((balance / target) * 100).toFixed(0)}% funded)`
         : "";
       const typeNote = a.type === "emergency" ? " [dedicated emergency fund]"
         : a.type === "investment" ? " [investment, counts at 80% toward emergency coverage]"
         : "";
-      return `  - ${a.name}: €${balance.toFixed(2)}${typeNote}${goal}`;
+      return `  - ${a.name}: ${sym}${balance.toFixed(2)}${typeNote}${goal}`;
     })
     .join("\n");
   const emergencyCoverageTotal = emergencyDedicated + emergencyFromSavings;
@@ -153,15 +156,15 @@ function formatFinancialData({ income, expenses, invest, emergencyMonths, saving
 
   const billsTotal = (bills ?? []).reduce((s, b) => s + (Number(b.amount) || 0), 0);
   const billLines = (bills ?? [])
-    .map((b) => `  - ${b.name}: €${(Number(b.amount) || 0).toFixed(2)} due on day ${b.dueDay} of each month`)
+    .map((b) => `  - ${b.name}: ${sym}${(Number(b.amount) || 0).toFixed(2)} due on day ${b.dueDay} of each month`)
     .join("\n");
 
   return `Please analyze my spending plan and provide recommendations.
 
-## Income (total: €${totalIncomeMonthly.toFixed(2)}/month)
+## Income (total: ${sym}${totalIncomeMonthly.toFixed(2)}/month)
 ${incomeLines || "  (none)"}
 
-## Expenses (total: €${totalExpensesMonthly.toFixed(2)}/month)
+## Expenses (total: ${sym}${totalExpensesMonthly.toFixed(2)}/month)
 ${expenseLines || "  (none)"}
 
 ## Category spending limits I've set
@@ -170,15 +173,15 @@ ${limitLines || "  (none)"}
 ## Savings accounts and goals
 ${savingsLines || "  (none)"}
 
-## Recurring bills (total: €${billsTotal.toFixed(2)}/month)
+## Recurring bills (total: ${sym}${billsTotal.toFixed(2)}/month)
 ${billLines || "  (none)"}
 
-## Monthly investment contribution: €${num(invest).toFixed(2)}
+## Monthly investment contribution: ${sym}${num(invest).toFixed(2)}
 ## Emergency fund
 Target: ${emergencyMonths ?? 0} months of expenses
-Current coverage: €${emergencyCoverageTotal.toFixed(2)} total — €${emergencyDedicated.toFixed(2)} from dedicated emergency savings + €${emergencyFromSavings.toFixed(2)} from other liquid savings/investments (investments discounted to 80% for market risk). This covers approximately ${monthsCovered.toFixed(1)} months of expenses.
+Current coverage: ${sym}${emergencyCoverageTotal.toFixed(2)} total — ${sym}${emergencyDedicated.toFixed(2)} from dedicated emergency savings + ${sym}${emergencyFromSavings.toFixed(2)} from other liquid savings/investments (investments discounted to 80% for market risk). This covers approximately ${monthsCovered.toFixed(1)} months of expenses.
 Note: Emergency fund coverage includes ALL eligible savings/investments the user has, not only money explicitly labeled "Emergency Fund" — treat the "Current coverage" figure above as their real safety net when assessing risk, not just dedicated emergency savings alone.
-## Net monthly cashflow (income - expenses - investment): €${netMonthly.toFixed(2)}
+## Net monthly cashflow (income - expenses - investment): ${sym}${netMonthly.toFixed(2)}
 
 Provide specific, actionable advice based on these exact numbers.`;
 }
@@ -198,7 +201,7 @@ export default async function handler(req, res) {
     const LANG_NAMES = { en: "English", bg: "Bulgarian", es: "Spanish" };
     const langName = LANG_NAMES[req.body?.lang] || "English";
     const systemPrompt = req.body?.lang && req.body.lang !== "en"
-      ? `${SYSTEM_PROMPT}\n\nIMPORTANT: Write your entire response in ${langName}. Keep the markdown section headings and the € currency symbol, but translate all prose into ${langName}.`
+      ? `${SYSTEM_PROMPT}\n\nIMPORTANT: Write your entire response in ${langName}. Keep the markdown section headings and the currency symbols exactly as given, but translate all prose into ${langName}.`
       : SYSTEM_PROMPT;
 
     const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
