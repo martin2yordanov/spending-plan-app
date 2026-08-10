@@ -867,6 +867,14 @@ export default function App() {
   const [saveError, setSaveError] = useState(false);
   const [undoInfo, setUndoInfo] = useState(null); // { name, restore } for the delete-undo toast
   const undoTimerRef = useRef(null);
+  // Recovery path for data stranded under a different account id (e.g. after a
+  // Clerk instance change, which mints new user ids for the same person).
+  const [showImport, setShowImport] = useState(false);
+  const [importInput, setImportInput] = useState("");
+  const [importLoading, setImportLoading] = useState(false);
+  const [importError, setImportError] = useState(null);
+  const [importSuccess, setImportSuccess] = useState(false);
+  const [copiedId, setCopiedId] = useState(false);
   const [showWalkthrough, setShowWalkthrough] = useState(false);
   const [lang, setLang] = useState(() => {
     try { return localStorage.getItem(LANG_KEY) || "en"; } catch { return "en"; }
@@ -1292,6 +1300,43 @@ export default function App() {
         setSaveError(true);
       });
   }, [emergencyMonths, expenses, income, invest, investLabel, loaded, auth, savingsAccounts, categoryLimits, bills, customCategories]);
+
+  // Copies a plan saved under some other id into the signed-in account. Reads
+  // through the same /api/data endpoint, so a plain sync code works too.
+  const handleImportFromOldAccount = useCallback(async () => {
+    const oldId = importInput.trim();
+    if (!oldId || !auth?.userId || oldId === auth.userId) return;
+    setImportLoading(true);
+    setImportError(null);
+    setImportSuccess(false);
+    try {
+      const data = await loadData(oldId);
+      if (!data || (!data.income && !data.expenses)) {
+        setImportError(t("importNotFound"));
+        return;
+      }
+      // Persist first: if the write fails we surface the error and leave the
+      // on-screen plan untouched rather than showing data that wasn't saved.
+      await saveData(auth.userId, data);
+      skipNextSaveRef.current = true;
+      if (data.income) setIncome(data.income);
+      if (data.expenses) setExpenses(data.expenses);
+      if (data.invest != null) setInvest(data.invest);
+      if (data.investLabel) setInvestLabel(data.investLabel);
+      if (data.emergencyMonths != null) setEmergencyMonths(data.emergencyMonths);
+      if (data.savingsAccounts) setSavingsAccounts(data.savingsAccounts);
+      if (data.categoryLimits) setCategoryLimits(data.categoryLimits);
+      if (data.bills) setBills(data.bills);
+      if (data.customCategories) setCustomCategories(data.customCategories);
+      setImportSuccess(true);
+      setImportInput("");
+      window.setTimeout(() => { setShowImport(false); setImportSuccess(false); }, 1600);
+    } catch (err) {
+      setImportError(err?.message ? `${t("importFailed")}: ${err.message}` : t("importFailed"));
+    } finally {
+      setImportLoading(false);
+    }
+  }, [importInput, auth, t]);
 
   const handleExportPDF = useCallback(() => {
     const date = new Date().toLocaleDateString("en-GB", { year: "numeric", month: "long", day: "numeric" });
@@ -3726,6 +3771,23 @@ export default function App() {
             )}
           </div>
         )}
+
+        {/* Quiet recovery affordance: only useful once signed in, so it stays
+            out of the demo view entirely. */}
+        {isSignedIn && loaded && (
+          <div style={{ marginTop: 28, textAlign: "center" }}>
+            <button
+              onClick={() => { setShowImport(true); setImportError(null); setImportSuccess(false); }}
+              style={{
+                background: "none", border: "none", cursor: "pointer",
+                fontSize: 12, color: "#8E8E93", textDecoration: "underline",
+                padding: 4,
+              }}
+            >
+              {t("importOpen")}
+            </button>
+          </div>
+        )}
       </div>
 
       {catModalCat && (() => {
@@ -3790,6 +3852,105 @@ export default function App() {
           >
             {t("undo")}
           </button>
+        </div>
+      )}
+
+      {showImport && (
+        <div
+          onClick={(e) => { if (e.target === e.currentTarget && !importLoading) setShowImport(false); }}
+          style={{
+            position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            padding: 16, zIndex: 400,
+          }}
+        >
+          <div style={{ background: "#fff", borderRadius: 18, padding: 22, width: "100%", maxWidth: 420, boxShadow: "0 12px 48px rgba(0,0,0,0.2)" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+              <span style={{ fontSize: 17, fontWeight: 700 }}>{t("importTitle")}</span>
+              <button
+                onClick={() => setShowImport(false)}
+                aria-label="Close"
+                style={{ border: "none", background: "#F2F2F7", borderRadius: "50%", width: 28, height: 28, cursor: "pointer", fontSize: 15, color: "#3C3C43" }}
+              >
+                ×
+              </button>
+            </div>
+
+            <p style={{ margin: "0 0 14px", fontSize: 12.5, color: "#6C6C70", lineHeight: 1.5 }}>{t("importIntro")}</p>
+
+            {/* Showing the current id makes the mismatch self-diagnosable —
+                without it there is no way to tell which account you are in. */}
+            <div style={{ background: "#F7F7FA", borderRadius: 10, padding: "9px 11px", marginBottom: 14 }}>
+              <div style={{ fontSize: 10.5, color: "#8E8E93", marginBottom: 3, textTransform: "uppercase", letterSpacing: "0.4px" }}>{t("importWhereIsId")}</div>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <code style={{ fontSize: 11.5, color: "#3C3C43", wordBreak: "break-all", flex: 1 }}>{auth?.userId}</code>
+                <button
+                  onClick={() => {
+                    navigator.clipboard?.writeText(auth?.userId ?? "").then(
+                      () => { setCopiedId(true); window.setTimeout(() => setCopiedId(false), 1800); },
+                      () => { /* clipboard blocked — the id is visible anyway */ },
+                    );
+                  }}
+                  style={{
+                    border: "none", background: copiedId ? "#E8F8EC" : "#E5E5EA",
+                    color: copiedId ? "#1E8E3E" : "#3C3C43", borderRadius: 7,
+                    padding: "4px 9px", fontSize: 11, fontWeight: 600, cursor: "pointer", whiteSpace: "nowrap",
+                  }}
+                >
+                  {copiedId ? `✓ ${t("copied")}` : "⧉"}
+                </button>
+              </div>
+            </div>
+
+            <input
+              autoFocus
+              value={importInput}
+              onChange={(e) => { setImportInput(e.target.value); setImportError(null); }}
+              onKeyDown={(e) => { if (e.key === "Enter" && importInput.trim() && !importLoading) handleImportFromOldAccount(); }}
+              placeholder={t("importPlaceholder")}
+              style={{
+                width: "100%", boxSizing: "border-box", padding: "10px 12px",
+                borderRadius: 10, border: "1.5px solid #E5E5EA", fontSize: 13,
+                outline: "none", marginBottom: 8, fontFamily: "inherit",
+              }}
+            />
+
+            <p style={{ margin: "0 0 12px", fontSize: 11, color: "#8E8E93" }}>⚠️ {t("importOverwriteWarn")}</p>
+
+            {importError && (
+              <p style={{ margin: "0 0 12px", fontSize: 12, color: "#FF3B30" }}>{importError}</p>
+            )}
+            {importSuccess && (
+              <p style={{ margin: "0 0 12px", fontSize: 12, color: "#1E8E3E", fontWeight: 600 }}>✓ {t("importDone")}</p>
+            )}
+
+            <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+              <button
+                onClick={() => setShowImport(false)}
+                disabled={importLoading}
+                style={{
+                  padding: "9px 16px", borderRadius: 10, border: "1.5px solid #E5E5EA",
+                  background: "#fff", color: "#3C3C43", fontSize: 13, fontWeight: 600,
+                  cursor: importLoading ? "default" : "pointer",
+                }}
+              >
+                {t("btn_cancel")}
+              </button>
+              <button
+                onClick={handleImportFromOldAccount}
+                disabled={!importInput.trim() || importLoading}
+                style={{
+                  padding: "9px 16px", borderRadius: 10, border: "none",
+                  background: importInput.trim() && !importLoading ? "#007AFF" : "#E5E5EA",
+                  color: importInput.trim() && !importLoading ? "#fff" : "#8E8E93",
+                  fontSize: 13, fontWeight: 600,
+                  cursor: importInput.trim() && !importLoading ? "pointer" : "default",
+                }}
+              >
+                {importLoading ? t("importing") : t("importAction")}
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
