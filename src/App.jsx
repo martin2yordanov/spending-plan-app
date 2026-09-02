@@ -1324,8 +1324,8 @@ export default function App() {
   const monthlyExpenses = totalExpenses + investMonthly;
   const emergencyTarget = monthlyExpenses * emergencyMonths;
   // Emergency Fund coverage is the user's real safety net, not just money
-  // explicitly labeled "Emergency Fund" — every savings account contributes,
-  // weighted by how reliably it could be tapped (see computeEmergencyFundCoverage).
+  // explicitly labeled "Emergency Fund" — every savings account contributes
+  // in full (see computeEmergencyFundCoverage).
   const emergencyCoverage = useMemo(() => computeEmergencyFundCoverage(savingsAccounts), [savingsAccounts]);
   const emergencyCoveragePct = emergencyTarget > 0 ? (emergencyCoverage.total / emergencyTarget) * 100 : 0;
 
@@ -1486,7 +1486,7 @@ export default function App() {
             const target = Number(a.target) || 0;
             const goal = target > 0 ? `${money(target)}${a.targetMonth ? ` · ${a.targetMonth}` : ""} (${((bal / target) * 100).toFixed(0)}%)` : "—";
             const typeTag = a.type === "emergency" ? ` <span style="font-size:10px;color:#007AFF">(${t("type_emergency")})</span>`
-              : a.type === "investment" ? ` <span style="font-size:10px;color:#AF52DE">(${t("type_investment")}, 80%)</span>`
+              : a.type === "investment" ? ` <span style="font-size:10px;color:#AF52DE">(${t("type_investment")})</span>`
               : "";
             return `<tr>
               <td style="padding:6px 10px;border-bottom:1px solid #f0f0f0;font-weight:600">${a.name}${typeTag}</td>
@@ -2472,8 +2472,8 @@ export default function App() {
                   ))}
                 </div>
 
-                {/* Current coverage: dedicated Emergency Fund entries + eligible
-                    savings/investments, weighted by liquidity — shown regardless
+                {/* Current coverage: dedicated Emergency Fund entries + every
+                    other savings account, counted in full — shown regardless
                     of the target above, since "how protected am I right now"
                     matters even before a goal is set. Kept as one compact block
                     (rather than a separate boxed section) to keep this card's
@@ -3645,9 +3645,6 @@ export default function App() {
                                 </button>
                               ))}
                             </div>
-                            {account.type === "investment" && (
-                              <div style={{ fontSize: 10, color: "#6C6C70", marginTop: 4 }}>{t("investmentWeightNote")}</div>
-                            )}
                           </div>
                           <div style={{ display: "flex", gap: 10 }}>
                             <div style={{ flex: 1 }}>

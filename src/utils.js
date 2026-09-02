@@ -63,33 +63,21 @@ export function fmt(n) {
   }).format(Math.round(n));
 }
 
-// A savings account's balance counts toward Emergency Fund coverage at a
-// weight that reflects how reliably it could be tapped in an emergency.
-// Cash and a dedicated emergency-fund account are equally liquid (100%);
-// invested balances (ETFs/stocks) are liquid within days but could have to
-// be sold at a loss during a downturn, so only a discounted share counts.
-export const EMERGENCY_FUND_WEIGHTS = { cash: 1, emergency: 1, investment: 0.8 };
-
-export function emergencyFundWeight(type) {
-  return EMERGENCY_FUND_WEIGHTS[type] ?? EMERGENCY_FUND_WEIGHTS.cash;
-}
-
 /**
  * Emergency Fund coverage is not just money explicitly labeled "Emergency
  * Fund" — it's the user's real financial safety net, so every savings
- * account contributes (at its weight). Accounts don't need a `type` field;
- * anything untyped is treated as plain cash (100%), which is what keeps
- * pre-existing accounts working unchanged (no data migration needed).
- * Returns a breakdown, not just a total, so the UI/report can explain
- * where the number comes from instead of presenting an opaque sum.
+ * account contributes in full, regardless of type (cash, dedicated emergency
+ * fund, or investment). Returns a breakdown, not just a total, so the
+ * UI/report can explain where the number comes from instead of presenting
+ * an opaque sum.
  */
 export function computeEmergencyFundCoverage(savingsAccounts) {
   let dedicated = 0; // accounts explicitly marked as the emergency fund
-  let fromSavings = 0; // everything else that still counts (cash + discounted investments)
+  let fromSavings = 0; // everything else that still counts
   for (const account of savingsAccounts ?? []) {
-    const weighted = (Number(account.amount) || 0) * emergencyFundWeight(account.type);
-    if (account.type === "emergency") dedicated += weighted;
-    else fromSavings += weighted;
+    const amount = Number(account.amount) || 0;
+    if (account.type === "emergency") dedicated += amount;
+    else fromSavings += amount;
   }
   return { dedicated, fromSavings, total: dedicated + fromSavings };
 }

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { freqToMonthly, fmt, computeHealthScore, computeEmergencyFundCoverage, emergencyFundWeight, scoreColor, scoreLabelKey, parseAmount } from "../utils.js";
+import { freqToMonthly, fmt, computeHealthScore, computeEmergencyFundCoverage, scoreColor, scoreLabelKey, parseAmount } from "../utils.js";
 
 describe("freqToMonthly", () => {
   it("returns amount unchanged for Monthly", () => {
@@ -68,9 +68,9 @@ describe("parseAmount", () => {
 });
 
 describe("computeHealthScore", () => {
-  // The 4th argument is Emergency Fund coverage in euros (real money,
-  // weighted per computeEmergencyFundCoverage) — not a chosen target-months
-  // value. monthsCovered is derived internally as coverage / (expenses + invest).
+  // The 4th argument is Emergency Fund coverage in euros (real money, from
+  // computeEmergencyFundCoverage) — not a chosen target-months value.
+  // monthsCovered is derived internally as coverage / (expenses + invest).
   it("returns null for zero income", () => {
     expect(computeHealthScore(0, 1000, 100, 3000)).toBeNull();
   });
@@ -115,20 +115,6 @@ describe("computeHealthScore", () => {
   });
 });
 
-describe("emergencyFundWeight", () => {
-  it("weights cash and emergency-fund accounts at 100%", () => {
-    expect(emergencyFundWeight("cash")).toBe(1);
-    expect(emergencyFundWeight("emergency")).toBe(1);
-  });
-  it("discounts investment accounts to 80%", () => {
-    expect(emergencyFundWeight("investment")).toBe(0.8);
-  });
-  it("defaults untyped/unknown accounts to cash (100%) for backward compatibility", () => {
-    expect(emergencyFundWeight(undefined)).toBe(1);
-    expect(emergencyFundWeight("something-unrecognized")).toBe(1);
-  });
-});
-
 describe("computeEmergencyFundCoverage", () => {
   it("returns zero for no accounts", () => {
     expect(computeEmergencyFundCoverage([])).toEqual({ dedicated: 0, fromSavings: 0, total: 0 });
@@ -141,10 +127,10 @@ describe("computeEmergencyFundCoverage", () => {
     expect(result.fromSavings).toBe(500);
     expect(result.total).toBe(500);
   });
-  it("counts investment accounts at the discounted weight", () => {
+  it("counts investment accounts in full, same as cash (no discount)", () => {
     const result = computeEmergencyFundCoverage([{ amount: 1000, type: "investment" }]);
-    expect(result.fromSavings).toBe(800);
-    expect(result.total).toBe(800);
+    expect(result.fromSavings).toBe(1000);
+    expect(result.total).toBe(1000);
   });
   it("matches the worked example: €500 dedicated + €2,000 savings = €2,500 total", () => {
     const result = computeEmergencyFundCoverage([
