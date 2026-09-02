@@ -3795,25 +3795,18 @@ export default function App() {
                         ))}
                       </div>
                     </div>
-                    <div style={{ display: "flex", gap: 10 }}>
-                      <div style={{ flex: 1 }}>
-                        <div style={{ fontSize: 11, color: "#6C6C70", marginBottom: 4 }}>{t("goal_targetAmount", { c: curSymbol })}</div>
-                        <input
-                          type="text" inputMode="decimal" placeholder={t("goal_optional")}
-                          value={newSavings.target || ""}
-                          onChange={e => setNewSavings(c => ({ ...c, target: e.target.value }))}
-                          style={{ fontSize: 14, fontWeight: 600, color: "#30D158", width: "100%", border: "none", borderBottom: "2px solid #30D158", background: "transparent", outline: "none", paddingBottom: 2 }}
-                        />
-                      </div>
-                      <div style={{ flex: 1 }}>
-                        <div style={{ fontSize: 11, color: "#6C6C70", marginBottom: 4 }}>{t("goal_targetMonth")}</div>
-                        <input
-                          type="month"
-                          value={newSavings.targetMonth || ""}
-                          onChange={e => setNewSavings(c => ({ ...c, targetMonth: e.target.value }))}
-                          style={{ fontSize: 13, width: "100%", border: "none", borderBottom: "2px solid #30D158", background: "transparent", outline: "none", paddingBottom: 2, color: "#1C1C1E" }}
-                        />
-                      </div>
+                    <div>
+                      {/* Target month is set later via editing the account, not
+                          here — a goal date rarely matters until an amount and
+                          target are in place, so it only adds friction on the
+                          initial add. */}
+                      <div style={{ fontSize: 11, color: "#6C6C70", marginBottom: 4 }}>{t("goal_targetAmount", { c: curSymbol })}</div>
+                      <input
+                        type="text" inputMode="decimal" placeholder={t("goal_optional")}
+                        value={newSavings.target || ""}
+                        onChange={e => setNewSavings(c => ({ ...c, target: e.target.value }))}
+                        style={{ fontSize: 14, fontWeight: 600, color: "#30D158", width: "100%", border: "none", borderBottom: "2px solid #30D158", background: "transparent", outline: "none", paddingBottom: 2 }}
+                      />
                     </div>
                     <div style={{ display: "flex", justifyContent: "space-between" }}>
                       <button onClick={() => { setAddingSavings(false); setNewSavings({ name: "", amount: 0, target: "", targetMonth: "", type: "cash" }); }} style={{ padding: "7px 14px", borderRadius: 10, border: "none", background: "#F2F2F7", color: "#3C3C43", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
