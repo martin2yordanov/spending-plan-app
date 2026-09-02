@@ -1335,6 +1335,19 @@ export default function App() {
   const daysLeftInMonth = daysInMonth - now.getDate() + 1;
   const safeToSpendDaily = savings / daysLeftInMonth;
 
+  // Exact Mon-Fri count for the current calendar month, not a fixed average
+  // (a 28-day February and a 31-day month with 5 weekends differ enough to
+  // move this by more than a rounding error).
+  const workDaysInMonth = useMemo(() => {
+    let count = 0;
+    for (let d = 1; d <= daysInMonth; d++) {
+      const weekday = new Date(now.getFullYear(), now.getMonth(), d).getDay();
+      if (weekday !== 0 && weekday !== 6) count++;
+    }
+    return count;
+  }, [daysInMonth]);
+  const incomePerWorkDay = workDaysInMonth > 0 ? totalIncome / workDaysInMonth : 0;
+
   const generateSuggestions = useCallback(async () => {
     setSuggestionsLoading(true);
     setSuggestionsError(null);
@@ -3534,6 +3547,39 @@ export default function App() {
                   <div style={{ fontSize: 24, fontWeight: 700, color: card.color }}>{money(card.value)}</div>
                 </div>
               ))}
+            </div>
+
+            {/* Indigo/violet gradient banner, distinct from both the flat white
+                summary cards above and the blue/red Safe-to-spend banner on
+                Overview, so it reads as its own kind of figure (a rate, not a
+                total). */}
+            <div
+              style={{
+                marginTop: 14,
+                borderRadius: 18,
+                padding: isMobile ? "18px 20px" : "20px 24px",
+                color: "#fff",
+                background: "linear-gradient(135deg, #5856D6 0%, #AF52DE 100%)",
+                boxShadow: "0 6px 24px rgba(88,86,214,0.25)",
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                gap: 14,
+                flexWrap: "wrap",
+              }}
+            >
+              <div>
+                <div style={{ fontSize: 12, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.6px", opacity: 0.85, marginBottom: 4 }}>
+                  💼 {t("perWorkDayTitle")}
+                </div>
+                <div style={{ fontSize: 34, fontWeight: 800, letterSpacing: "-1px", lineHeight: 1.1 }}>
+                  {money(incomePerWorkDay)}
+                  <span style={{ fontSize: 15, fontWeight: 500, opacity: 0.85 }}>{t("perWorkDaySuffix")}</span>
+                </div>
+              </div>
+              <div style={{ textAlign: isMobile ? "left" : "right", fontSize: 13, fontWeight: 500, opacity: 0.95, lineHeight: 1.5 }}>
+                {t("perWorkDayNote", { n: workDaysInMonth })}
+              </div>
             </div>
           </div>
         )}
