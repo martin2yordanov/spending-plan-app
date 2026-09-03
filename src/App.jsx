@@ -1533,7 +1533,7 @@ export default function App() {
 </head>
 <body>
   <div id="dl-bar" style="position:sticky;top:0;z-index:99;background:rgba(255,255,255,0.92);backdrop-filter:blur(10px);border-bottom:1px solid #e0e0e0;padding:12px 40px;display:flex;align-items:center;justify-content:space-between;margin:-40px -40px 32px">
-    <span style="font-size:14px;font-weight:600;color:#1C1C1E">💳 ${t("appTitle")} &nbsp;·&nbsp; <span style="font-weight:400;color:#888">${date}</span></span>
+    <span style="font-size:14px;font-weight:600;color:#1C1C1E">💰 ${t("appTitle")} &nbsp;·&nbsp; <span style="font-weight:400;color:#888">${date}</span></span>
     <button id="dl-btn" onclick="downloadPDF()">⬇ Download PDF</button>
   </div>
   <script>
@@ -1569,7 +1569,7 @@ export default function App() {
   </script>
   <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:24px">
     <div>
-      <h1 style="font-size:24px;font-weight:800;margin-bottom:4px">💳 ${t("appTitle")}</h1>
+      <h1 style="font-size:24px;font-weight:800;margin-bottom:4px">💰 ${t("appTitle")}</h1>
       <p style="color:#888;font-size:13px">${date} &nbsp;·&nbsp; ${ownerLine}</p>
     </div>
   </div>
@@ -1788,9 +1788,16 @@ export default function App() {
           <div style={{ maxWidth: contentWidth, margin: "0 auto" }}>
             {/* Row 1: title + icon actions */}
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", paddingTop: 10, paddingBottom: 6 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <span style={{ fontSize: 20 }}>💳</span>
-                <span style={{ fontSize: 16, fontWeight: 700, letterSpacing: "-0.3px" }}>{t("appTitle")}</span>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
+                <img
+                  src="/money-bag.png"
+                  alt=""
+                  aria-hidden="true"
+                  style={{ height: 26, width: "auto", display: "block", flexShrink: 0 }}
+                />
+                <span style={{ fontSize: 19, fontWeight: 800, letterSpacing: "-0.6px", color: "#1C1C1E", whiteSpace: "nowrap" }}>
+                  {t("appTitle")}
+                </span>
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 {isSignedIn && saveStatus}
@@ -1886,11 +1893,12 @@ export default function App() {
                       flexShrink: 0,
                       padding: "6px 12px",
                       borderRadius: 20,
-                      border: "none",
+                      // Outlined pills, same treatment as the desktop tabs.
+                      border: `1.5px solid ${activeTab === tab ? "#007AFF" : "#E5E5EA"}`,
                       cursor: "pointer",
                       fontSize: 13,
-                      fontWeight: 500,
-                      background: activeTab === tab ? "#007AFF" : "transparent",
+                      fontWeight: 600,
+                      background: activeTab === tab ? "#007AFF" : "#fff",
                       color: activeTab === tab ? "#fff" : "#3C3C43",
                       transition: "all 0.2s",
                       whiteSpace: "nowrap",
@@ -1921,8 +1929,17 @@ export default function App() {
             }}
           >
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              <span style={{ fontSize: 22 }}>💳</span>
-              <span style={{ fontSize: 17, fontWeight: 600, letterSpacing: "-0.3px" }}>{t("appTitle")}</span>
+              {/* The money bag lifted straight out of the app icon, so the
+                  header and the home-screen icon read as the same product. */}
+              <img
+                src="/money-bag.png"
+                alt=""
+                aria-hidden="true"
+                style={{ height: 30, width: "auto", display: "block", flexShrink: 0 }}
+              />
+              <span style={{ fontSize: 22, fontWeight: 800, letterSpacing: "-0.7px", color: "#1C1C1E" }}>
+                {t("appTitle")}
+              </span>
             </div>
             <div style={{ display: "flex", gap: 6 }}>
               {["overview", "expenses", "income", "savings", "suggestions"].map((tab) => (
@@ -1931,9 +1948,12 @@ export default function App() {
                   ref={(el) => { tabRefs.current[tab] = el; }}
                   onClick={() => setActiveTab(tab)}
                   style={{
-                    padding: "6px 14px", borderRadius: 20, border: "none", cursor: "pointer",
-                    fontSize: 13, fontWeight: 500,
-                    background: activeTab === tab ? "#007AFF" : "transparent",
+                    padding: "6px 14px", borderRadius: 20, cursor: "pointer",
+                    fontSize: 13, fontWeight: 600,
+                    // Outlined pills, matching the currency/language controls to
+                    // the right so the whole header reads as one control set.
+                    border: `1.5px solid ${activeTab === tab ? "#007AFF" : "#E5E5EA"}`,
+                    background: activeTab === tab ? "#007AFF" : "#fff",
                     color: activeTab === tab ? "#fff" : "#3C3C43",
                     transition: "all 0.2s",
                   }}
