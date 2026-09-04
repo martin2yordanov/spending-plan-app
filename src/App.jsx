@@ -1787,7 +1787,7 @@ export default function App() {
           /* ── Mobile header ── */
           <div style={{ maxWidth: contentWidth, margin: "0 auto" }}>
             {/* Row 1: title + icon actions */}
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", paddingTop: 10, paddingBottom: 6 }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", paddingTop: 10, paddingBottom: 14 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
                 <img
                   src="/money-bag.png"
