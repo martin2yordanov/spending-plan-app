@@ -7,3 +7,13 @@ data/spending-plan.json
 .env.local
 .env*.local
 .claude/
+
+# Capacitor / iOS build output. The ios/App project itself IS committed (it
+# holds signing config, Info.plist and the privacy manifest); these are the
+# generated parts.
+ios/App/App/public
+ios/App/Pods
+ios/App/App.xcworkspace/xcuserdata
+ios/App/App.xcodeproj/xcuserdata
+ios/DerivedData
+*.xcuserstate

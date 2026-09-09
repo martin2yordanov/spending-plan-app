@@ -1,0 +1,23 @@
+{
+  "appId": "bg.fathers.spendingplan",
+  "appName": "Spending Plan",
+  "webDir": "dist",
+  "ios": {
+    "contentInset": "never",
+    "limitsNavigationsToAppBoundDomains": true
+  },
+  "server": {
+    "iosScheme": "capacitor"
+  },
+  "plugins": {
+    "SplashScreen": {
+      "launchAutoHide": false,
+      "backgroundColor": "#D6C9B9",
+      "showSpinner": false
+    },
+    "StatusBar": {
+      "style": "LIGHT",
+      "overlaysWebView": true
+    }
+  }
+}

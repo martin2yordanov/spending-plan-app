@@ -1,3 +1,5 @@
+import { applyCors } from "./_cors.js";
+
 export const config = { maxDuration: 60 };
 
 const SYSTEM_PROMPT = `You are a senior financial advisor with 25+ years of experience advising individuals and families on personal finance, budgeting, expense optimization, and investment strategy. You hold the CFP (Certified Financial Planner) designation and have managed portfolios across all market conditions.
@@ -184,6 +186,8 @@ Provide specific, actionable advice based on these exact numbers.`;
 }
 
 export default async function handler(req, res) {
+  if (applyCors(req, res)) return;
+
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Method not allowed" });
   }

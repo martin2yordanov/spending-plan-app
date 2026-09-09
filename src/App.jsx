@@ -213,14 +213,21 @@ function getSyncId() {
   return id;
 }
 
+// On the web the app is served from the same origin as /api, so a relative
+// path is right and this stays empty. Inside a native shell (Capacitor) the
+// WebView origin is capacitor://localhost, which has no /api of its own — the
+// build sets VITE_API_BASE_URL to the deployed API instead.
+const API_BASE = (import.meta.env.VITE_API_BASE_URL ?? "").replace(/\/+$/, "");
+const apiUrl = (path) => `${API_BASE}${path}`;
+
 async function loadData(id) {
-  const res = await fetch(`/api/data?id=${encodeURIComponent(id)}`);
+  const res = await fetch(apiUrl(`/api/data?id=${encodeURIComponent(id)}`));
   if (!res.ok) throw new Error(`API ${res.status}`);
   return await res.json();
 }
 
 async function saveData(id, data) {
-  const res = await fetch(`/api/data?id=${encodeURIComponent(id)}`, {
+  const res = await fetch(apiUrl(`/api/data?id=${encodeURIComponent(id)}`), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
@@ -1352,7 +1359,7 @@ export default function App() {
     setSuggestionsLoading(true);
     setSuggestionsError(null);
     try {
-      const res = await fetch("/api/suggestions", {
+      const res = await fetch(apiUrl("/api/suggestions"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ income, expenses, invest, investLabel, emergencyMonths, savingsAccounts, totalSavingsBalance, categoryLimits, bills, lang, currency }),
@@ -1777,7 +1784,13 @@ export default function App() {
           background: "rgba(255,255,255,0.9)",
           backdropFilter: "blur(20px)",
           borderBottom: "1px solid rgba(0,0,0,0.08)",
-          padding: isMobile ? "0 16px" : "0 24px",
+          // Safe-area insets keep the header clear of the status bar / Dynamic
+          // Island in a native shell and in landscape, where the notch eats
+          // into the left or right edge. On the web every inset resolves to
+          // 0px, so this is inert there.
+          paddingTop: "env(safe-area-inset-top)",
+          paddingLeft: `calc(${isMobile ? "16px" : "24px"} + env(safe-area-inset-left))`,
+          paddingRight: `calc(${isMobile ? "16px" : "24px"} + env(safe-area-inset-right))`,
           position: "sticky",
           top: 0,
           zIndex: 100,
@@ -2078,7 +2091,12 @@ export default function App() {
         style={{
           maxWidth: contentWidth,
           margin: "0 auto",
-          padding: isMobile ? "16px 16px 32px" : "24px 24px 48px",
+          // Bottom inset clears the home indicator; side insets matter in
+          // landscape. All resolve to 0px on the web.
+          paddingTop: isMobile ? 16 : 24,
+          paddingBottom: `calc(${isMobile ? "32px" : "48px"} + env(safe-area-inset-bottom))`,
+          paddingLeft: `calc(${isMobile ? "16px" : "24px"} + env(safe-area-inset-left))`,
+          paddingRight: `calc(${isMobile ? "16px" : "24px"} + env(safe-area-inset-right))`,
         }}
       >
         {activeTab === "overview" && (

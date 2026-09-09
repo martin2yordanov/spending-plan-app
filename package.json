@@ -10,9 +10,19 @@
     "start": "NODE_ENV=production node server.js",
     "preview": "vite preview",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "ios:sync": "vite build && cap sync ios",
+    "ios:open": "cap open ios",
+    "ios:build": "vite build && cap copy ios"
   },
   "dependencies": {
+    "@capacitor/core": "^7.6.9",
+    "@capacitor/haptics": "^7.0.5",
+    "@capacitor/ios": "^7.6.9",
+    "@capacitor/preferences": "^7.0.4",
+    "@capacitor/share": "^7.0.4",
+    "@capacitor/splash-screen": "^7.0.5",
+    "@capacitor/status-bar": "^7.0.6",
     "@clerk/clerk-react": "^5.61.8",
     "@vercel/kv": "^3.0.0",
     "express": "^5.2.1",
@@ -21,6 +31,7 @@
     "react-dom": "^18.3.1"
   },
   "devDependencies": {
+    "@capacitor/cli": "^7.6.9",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
     "@testing-library/user-event": "^14.6.1",

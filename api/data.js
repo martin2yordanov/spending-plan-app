@@ -1,4 +1,5 @@
 import Redis from "ioredis";
+import { applyCors } from "./_cors.js";
 
 // ioredis embeds the whole connection string — password included — in its
 // connection error messages ("connect ENOENT redis://default:hunter2@host").
@@ -26,6 +27,8 @@ function getClient() {
 }
 
 export default async function handler(req, res) {
+  if (applyCors(req, res)) return;
+
   const { id } = req.query;
   // Accepts sync codes (e.g. "AB12CD") and Clerk user IDs (e.g. "user_2abc...").
   if (!id || !/^[A-Za-z0-9_-]{4,64}$/.test(id)) {

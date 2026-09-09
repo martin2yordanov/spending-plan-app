@@ -2,6 +2,7 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 import { ClerkProvider } from "@clerk/clerk-react";
 import App from "./App";
+import { initNative } from "./native";
 import "./index.css";
 
 const PUBLISHABLE_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
@@ -17,3 +18,6 @@ const tree = PUBLISHABLE_KEY ? (
 ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>{tree}</React.StrictMode>,
 );
+
+// After the first paint, so hiding the splash never reveals a blank WebView.
+initNative();
