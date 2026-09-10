@@ -119,6 +119,42 @@ export async function syncBillReminders(items) {
   return { scheduled: valid.length };
 }
 
+export const BIOMETRIC_LOCK_KEY = "biometric_lock_enabled";
+
+/** Whether this device can actually do Face ID / Touch ID. */
+export async function biometricAvailable() {
+  if (!isNative) return false;
+  try {
+    const { BiometricAuth } = await import("@aparajita/capacitor-biometric-auth");
+    return (await BiometricAuth.checkBiometry()).isAvailable === true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Prompts for Face ID / Touch ID. Returns true when the person is verified.
+ *
+ * Deliberately fails closed: if the check throws for any reason the caller
+ * keeps the app locked, since the alternative — unlocking on error — would
+ * make the lock decorative.
+ */
+export async function biometricUnlock(reason) {
+  if (!isNative) return true;
+  try {
+    const { BiometricAuth } = await import("@aparajita/capacitor-biometric-auth");
+    await BiometricAuth.authenticate({
+      reason,
+      cancelTitle: "Cancel",
+      allowDeviceCredential: true,   // passcode fallback, or a failed scan traps the user out
+      iosFallbackTitle: "Use passcode",
+    });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 /** Light tap feedback for destructive or committing actions. No-op on web. */
 export async function tapFeedback(style = "medium") {
   if (!isNative) return;

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useUser, SignInButton, UserButton } from "@clerk/clerk-react";
 import { LANGUAGES, LANG_KEY, makeT } from "./i18n";
 import { readCache, writeCache, clearCache, setPendingSync, getPendingSync, clearPendingSync } from "./storage";
-import { shareReport, syncBillReminders } from "./native";
+import { shareReport, syncBillReminders, biometricAvailable, biometricUnlock, BIOMETRIC_LOCK_KEY, isNative } from "./native";
 import { FREQUENCIES, freqToMonthly, fmt, computeHealthScore, computeEmergencyFundCoverage, scoreColor, scoreLabelKey, parseAmount, CURRENCIES, CURRENCY_KEY, DEFAULT_CURRENCY, currencyMeta, makeMoney, conversionRate, convertAmount } from "./utils.js";
 
 export const CLERK_ENABLED = !!import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
@@ -1023,6 +1023,11 @@ export default function App() {
     if (plan.currency) applyCurrency(plan.currency);
   }, [applyCurrency]);
 
+  // Only offered where the hardware exists, so the web build and simulators
+  // without enrolled biometrics never show a toggle that cannot work.
+  const [bioAvailable, setBioAvailable] = useState(false);
+  const [bioEnabled, setBioEnabled] = useState(false);
+
   const [showDeleteAccount, setShowDeleteAccount] = useState(false);
   const [deleteConfirmText, setDeleteConfirmText] = useState("");
   const [deleteBusy, setDeleteBusy] = useState(false);
@@ -1313,6 +1318,35 @@ export default function App() {
     window.addEventListener("online", flush);
     return () => { cancelled = true; window.removeEventListener("online", flush); };
   }, [auth?.userId]);
+
+  // Discover biometric support once, and read back whether the lock is on.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const ok = await biometricAvailable();
+      if (cancelled) return;
+      setBioAvailable(ok);
+      if (!ok) return;
+      try {
+        const { Preferences } = await import("@capacitor/preferences");
+        const { value } = await Preferences.get({ key: BIOMETRIC_LOCK_KEY });
+        if (!cancelled) setBioEnabled(value === "1");
+      } catch { /* default off */ }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  const toggleBiometricLock = useCallback(async () => {
+    const next = !bioEnabled;
+    // Verify before switching it ON, so nobody can lock the owner out of
+    // their own data with a face the device will not accept.
+    if (next && !(await biometricUnlock("Enable Face ID for Spending Plan"))) return;
+    try {
+      const { Preferences } = await import("@capacitor/preferences");
+      await Preferences.set({ key: BIOMETRIC_LOCK_KEY, value: next ? "1" : "0" });
+      setBioEnabled(next);
+    } catch { /* leave the toggle as it was */ }
+  }, [bioEnabled]);
 
   // Keep bill reminders in step with the bills themselves. Re-runs on
   // currency and language changes too, since both appear in the text that
@@ -4138,6 +4172,29 @@ export default function App() {
 
         {/* Quiet recovery affordance: only useful once signed in, so it stays
             out of the demo view entirely. */}
+        {isSignedIn && loaded && bioAvailable && (
+          <div style={{ marginTop: 24, display: "flex", justifyContent: "center" }}>
+            <button
+              onClick={toggleBiometricLock}
+              style={{
+                display: "flex", alignItems: "center", gap: 10,
+                padding: "10px 14px", borderRadius: 12,
+                border: "1.5px solid #E5E5EA", background: "#fff",
+                fontSize: 13, fontWeight: 600, color: "#3C3C43", cursor: "pointer",
+              }}
+            >
+              <span>🔒 {t("faceIdLock")}</span>
+              <span style={{
+                fontSize: 11, fontWeight: 700, padding: "3px 9px", borderRadius: 20,
+                background: bioEnabled ? "#E8F8EC" : "#F2F2F7",
+                color: bioEnabled ? "#1E8E3E" : "#8E8E93",
+              }}>
+                {bioEnabled ? t("faceIdOn") : t("faceIdOff")}
+              </span>
+            </button>
+          </div>
+        )}
+
         {isSignedIn && loaded && (
           <div style={{ marginTop: 28, textAlign: "center" }}>
             <button
