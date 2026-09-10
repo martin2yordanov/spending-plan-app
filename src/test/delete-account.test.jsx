@@ -11,8 +11,10 @@ vi.mock("@clerk/clerk-react", () => {
     delete: deleteAccount,
   };
   const state = { isLoaded: true, isSignedIn: true, user };
+  const authState = { getToken: async () => "test-token" };
   return {
     useUser: () => state,
+    useAuth: () => authState,
     UserButton: () => <div data-testid="user-button" />,
     SignInButton: ({ children }) => <>{children}</>,
   };

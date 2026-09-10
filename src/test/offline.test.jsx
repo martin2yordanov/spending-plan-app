@@ -6,8 +6,12 @@ import { render, screen, waitFor } from "@testing-library/react";
 vi.mock("@clerk/clerk-react", () => {
   const user = { id: "user_NEW", primaryEmailAddress: { emailAddress: "m@example.com" } };
   const state = { isLoaded: true, isSignedIn: true, user };
+  // Stable reference: a fresh function every render would re-fire AuthBridge's
+  // effect (it depends on getToken) on every render, same trap as `user` below.
+  const authState = { getToken: async () => "test-token" };
   return {
     useUser: () => state,
+    useAuth: () => authState,
     UserButton: () => <div data-testid="user-button" />,
     SignInButton: ({ children }) => <>{children}</>,
   };

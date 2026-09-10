@@ -1,5 +1,6 @@
 import Redis from "ioredis";
 import { applyCors } from "./_cors.js";
+import { isClerkUserId, getVerifiedUserId, authConfigured } from "./_auth.js";
 
 // ioredis embeds the whole connection string — password included — in its
 // connection error messages ("connect ENOENT redis://default:hunter2@host").
@@ -33,6 +34,35 @@ export default async function handler(req, res) {
   // Accepts sync codes (e.g. "AB12CD") and Clerk user IDs (e.g. "user_2abc...").
   if (!id || !/^[A-Za-z0-9_-]{4,64}$/.test(id)) {
     return res.status(400).json({ error: "Missing or invalid id" });
+  }
+
+  // GET stays open for every id, including sync codes and Clerk ids that
+  // are not the caller's own: "Import data from another account" is a
+  // deliberate self-service recovery path that reads an arbitrary id by
+  // knowledge of it, the same shared-secret model a sync code already relies
+  // on before sign-in even exists. Locking that down would break recovery,
+  // not just add friction.
+  //
+  // Writes are different — there is no legitimate reason to overwrite or
+  // delete a plan that is not the caller's. A sync code has no session to
+  // check (that's inherent to being pre-sign-in), so this only ever
+  // authenticates the user_* form.
+  //
+  // authConfigured() gates this on purpose: until CLERK_SECRET_KEY is set in
+  // Vercel, every write to a user_* id would otherwise start failing with
+  // 401 the moment this deploys — a self-inflicted outage for the app's own
+  // real users. Unconfigured means "no worse than before" (unauthenticated,
+  // as it already was); once the key is set, this becomes a hard 401 on any
+  // mismatch. The gap is logged so it does not go unnoticed indefinitely.
+  if ((req.method === "POST" || req.method === "DELETE") && isClerkUserId(id)) {
+    if (!authConfigured()) {
+      console.warn("[api/data] CLERK_SECRET_KEY not set — writes are unauthenticated");
+    } else {
+      const verifiedUserId = await getVerifiedUserId(req);
+      if (verifiedUserId !== id) {
+        return res.status(401).json({ error: "Sign-in required to modify this account's data" });
+      }
+    }
   }
 
   const KEY = `spending-plan:${id}`;

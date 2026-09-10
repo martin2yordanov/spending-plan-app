@@ -28,6 +28,7 @@
     "@capacitor/share": "^8.0.1",
     "@capacitor/splash-screen": "^8.0.2",
     "@capacitor/status-bar": "^8.0.3",
+    "@clerk/backend": "^3.17.2",
     "@clerk/clerk-react": "^5.61.8",
     "@vercel/kv": "^3.0.0",
     "express": "^5.2.1",

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useUser, SignInButton, UserButton } from "@clerk/clerk-react";
+import { useUser, useAuth, SignInButton, UserButton } from "@clerk/clerk-react";
 import { LANGUAGES, LANG_KEY, makeT } from "./i18n";
 import { readCache, writeCache, clearCache, setPendingSync, getPendingSync, clearPendingSync } from "./storage";
 import { shareReport, syncBillReminders, biometricAvailable, biometricUnlock, openExternal, BIOMETRIC_LOCK_KEY, isNative } from "./native";
@@ -223,13 +223,37 @@ const API_BASE = (import.meta.env.VITE_API_BASE_URL ?? "").replace(/\/+$/, "");
 const apiUrl = (path) => `${API_BASE}${path}`;
 
 async function loadData(id) {
+  // Deliberately unauthenticated: "Import data from another account" reads
+  // an id that is by definition not the caller's current one, so it could
+  // never carry that id's session token anyway. Read access to a plan is
+  // knowledge-of-id, same as a pre-sign-in sync code already is.
   const res = await fetch(apiUrl(`/api/data?id=${encodeURIComponent(id)}`));
   if (!res.ok) throw new Error(`API ${res.status}`);
   return await res.json();
 }
 
+// Set from inside App whenever auth changes, rather than threading a token
+// through every one of saveData's ~10 call sites (autosave, retry, import,
+// migration, seed, reconnect-flush...). Clerk tokens are short-lived, so this
+// is a *getter* fetched fresh immediately before each write, never a cached
+// token.
+let currentGetToken = null;
+
+async function authHeaders() {
+  if (!currentGetToken) return {};
+  try {
+    const token = await currentGetToken();
+    return token ? { Authorization: `Bearer ${token}` } : {};
+  } catch {
+    return {};
+  }
+}
+
 async function deleteData(id) {
-  const res = await fetch(apiUrl(`/api/data?id=${encodeURIComponent(id)}`), { method: "DELETE" });
+  const res = await fetch(apiUrl(`/api/data?id=${encodeURIComponent(id)}`), {
+    method: "DELETE",
+    headers: await authHeaders(),
+  });
   if (!res.ok) throw new Error(`API ${res.status}`);
 }
 
@@ -240,7 +264,7 @@ async function saveData(id, data) {
   const body = { ...data, updatedAt: Date.now() };
   const res = await fetch(apiUrl(`/api/data?id=${encodeURIComponent(id)}`), {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...(await authHeaders()) },
     body: JSON.stringify(body),
   });
   if (!res.ok) throw new Error(`API ${res.status}`);
@@ -251,6 +275,7 @@ async function saveData(id, data) {
 // Bridges Clerk auth state up to App. Only rendered when Clerk is configured.
 function AuthBridge({ onAuthChange, isMobile, signInLabel }) {
   const { isLoaded, isSignedIn, user } = useUser();
+  const { getToken } = useAuth();
 
   useEffect(() => {
     if (!isLoaded) return;
@@ -263,10 +288,14 @@ function AuthBridge({ onAuthChange, isMobile, signInLabel }) {
             // importing Clerk outside this bridge. Requires self-service
             // deletion to be enabled in the Clerk dashboard.
             deleteAccount: () => user.delete(),
+            // Lets saveData/deleteData prove to the server that a write to
+            // this user's own id really comes from a signed-in session for
+            // that id, not just someone who knows the id string.
+            getToken,
           }
         : null,
     );
-  }, [isLoaded, isSignedIn, user, onAuthChange]);
+  }, [isLoaded, isSignedIn, user, getToken, onAuthChange]);
 
   if (!isLoaded) return null;
 
@@ -1053,6 +1082,14 @@ export default function App() {
   // Logged-out visitors see read-only example data.
   const isSignedIn = !!auth?.userId;
   const handleAuthChange = useCallback((a) => setAuth(a), []);
+
+  // Feeds saveData/deleteData's module-level token getter (see authHeaders
+  // above). Cleared on sign-out so a stale getter from a previous session
+  // can never be used for a write under a different id.
+  useEffect(() => {
+    currentGetToken = auth?.getToken ?? null;
+    return () => { currentGetToken = null; };
+  }, [auth]);
 
   const finishWalkthrough = useCallback(() => {
     setShowWalkthrough(false);

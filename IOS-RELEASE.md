@@ -152,11 +152,17 @@ test, which is why they are not here.
 
 ## 8. Known gaps
 
-- **The API has no authentication.** Anyone who knows a user id can read or
-  write that plan. Clerk ids are long and unguessable, so it is not trivially
-  exploitable, but the server never verifies the Clerk session. Given the
-  privacy labels declare financial data, this is worth fixing — verify the
-  Clerk JWT in `api/data.js` — independently of the App Store.
+- **Writes now require a verified Clerk session — set `CLERK_SECRET_KEY` in
+  Vercel to turn it on.** `api/data.js` checks that a POST/DELETE to a
+  `user_*` id carries a session token for that exact id (Dashboard > API
+  Keys > Secret key, **not** the publishable key already set). Until it is
+  set, writes stay exactly as unauthenticated as before — this was done
+  deliberately so shipping the code could not itself take down saving for the
+  app's existing real users, but it also means the fix does nothing at all
+  until this one step is done. Reads (`GET`) are intentionally still open for
+  any id: "Import data from another account" reads an id that is by
+  definition not the caller's own, the same knowledge-of-id model a
+  pre-sign-in sync code already relies on.
 - **Sync is last-write-wins by device clock.** Fine for one person's own
   devices; would need real conflict handling for a shared household plan.
 - **Reminders fire on the due day**, not before, because "two days before the
