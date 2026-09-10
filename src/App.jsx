@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useUser, SignInButton, UserButton } from "@clerk/clerk-react";
 import { LANGUAGES, LANG_KEY, makeT } from "./i18n";
 import { readCache, writeCache, clearCache, setPendingSync, getPendingSync, clearPendingSync } from "./storage";
-import { shareReport } from "./native";
+import { shareReport, syncBillReminders } from "./native";
 import { FREQUENCIES, freqToMonthly, fmt, computeHealthScore, computeEmergencyFundCoverage, scoreColor, scoreLabelKey, parseAmount, CURRENCIES, CURRENCY_KEY, DEFAULT_CURRENCY, currencyMeta, makeMoney, conversionRate, convertAmount } from "./utils.js";
 
 export const CLERK_ENABLED = !!import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
@@ -1313,6 +1313,21 @@ export default function App() {
     window.addEventListener("online", flush);
     return () => { cancelled = true; window.removeEventListener("online", flush); };
   }, [auth?.userId]);
+
+  // Keep bill reminders in step with the bills themselves. Re-runs on
+  // currency and language changes too, since both appear in the text that
+  // was already scheduled. No-ops entirely off-device.
+  useEffect(() => {
+    if (!loaded || !auth?.userId) return;
+    syncBillReminders(
+      (bills ?? []).map((b) => ({
+        key: b.id,
+        dueDay: Number(b.dueDay),
+        title: t("notif_billTitle", { name: b.name }),
+        body: t("notif_billBody", { amount: money(Number(b.amount) || 0) }),
+      })),
+    ).catch((err) => console.warn("[reminders]", err?.message ?? err));
+  }, [loaded, bills, auth?.userId, t, money]);
 
   // Warn before leaving with unsaved (or failed-to-save) changes.
   useEffect(() => {

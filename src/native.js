@@ -69,6 +69,56 @@ export async function shareReport(html, filename = "spending-plan.html") {
   return { ok: true };
 }
 
+// Notification ids must be 32-bit ints, but bill ids are Date.now()-based and
+// far too large, so they are folded down. Collisions would only mean two bills
+// sharing a slot; the reschedule below rebuilds the whole set anyway.
+export function notificationId(key) {
+  let h = 0;
+  const s = String(key);
+  for (let i = 0; i < s.length; i++) h = (Math.imul(31, h) + s.charCodeAt(i)) | 0;
+  return Math.abs(h) % 2000000000;
+}
+
+/**
+ * Replaces the scheduled bill reminders with one per bill, repeating monthly
+ * on its due day. Every call rebuilds the full set rather than diffing, so a
+ * renamed, retimed or deleted bill can't leave a stale reminder behind.
+ *
+ * `items`: [{ key, dueDay, title, body }]
+ */
+export async function syncBillReminders(items) {
+  if (!isNative) return { scheduled: 0 };
+
+  const { LocalNotifications } = await import("@capacitor/local-notifications");
+
+  let granted = (await LocalNotifications.checkPermissions()).display;
+  if (granted === "prompt" || granted === "prompt-with-rationale") {
+    granted = (await LocalNotifications.requestPermissions()).display;
+  }
+  if (granted !== "granted") return { scheduled: 0, denied: true };
+
+  const pending = await LocalNotifications.getPending();
+  if (pending.notifications.length) {
+    await LocalNotifications.cancel({ notifications: pending.notifications });
+  }
+
+  const valid = items.filter((b) => Number.isInteger(b.dueDay) && b.dueDay >= 1 && b.dueDay <= 31);
+  if (!valid.length) return { scheduled: 0 };
+
+  await LocalNotifications.schedule({
+    notifications: valid.map((b) => ({
+      id: notificationId(b.key),
+      title: b.title,
+      body: b.body,
+      // Day-of-month repeat. Deliberately on the due day rather than N days
+      // before: "two days before the 1st" lands in the previous month and
+      // changes length month to month, which is a bug waiting to happen.
+      schedule: { on: { day: b.dueDay, hour: 9, minute: 0 }, allowWhileIdle: true },
+    })),
+  });
+  return { scheduled: valid.length };
+}
+
 /** Light tap feedback for destructive or committing actions. No-op on web. */
 export async function tapFeedback(style = "medium") {
   if (!isNative) return;
