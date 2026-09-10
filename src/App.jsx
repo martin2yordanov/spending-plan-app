@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useUser, SignInButton, UserButton } from "@clerk/clerk-react";
 import { LANGUAGES, LANG_KEY, makeT } from "./i18n";
+import { readCache, writeCache, clearCache, setPendingSync, getPendingSync, clearPendingSync } from "./storage";
 import { FREQUENCIES, freqToMonthly, fmt, computeHealthScore, computeEmergencyFundCoverage, scoreColor, scoreLabelKey, parseAmount, CURRENCIES, CURRENCY_KEY, DEFAULT_CURRENCY, currencyMeta, makeMoney, conversionRate, convertAmount } from "./utils.js";
 
 export const CLERK_ENABLED = !!import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
@@ -227,10 +228,14 @@ async function loadData(id) {
 }
 
 async function saveData(id, data) {
+  // Stamped here rather than at each call site so every write — autosave,
+  // retry, import — carries one, which is what lets a local copy and the
+  // server copy be compared after time offline.
+  const body = { ...data, updatedAt: Date.now() };
   const res = await fetch(apiUrl(`/api/data?id=${encodeURIComponent(id)}`), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(data),
+    body: JSON.stringify(body),
   });
   if (!res.ok) throw new Error(`API ${res.status}`);
 }
@@ -986,7 +991,30 @@ export default function App() {
     applyCurrency(ask.to);
   }, [curConvertAsk, applyCurrency]);
 
+  // Every path that adopts a stored plan — local cache, server, sync-code
+  // migration, manual import — goes through here, so they cannot drift apart
+  // as fields are added. Declared after the state it writes to, since this
+  // file has had TDZ regressions before.
+  const applyPlan = useCallback((plan) => {
+    if (!plan) return;
+    skipNextSaveRef.current = true;
+    if (plan.income) setIncome(plan.income);
+    if (plan.expenses) setExpenses(plan.expenses);
+    if (plan.invest != null) setInvest(plan.invest);
+    if (plan.investLabel) setInvestLabel(plan.investLabel);
+    if (plan.emergencyMonths != null) setEmergencyMonths(plan.emergencyMonths);
+    if (plan.savingsAccounts) setSavingsAccounts(plan.savingsAccounts);
+    if (plan.categoryLimits) setCategoryLimits(plan.categoryLimits);
+    if (plan.bills) setBills(plan.bills);
+    if (plan.customCategories) setCustomCategories(plan.customCategories);
+    if (plan.currency) applyCurrency(plan.currency);
+  }, [applyCurrency]);
+
   const [savedFlag, setSavedFlag] = useState(false);
+  // True when the last sync attempt failed for what looks like a connectivity
+  // reason. Distinct from saveError: the work is safe on the device, so this
+  // is informational rather than an error the user must act on.
+  const [offline, setOffline] = useState(false);
   const [filterCat, setFilterCat] = useState("All");
   const [customCategories, setCustomCategories] = useState({}); // { [key]: { label?, icon?, color? } }
   const [showNewCategoryModal, setShowNewCategoryModal] = useState(false);
@@ -1119,71 +1147,80 @@ export default function App() {
     let cancelled = false;
     setLoaded(false);
     const userId = auth.userId;
-    loadData(userId)
-      .then((saved) => {
-        if (cancelled) return;
-        skipNextSaveRef.current = true;
-        if (saved && (saved.expenses || saved.income)) {
-          // Returning user: load their real data.
-          if (saved.income) setIncome(saved.income);
-          if (saved.expenses) setExpenses(saved.expenses);
-          if (saved.invest != null) setInvest(saved.invest);
-          if (saved.investLabel) setInvestLabel(saved.investLabel);
-          if (saved.emergencyMonths != null) setEmergencyMonths(saved.emergencyMonths);
-          if (saved.savingsAccounts) setSavingsAccounts(saved.savingsAccounts);
-          if (saved.categoryLimits) setCategoryLimits(saved.categoryLimits);
-          if (saved.bills) setBills(saved.bills);
-          if (saved.customCategories) setCustomCategories(saved.customCategories);
-          if (saved.currency) applyCurrency(saved.currency);
-          setLoaded(true);
-        } else {
-          // Brand-new account: check for pre-auth sync code data first.
-          let oldSyncId = null;
-          try { oldSyncId = localStorage.getItem(SYNC_KEY); } catch { /* ignore */ }
-          const tryMigrateSync = oldSyncId
-            ? loadData(oldSyncId).catch(() => null)
-            : Promise.resolve(null);
-          tryMigrateSync.then((legacy) => {
-            if (cancelled) return;
-            if (legacy && (legacy.income || legacy.expenses)) {
-              // Migrate pre-auth data into the new Clerk account.
-              skipNextSaveRef.current = true;
-              if (legacy.income) setIncome(legacy.income);
-              if (legacy.expenses) setExpenses(legacy.expenses);
-              if (legacy.invest != null) setInvest(legacy.invest);
-              if (legacy.investLabel) setInvestLabel(legacy.investLabel);
-              if (legacy.emergencyMonths != null) setEmergencyMonths(legacy.emergencyMonths);
-              if (legacy.savingsAccounts) setSavingsAccounts(legacy.savingsAccounts);
-              if (legacy.categoryLimits) setCategoryLimits(legacy.categoryLimits);
-              if (legacy.bills) setBills(legacy.bills);
-              if (legacy.customCategories) setCustomCategories(legacy.customCategories);
-              if (legacy.currency) applyCurrency(legacy.currency);
-              saveData(userId, legacy).finally(() => { if (!cancelled) setLoaded(true); });
-            } else {
-              // Truly new account: seed example data and run walkthrough.
-              setIncome(EXAMPLE_INCOME);
-              setExpenses(EXAMPLE_EXPENSES);
-              setInvest(EXAMPLE_INVEST);
-              setEmergencyMonths(3);
-              saveData(userId, {
-                income: EXAMPLE_INCOME,
-                expenses: EXAMPLE_EXPENSES,
-                invest: EXAMPLE_INVEST,
-                emergencyMonths: 3,
-              }).finally(() => { if (!cancelled) setLoaded(true); });
-              let seen = false;
-              try { seen = !!localStorage.getItem(`walkthrough_done_${userId}`); } catch { /* ignore */ }
-              if (!seen) setShowWalkthrough(true);
-            }
-          });
-        }
-      })
-      .catch((err) => {
-        if (cancelled) return;
-        skipNextSaveRef.current = true;
-        setLoadError(err?.message ?? "Failed to load");
+
+    (async () => {
+      // Cache first: the app paints real numbers immediately instead of
+      // example data, and stays fully usable with no connection at all.
+      const cached = await readCache(userId);
+      const hasCache = !!(cached && (cached.income || cached.expenses));
+      if (cancelled) return;
+      if (hasCache) {
+        applyPlan(cached);
+        setLoadError(null);
         setLoaded(true);
-      });
+      }
+
+      let saved;
+      try {
+        saved = await loadData(userId);
+        if (cancelled) return;
+        setOffline(false);
+        setLoadError(null);
+      } catch (err) {
+        if (cancelled) return;
+        // Unreachable server is only an error worth showing when there is no
+        // local copy to fall back on; otherwise the app just works offline.
+        setOffline(true);
+        if (!hasCache) setLoadError(err?.message ?? "Failed to load");
+        setLoaded(true);
+        return;
+      }
+
+      if (saved && (saved.expenses || saved.income)) {
+        // Both sides have a copy: the newer write wins. Timestamps come from
+        // whichever device made the edit, so this assumes roughly correct
+        // device clocks — fine for one person's own devices.
+        const localAt = hasCache ? (cached.updatedAt ?? 0) : -1;
+        const remoteAt = saved.updatedAt ?? 0;
+        if (localAt > remoteAt) {
+          // Edits made offline are ahead of the server — push them up.
+          saveData(userId, cached)
+            .then(() => clearPendingSync())
+            .catch(() => setPendingSync(userId));
+        } else {
+          applyPlan(saved);
+          await writeCache(userId, saved);
+        }
+        setLoaded(true);
+      } else {
+        // Brand-new account: check for pre-auth sync code data first.
+        let oldSyncId = null;
+        try { oldSyncId = localStorage.getItem(SYNC_KEY); } catch { /* ignore */ }
+        const legacy = oldSyncId ? await loadData(oldSyncId).catch(() => null) : null;
+        if (cancelled) return;
+        if (legacy && (legacy.income || legacy.expenses)) {
+          // Migrate pre-auth data into the new Clerk account.
+          applyPlan(legacy);
+          await writeCache(userId, legacy);
+          saveData(userId, legacy).finally(() => { if (!cancelled) setLoaded(true); });
+        } else {
+          // Truly new account: seed example data and run walkthrough.
+          const seed = {
+            income: EXAMPLE_INCOME,
+            expenses: EXAMPLE_EXPENSES,
+            invest: EXAMPLE_INVEST,
+            emergencyMonths: 3,
+          };
+          applyPlan(seed);
+          await writeCache(userId, seed);
+          saveData(userId, seed).finally(() => { if (!cancelled) setLoaded(true); });
+          let seen = false;
+          try { seen = !!localStorage.getItem(`walkthrough_done_${userId}`); } catch { /* ignore */ }
+          if (!seen) setShowWalkthrough(true);
+        }
+      }
+    })();
+
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [auth?.userId]);
@@ -1198,21 +1235,66 @@ export default function App() {
     setIsDirty(true);
     setSaveError(false);
     if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
-    autoSaveTimerRef.current = setTimeout(() => {
-      saveData(auth.userId, { income, expenses, invest, investLabel, emergencyMonths, savingsAccounts, categoryLimits, bills, customCategories, currency })
-        .then(() => {
-          setIsDirty(false);
+    autoSaveTimerRef.current = setTimeout(async () => {
+      const plan = { income, expenses, invest, investLabel, emergencyMonths, savingsAccounts, categoryLimits, bills, customCategories, currency };
+      // Local first, and stamped the same way a server write is, so an edit
+      // made offline is recognisably newer than the server copy next launch.
+      await writeCache(auth.userId, { ...plan, updatedAt: Date.now() });
+      try {
+        await saveData(auth.userId, plan);
+        setIsDirty(false);
+        setSaveError(false);
+        setOffline(false);
+        await clearPendingSync();
+        setSavedFlag(true);
+        setTimeout(() => setSavedFlag(false), 2000);
+      } catch {
+        setIsDirty(false);
+        await setPendingSync(auth.userId);
+        // The edit is safely on the device either way; only call it an error
+        // when the network is actually up and the server still refused.
+        if (navigator.onLine === false) {
+          setOffline(true);
           setSaveError(false);
-          setSavedFlag(true);
-          setTimeout(() => setSavedFlag(false), 2000);
-        })
-        .catch(() => {
-          setIsDirty(false);
+        } else {
           setSaveError(true);
-        });
+        }
+      }
     }, 2000);
     return () => { if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current); };
   }, [loaded, income, expenses, invest, investLabel, emergencyMonths, savingsAccounts, categoryLimits, bills, customCategories, currency, auth?.userId]);
+
+  // Push anything written while offline as soon as the connection is back.
+  // Also runs once on mount, which covers the case where the app was closed
+  // before it could sync and is reopened already online.
+  useEffect(() => {
+    if (!auth?.userId) return;
+    const userId = auth.userId;
+    let cancelled = false;
+
+    async function flush() {
+      if (cancelled || !navigator.onLine) return;
+      const pending = await getPendingSync();
+      if (cancelled || pending !== userId) return;
+      const cached = await readCache(userId);
+      if (cancelled || !cached) return;
+      try {
+        await saveData(userId, cached);
+        if (cancelled) return;
+        await clearPendingSync();
+        setOffline(false);
+        setSaveError(false);
+        setSavedFlag(true);
+        setTimeout(() => setSavedFlag(false), 2000);
+      } catch {
+        /* still unreachable — the pending marker stays for the next attempt */
+      }
+    }
+
+    flush();
+    window.addEventListener("online", flush);
+    return () => { cancelled = true; window.removeEventListener("online", flush); };
+  }, [auth?.userId]);
 
   // Warn before leaving with unsaved (or failed-to-save) changes.
   useEffect(() => {
@@ -1758,6 +1840,15 @@ export default function App() {
       >
         ⚠ {t("saveFailed")} · {t("retry")}
       </button>
+    ) : offline ? (
+      // Not an error: the change is on the device and will sync itself.
+      <span style={{
+        padding: "6px 12px", borderRadius: 20, border: "1.5px solid #E5E5EA",
+        background: "#F7F7FA", color: "#6C6C70", fontSize: 12, fontWeight: 600,
+        display: "flex", alignItems: "center", gap: 5, whiteSpace: "nowrap",
+      }}>
+        ⇅ {t("offlineSaved")}
+      </span>
     ) : isDirty ? (
       <span style={{ fontSize: 12, fontWeight: 500, color: "#6C6C70", display: "flex", alignItems: "center", gap: 5, whiteSpace: "nowrap" }}>
         <span style={{ width: 7, height: 7, borderRadius: "50%", background: "#FF9500", display: "inline-block" }} />
