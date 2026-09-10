@@ -227,6 +227,11 @@ async function loadData(id) {
   return await res.json();
 }
 
+async function deleteData(id) {
+  const res = await fetch(apiUrl(`/api/data?id=${encodeURIComponent(id)}`), { method: "DELETE" });
+  if (!res.ok) throw new Error(`API ${res.status}`);
+}
+
 async function saveData(id, data) {
   // Stamped here rather than at each call site so every write — autosave,
   // retry, import — carries one, which is what lets a local copy and the
@@ -250,7 +255,14 @@ function AuthBridge({ onAuthChange, isMobile, signInLabel }) {
     if (!isLoaded) return;
     onAuthChange(
       isSignedIn
-        ? { userId: user.id, email: user.primaryEmailAddress?.emailAddress ?? null }
+        ? {
+            userId: user.id,
+            email: user.primaryEmailAddress?.emailAddress ?? null,
+            // Handed up so the app can offer account deletion without
+            // importing Clerk outside this bridge. Requires self-service
+            // deletion to be enabled in the Clerk dashboard.
+            deleteAccount: () => user.delete(),
+          }
         : null,
     );
   }, [isLoaded, isSignedIn, user, onAuthChange]);
@@ -1010,6 +1022,11 @@ export default function App() {
     if (plan.currency) applyCurrency(plan.currency);
   }, [applyCurrency]);
 
+  const [showDeleteAccount, setShowDeleteAccount] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState("");
+  const [deleteBusy, setDeleteBusy] = useState(false);
+  const [deleteError, setDeleteError] = useState(null);
+
   const [savedFlag, setSavedFlag] = useState(false);
   // True when the last sync attempt failed for what looks like a connectivity
   // reason. Distinct from saveError: the work is safe on the device, so this
@@ -1478,6 +1495,29 @@ export default function App() {
 
   // Copies a plan saved under some other id into the signed-in account. Reads
   // through the same /api/data endpoint, so a plain sync code works too.
+  // App Store guideline 5.1.1(v). Order matters: the stored plan goes first,
+  // because deleting the Clerk user immediately signs the session out and the
+  // id needed to address the plan would be gone.
+  const handleDeleteAccount = useCallback(async () => {
+    if (!auth?.userId || deleteBusy) return;
+    setDeleteBusy(true);
+    setDeleteError(null);
+    try {
+      await deleteData(auth.userId);
+      await clearCache(auth.userId);
+      await clearPendingSync();
+      // Stop the debounced autosave from resurrecting the plan we just removed.
+      if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
+      skipNextSaveRef.current = true;
+      await auth.deleteAccount?.();
+      setShowDeleteAccount(false);
+    } catch (err) {
+      setDeleteError(err?.message ?? "Failed to delete account");
+    } finally {
+      setDeleteBusy(false);
+    }
+  }, [auth, deleteBusy]);
+
   const handleImportFromOldAccount = useCallback(async () => {
     const oldId = importInput.trim();
     if (!oldId || !auth?.userId || oldId === auth.userId) return;
@@ -4099,6 +4139,21 @@ export default function App() {
             >
               {t("importOpen")}
             </button>
+            {/* Account deletion has to be reachable from inside the app
+                (App Store 5.1.1(v)), so it sits in the open rather than
+                behind a settings screen — muted, but not hidden. */}
+            <div style={{ marginTop: 10 }}>
+              <button
+                onClick={() => { setShowDeleteAccount(true); setDeleteConfirmText(""); setDeleteError(null); }}
+                style={{
+                  background: "none", border: "none", cursor: "pointer",
+                  fontSize: 12, color: "#C7736C", textDecoration: "underline",
+                  padding: 4,
+                }}
+              >
+                {t("deleteAccountOpen")}
+              </button>
+            </div>
           </div>
         )}
       </div>
@@ -4165,6 +4220,77 @@ export default function App() {
           >
             {t("undo")}
           </button>
+        </div>
+      )}
+
+      {showDeleteAccount && (
+        <div
+          onClick={(e) => { if (e.target === e.currentTarget && !deleteBusy) setShowDeleteAccount(false); }}
+          style={{
+            position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            padding: 16, zIndex: 500,
+          }}
+        >
+          <div style={{ background: "#fff", borderRadius: 18, padding: 22, width: "100%", maxWidth: 420, boxShadow: "0 12px 48px rgba(0,0,0,0.2)" }}>
+            <div style={{ fontSize: 17, fontWeight: 700, marginBottom: 10, color: "#FF3B30" }}>
+              {t("deleteAccountTitle")}
+            </div>
+            <p style={{ margin: "0 0 14px", fontSize: 12.5, color: "#3C3C43", lineHeight: 1.55 }}>
+              {t("deleteAccountBody")}
+            </p>
+
+            {/* Typing the word, rather than a single tap, because this is
+                irreversible and there is no backup to restore from. */}
+            <div style={{ fontSize: 11, color: "#6C6C70", marginBottom: 4 }}>
+              {t("deleteAccountConfirmLabel")}
+            </div>
+            <input
+              autoFocus
+              aria-label={t("deleteAccountConfirmLabel")}
+              value={deleteConfirmText}
+              onChange={(e) => { setDeleteConfirmText(e.target.value); setDeleteError(null); }}
+              disabled={deleteBusy}
+              style={{
+                width: "100%", boxSizing: "border-box", padding: "10px 12px",
+                borderRadius: 10, border: "1.5px solid #E5E5EA", fontSize: 13,
+                outline: "none", marginBottom: 12, fontFamily: "inherit",
+              }}
+            />
+
+            {deleteError && (
+              <p style={{ margin: "0 0 12px", fontSize: 12, color: "#FF3B30" }}>
+                {t("deleteAccountFailed")}: {deleteError}
+              </p>
+            )}
+
+            <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+              <button
+                onClick={() => setShowDeleteAccount(false)}
+                disabled={deleteBusy}
+                style={{
+                  padding: "9px 16px", borderRadius: 10, border: "1.5px solid #E5E5EA",
+                  background: "#fff", color: "#3C3C43", fontSize: 13, fontWeight: 600,
+                  cursor: deleteBusy ? "default" : "pointer",
+                }}
+              >
+                {t("btn_cancel")}
+              </button>
+              <button
+                onClick={handleDeleteAccount}
+                disabled={deleteBusy || deleteConfirmText.trim() !== t("deleteAccountConfirmWord")}
+                style={{
+                  padding: "9px 16px", borderRadius: 10, border: "none",
+                  background: deleteConfirmText.trim() === t("deleteAccountConfirmWord") && !deleteBusy ? "#FF3B30" : "#E5E5EA",
+                  color: deleteConfirmText.trim() === t("deleteAccountConfirmWord") && !deleteBusy ? "#fff" : "#8E8E93",
+                  fontSize: 13, fontWeight: 600,
+                  cursor: deleteConfirmText.trim() === t("deleteAccountConfirmWord") && !deleteBusy ? "pointer" : "default",
+                }}
+              >
+                {deleteBusy ? t("deleteAccountBusy") : t("deleteAccountAction")}
+              </button>
+            </div>
+          </div>
         </div>
       )}
 

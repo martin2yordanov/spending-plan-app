@@ -47,6 +47,13 @@ export default async function handler(req, res) {
       await redis.set(KEY, JSON.stringify(req.body));
       return res.status(200).json({ ok: true });
     }
+    if (req.method === "DELETE") {
+      // App Store guideline 5.1.1(v): deleting the account has to remove the
+      // data too, not just sign the person out. Deleting a key that is already
+      // gone returns 0, which is still success from the caller's side.
+      const removed = await redis.del(KEY);
+      return res.status(200).json({ ok: true, removed });
+    }
     res.status(405).end();
   } catch (err) {
     console.error("[api/data]", redact(err?.message ?? err));
