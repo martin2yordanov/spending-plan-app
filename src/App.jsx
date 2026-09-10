@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useUser, SignInButton, UserButton } from "@clerk/clerk-react";
 import { LANGUAGES, LANG_KEY, makeT } from "./i18n";
 import { readCache, writeCache, clearCache, setPendingSync, getPendingSync, clearPendingSync } from "./storage";
-import { shareReport, syncBillReminders, biometricAvailable, biometricUnlock, BIOMETRIC_LOCK_KEY, isNative } from "./native";
+import { shareReport, syncBillReminders, biometricAvailable, biometricUnlock, openExternal, BIOMETRIC_LOCK_KEY, isNative } from "./native";
 import { FREQUENCIES, freqToMonthly, fmt, computeHealthScore, computeEmergencyFundCoverage, scoreColor, scoreLabelKey, parseAmount, CURRENCIES, CURRENCY_KEY, DEFAULT_CURRENCY, currencyMeta, makeMoney, conversionRate, convertAmount } from "./utils.js";
 
 export const CLERK_ENABLED = !!import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
@@ -4211,6 +4211,19 @@ export default function App() {
                 (App Store 5.1.1(v)), so it sits in the open rather than
                 behind a settings screen — muted, but not hidden. */}
             <div style={{ marginTop: 10 }}>
+              {/* Required to be reachable from inside the app (App Store
+                  5.1.1). Absolute, because in a native shell the WebView
+                  origin has no /privacy.html of its own. */}
+              <button
+                onClick={() => openExternal(`${API_BASE || window.location.origin}/privacy.html`)}
+                style={{
+                  background: "none", border: "none", cursor: "pointer",
+                  fontSize: 12, color: "#8E8E93", textDecoration: "underline",
+                  padding: 4, marginRight: 14,
+                }}
+              >
+                {t("privacyPolicy")}
+              </button>
               <button
                 onClick={() => { setShowDeleteAccount(true); setDeleteConfirmText(""); setDeleteError(null); }}
                 style={{

@@ -3,8 +3,7 @@
   "appName": "Spending Plan",
   "webDir": "dist",
   "ios": {
-    "contentInset": "never",
-    "limitsNavigationsToAppBoundDomains": true
+    "contentInset": "never"
   },
   "server": {
     "iosScheme": "capacitor"

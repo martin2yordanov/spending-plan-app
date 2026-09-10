@@ -155,6 +155,20 @@ export async function biometricUnlock(reason) {
   }
 }
 
+/**
+ * Opens an external page. Natively this uses an in-app browser sheet rather
+ * than a plain link, because a same-WebView navigation would replace the app
+ * itself and leave no way back.
+ */
+export async function openExternal(url) {
+  if (!isNative) {
+    window.open(url, "_blank", "noopener");
+    return;
+  }
+  const { Browser } = await import("@capacitor/browser");
+  await Browser.open({ url, presentationStyle: "popover" });
+}
+
 /** Light tap feedback for destructive or committing actions. No-op on web. */
 export async function tapFeedback(style = "medium") {
   if (!isNative) return;

@@ -1,0 +1,33 @@
+<!--
+  Keys to merge into ios/App/App/Info.plist after `npx cap add ios`.
+  Capacitor generates that file, so these are listed here rather than
+  committed as a whole plist that would be overwritten.
+
+  Add them inside the top-level <dict>.
+-->
+
+<!-- Required. Without it, every single upload is held at "Missing Compliance"
+     in App Store Connect until answered by hand. false is correct here: the
+     app uses only HTTPS and the platform's own crypto, which is exempt. -->
+<key>ITSAppUsesNonExemptEncryption</key>
+<false/>
+
+<!-- Shown in the Face ID system prompt. iOS rejects the biometric request
+     outright if this string is missing, so the lock would silently never
+     work. Keep it specific — a vague string is a review finding. -->
+<key>NSFaceIDUsageDescription</key>
+<string>Face ID keeps your spending plan private when you open the app.</string>
+
+<!-- iPhone-only. Declaring this is cleaner than shipping an iPad build that
+     has not been laid out or tested for that screen; reviewers do test on
+     iPad when the app claims to support it. Drop this (and test properly) if
+     iPad support is wanted later. -->
+<key>UIRequiresFullScreen</key>
+<true/>
+
+<!-- Landscape is not part of the design; the layout is built around a single
+     column at phone widths. -->
+<key>UISupportedInterfaceOrientations</key>
+<array>
+  <string>UIInterfaceOrientationPortrait</string>
+</array>
