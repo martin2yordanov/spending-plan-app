@@ -30,6 +30,45 @@ export async function initNative() {
   } catch { /* already hidden */ }
 }
 
+/**
+ * Hands the generated report to the user.
+ *
+ * On the web an object URL opened in a new tab is fine. In a WebView it is
+ * not: there is no tab to open, so the old approach silently did nothing.
+ * Natively the file is written to the cache directory and passed to the
+ * system share sheet, which is also where "Save to Files" and "Print" live.
+ */
+export async function shareReport(html, filename = "spending-plan.html") {
+  if (!isNative) {
+    const url = URL.createObjectURL(new Blob([html], { type: "text/html" }));
+    const a = document.createElement("a");
+    a.href = url;
+    a.target = "_blank";
+    a.rel = "noopener";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 30000);
+    return { ok: true };
+  }
+
+  const [{ Filesystem, Directory, Encoding }, { Share }] = await Promise.all([
+    import("@capacitor/filesystem"),
+    import("@capacitor/share"),
+  ]);
+
+  // Cache rather than Documents: this is a throwaway artefact the user is
+  // about to send somewhere, not something to accumulate in their file list.
+  const written = await Filesystem.writeFile({
+    path: filename,
+    data: html,
+    directory: Directory.Cache,
+    encoding: Encoding.UTF8,
+  });
+  await Share.share({ title: "Spending Plan", url: written.uri });
+  return { ok: true };
+}
+
 /** Light tap feedback for destructive or committing actions. No-op on web. */
 export async function tapFeedback(style = "medium") {
   if (!isNative) return;

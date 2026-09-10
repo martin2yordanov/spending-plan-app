@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useUser, SignInButton, UserButton } from "@clerk/clerk-react";
 import { LANGUAGES, LANG_KEY, makeT } from "./i18n";
 import { readCache, writeCache, clearCache, setPendingSync, getPendingSync, clearPendingSync } from "./storage";
+import { shareReport } from "./native";
 import { FREQUENCIES, freqToMonthly, fmt, computeHealthScore, computeEmergencyFundCoverage, scoreColor, scoreLabelKey, parseAmount, CURRENCIES, CURRENCY_KEY, DEFAULT_CURRENCY, currencyMeta, makeMoney, conversionRate, convertAmount } from "./utils.js";
 
 export const CLERK_ENABLED = !!import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
@@ -1745,16 +1746,11 @@ export default function App() {
 </body>
 </html>`;
 
-    const blob = new Blob([html], { type: "text/html" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.target = "_blank";
-    a.rel = "noopener";
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    setTimeout(() => URL.revokeObjectURL(url), 30000);
+    // Opening an object URL in a new tab works on the web but does nothing in
+    // a WebView, so this routes through the share sheet on device. Dismissing
+    // that sheet rejects too, and a cancelled share is not a failure worth
+    // reporting, so this stays quiet either way.
+    shareReport(html).catch((err) => console.warn("[report]", err?.message ?? err));
   }, [income, expenses, invest, investLabel, emergencyMonths, emergencyCoverage, savingsAccounts, bills, customCategories, syncId, auth, t, currency]);
 
   const updateExpense = (id, field, value) => {
