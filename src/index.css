@@ -35,3 +35,24 @@ input,
 select {
   min-width: 0;
 }
+
+/* Bottom-sheet transitions, shared by the category and new-category sheets.
+   Static, so they live here rather than being injected by whichever sheet
+   happens to mount — that forced a style recalculation on the very frame the
+   sheet started animating. */
+@keyframes backdropIn  { from { background: rgba(0, 0, 0, 0) } to { background: rgba(0, 0, 0, 0.45) } }
+@keyframes backdropOut { from { background: rgba(0, 0, 0, 0.45) } to { background: rgba(0, 0, 0, 0) } }
+@keyframes sheetIn  { from { transform: translateY(100%) } to { transform: translateY(0) } }
+@keyframes sheetOut { from { transform: translateY(0) } to { transform: translateY(100%) } }
+
+/* Respect Reduce Motion, which a lot of people turn on for exactly the kind
+   of sliding sheets and growing bars this app is full of. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

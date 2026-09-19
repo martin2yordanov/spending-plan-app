@@ -103,8 +103,23 @@ export async function syncBillReminders(items) {
   if (!isNative) return { scheduled: 0 };
 
   const { LocalNotifications } = await import("@capacitor/local-notifications");
+  const valid = items.filter((b) => Number.isInteger(b.dueDay) && b.dueDay >= 1 && b.dueDay <= 31);
 
   let granted = (await LocalNotifications.checkPermissions()).display;
+
+  // Only ask when there is actually something to schedule. This runs on every
+  // launch, and asking for notifications before the user has set up a single
+  // reminder is both a bad first impression and the kind of unprompted
+  // permission request App Review asks about.
+  if (!valid.length) {
+    if (granted !== "granted") return { scheduled: 0 };
+    const stale = await LocalNotifications.getPending();
+    if (stale.notifications.length) {
+      await LocalNotifications.cancel({ notifications: stale.notifications });
+    }
+    return { scheduled: 0 };
+  }
+
   if (granted === "prompt" || granted === "prompt-with-rationale") {
     granted = (await LocalNotifications.requestPermissions()).display;
   }
@@ -114,9 +129,6 @@ export async function syncBillReminders(items) {
   if (pending.notifications.length) {
     await LocalNotifications.cancel({ notifications: pending.notifications });
   }
-
-  const valid = items.filter((b) => Number.isInteger(b.dueDay) && b.dueDay >= 1 && b.dueDay <= 31);
-  if (!valid.length) return { scheduled: 0 };
 
   await LocalNotifications.schedule({
     notifications: valid.map((b) => ({

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useUser, useAuth, SignInButton, UserButton } from "@clerk/clerk-react";
 import { LANGUAGES, LANG_KEY, makeT } from "./i18n";
 import { readCache, writeCache, clearCache, setPendingSync, getPendingSync, clearPendingSync } from "./storage";
@@ -477,13 +477,6 @@ function Walkthrough({ steps, onFinish, labels }) {
   );
 }
 
-const MODAL_CSS = `
-@keyframes backdropIn  { from { background: rgba(0,0,0,0) } to { background: rgba(0,0,0,0.45) } }
-@keyframes backdropOut { from { background: rgba(0,0,0,0.45) } to { background: rgba(0,0,0,0) } }
-@keyframes sheetIn  { from { transform: translateY(100%) } to { transform: translateY(0) } }
-@keyframes sheetOut { from { transform: translateY(0) } to { transform: translateY(100%) } }
-`;
-
 function CategoryModal({ cat, label, color, icon, catExpenses, closing, onClose, onUpdate, onDelete, t, money, curSymbol }) {
   const [editingId, setEditingId] = useState(null);
   const [amountStr, setAmountStr] = useState("");
@@ -519,7 +512,6 @@ function CategoryModal({ cat, label, color, icon, catExpenses, closing, onClose,
 
   return (
     <>
-      <style>{MODAL_CSS}</style>
       <div
         onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
         style={{
@@ -689,7 +681,7 @@ function CategoryModal({ cat, label, color, icon, catExpenses, closing, onClose,
 
 // Bottom-sheet dialog for creating a brand-new expense category: a name
 // field plus a small curated emoji grid. Mirrors CategoryModal's visual
-// language (same slide-up sheet, same MODAL_CSS keyframes) so it reads as
+// language (same slide-up sheet, same keyframes from index.css) so it reads as
 // a natural extension of the app rather than a bolted-on feature.
 function NewCategoryModal({ closing, onClose, onCreate, existingLabels, t }) {
   const [name, setName] = useState("");
@@ -727,7 +719,6 @@ function NewCategoryModal({ closing, onClose, onCreate, existingLabels, t }) {
 
   return (
     <>
-      <style>{MODAL_CSS}</style>
       <div
         onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
         style={{
@@ -832,7 +823,7 @@ function NewCategoryModal({ closing, onClose, onCreate, existingLabels, t }) {
   );
 }
 
-function DonutChart({ data, total, activeCategory, onCategoryChange }) {
+const DonutChart = memo(function DonutChart({ data, total, activeCategory, onCategoryChange }) {
   const size = 180;
   const strokeWidth = 28;
   const r = (size - strokeWidth) / 2;
@@ -913,7 +904,7 @@ function DonutChart({ data, total, activeCategory, onCategoryChange }) {
       })}
     </svg>
   );
-}
+});
 
 function useIsMobile() {
   const [isMobile, setIsMobile] = useState(() =>
@@ -1128,6 +1119,19 @@ export default function App() {
     currentGetToken = auth?.getToken ?? null;
     return () => { currentGetToken = null; };
   }, [auth]);
+
+  // Stable across renders: Walkthrough's measuring effect keys on the step
+  // object, and a fresh array would resubscribe its listeners every render.
+  const walkthroughSteps = useMemo(() => [
+    { title: t("wt_welcome_title"), text: t("wt_welcome_text"), getTarget: () => null },
+    { title: t("wt_income_title"), text: t("wt_income_text"), getTarget: () => tabRefs.current.income },
+    { title: t("wt_expenses_title"), text: t("wt_expenses_text"), getTarget: () => tabRefs.current.expenses },
+    { title: t("wt_overview_title"), text: t("wt_overview_text"), getTarget: () => tabRefs.current.overview },
+  ], [t]);
+  const walkthroughLabels = useMemo(
+    () => ({ skip: t("wt_skip"), next: t("wt_next"), gotit: t("wt_gotit") }),
+    [t],
+  );
 
   const finishWalkthrough = useCallback(() => {
     setShowWalkthrough(false);
@@ -1603,8 +1607,14 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- reads latest state via refs, intentionally mount-once
   }, []);
 
-  const totalIncome = income.reduce((sum, item) => sum + freqToMonthly(item.amount, item.frequency), 0);
-  const totalExpenses = expenses.reduce((sum, item) => sum + freqToMonthly(item.amount, item.frequency), 0);
+  const totalIncome = useMemo(
+    () => income.reduce((sum, item) => sum + freqToMonthly(item.amount, item.frequency), 0),
+    [income],
+  );
+  const totalExpenses = useMemo(
+    () => expenses.reduce((sum, item) => sum + freqToMonthly(item.amount, item.frequency), 0),
+    [expenses],
+  );
   const totalSavingsBalance = savingsAccounts.reduce((sum, a) => sum + (Number(a.amount) || 0), 0);
   const investMonthly = freqToMonthly(invest, "Monthly");
   const savings = totalIncome - totalExpenses - investMonthly;
@@ -1625,16 +1635,20 @@ export default function App() {
     setInvestStr(String(val));
   };
 
-  const categories = [...new Set(expenses.map((item) => item.category))].sort();
-  const categoryTotals = categories
-    .map((category) => ({
-      name: category,
-      value: expenses
-        .filter((item) => item.category === category)
-        .reduce((sum, item) => sum + freqToMonthly(item.amount, item.frequency), 0),
-      color: getCategoryMeta(category, customCategories).accent,
-    }))
-    .sort((a, b) => b.value - a.value);
+  // One pass rather than a filter+reduce per category: this ran on every
+  // render, including every keystroke in an amount field.
+  const categoryTotals = useMemo(() => {
+    const totals = new Map();
+    for (const item of expenses) {
+      const key = item.category;
+      totals.set(key, (totals.get(key) ?? 0) + freqToMonthly(item.amount, item.frequency));
+    }
+    return [...totals]
+      .map(([name, value]) => ({ name, value, color: getCategoryMeta(name, customCategories).accent }))
+      // Name breaks the tie so a set of untouched (zero) categories keeps a
+      // stable alphabetical order rather than following insertion order.
+      .sort((a, b) => b.value - a.value || a.name.localeCompare(b.name));
+  }, [expenses, customCategories]);
 
   const monthlyExpenses = totalExpenses + investMonthly;
   const emergencyTarget = monthlyExpenses * emergencyMonths;
@@ -2068,10 +2082,13 @@ export default function App() {
     );
   };
 
-  const filteredExpenses = filterCat === "All" ? expenses : expenses.filter((item) => item.category === filterCat);
+  const filteredExpenses = useMemo(
+    () => (filterCat === "All" ? expenses : expenses.filter((item) => item.category === filterCat)),
+    [expenses, filterCat],
+  );
   // Show every category with spending so the drawn segments always sum to the
   // total shown in the donut's center (avoids a phantom empty wedge).
-  const donutData = categoryTotals.filter((c) => c.value > 0);
+  const donutData = useMemo(() => categoryTotals.filter((c) => c.value > 0), [categoryTotals]);
   const contentWidth = isMobile ? "100%" : 960;
   const threeColGrid = isMobile ? "1fr" : "repeat(3, 1fr)";
   const twoColGrid = isMobile ? "1fr" : "1fr 1fr";
@@ -4689,13 +4706,8 @@ export default function App() {
       {showWalkthrough && (
         <Walkthrough
           onFinish={finishWalkthrough}
-          labels={{ skip: t("wt_skip"), next: t("wt_next"), gotit: t("wt_gotit") }}
-          steps={[
-            { title: t("wt_welcome_title"), text: t("wt_welcome_text"), getTarget: () => null },
-            { title: t("wt_income_title"), text: t("wt_income_text"), getTarget: () => tabRefs.current.income },
-            { title: t("wt_expenses_title"), text: t("wt_expenses_text"), getTarget: () => tabRefs.current.expenses },
-            { title: t("wt_overview_title"), text: t("wt_overview_text"), getTarget: () => tabRefs.current.overview },
-          ]}
+          labels={walkthroughLabels}
+          steps={walkthroughSteps}
         />
       )}
     </div>
