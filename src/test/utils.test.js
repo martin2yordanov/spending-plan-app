@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { freqToMonthly, fmt, computeHealthScore, computeEmergencyFundCoverage, scoreColor, scoreLabelKey, parseAmount } from "../utils.js";
+import { freqToMonthly, fmt, computeHealthScore, computeEmergencyFundCoverage, scoreColor, scoreLabelKey, parseAmount, parseNumeric } from "../utils.js";
 
 describe("freqToMonthly", () => {
   it("returns amount unchanged for Monthly", () => {
@@ -174,5 +174,42 @@ describe("scoreLabelKey", () => {
   });
   it("needsWork for < 40", () => {
     expect(scoreLabelKey(20)).toBe("scoreLabel_needsWork");
+  });
+});
+
+describe("parseNumeric", () => {
+  it("reads a plain decimal", () => {
+    expect(parseNumeric("12.5")).toBe(12.5);
+    expect(parseNumeric("1200")).toBe(1200);
+  });
+
+  // The iOS keypad offers a comma in every locale this app ships in, and
+  // parseFloat("12,5") quietly returns 12.
+  it("reads a comma as a decimal mark", () => {
+    expect(parseNumeric("12,5")).toBe(12.5);
+    expect(parseNumeric("0,99")).toBe(0.99);
+    expect(parseNumeric("-3,25")).toBe(-3.25);
+  });
+
+  it("treats a lone comma in grouping position as a separator", () => {
+    expect(parseNumeric("1,234")).toBe(1234);
+    expect(parseNumeric("1,234,567")).toBe(1234567);
+  });
+
+  it("takes the later separator as the decimal mark when both appear", () => {
+    expect(parseNumeric("1.234,56")).toBe(1234.56);
+    expect(parseNumeric("1,234.56")).toBe(1234.56);
+  });
+
+  it("passes numbers through and reports junk as NaN", () => {
+    expect(parseNumeric(42)).toBe(42);
+    expect(parseNumeric("")).toBeNaN();
+    expect(parseNumeric(null)).toBeNaN();
+    expect(parseNumeric("abc")).toBeNaN();
+  });
+
+  it("is what parseAmount falls back from", () => {
+    expect(parseAmount("7,5", 99)).toBe(7.5);
+    expect(parseAmount("", 99)).toBe(99);
   });
 });

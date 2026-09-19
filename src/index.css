@@ -1,6 +1,11 @@
 :root {
   font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text",
     sans-serif;
+  /* The app paints itself light throughout. Without this, iOS renders the
+     native parts of a form control — the select menu, the month picker's
+     wheels, the text caret — for the *system* appearance, so on a phone in
+     Dark Mode they come out dark-on-white and in places unreadable. */
+  color-scheme: light;
   color: #1c1c1e;
   background: #f2f2f7;
   font-synthesis: none;
@@ -11,6 +16,31 @@
 
 * {
   box-sizing: border-box;
+}
+
+/* Two WebView defaults that read as a web page rather than an app: a grey
+   flash behind every tap, and a long press on a label bringing up the
+   selection magnifier and the Copy/Look Up callout. Text the user actually
+   entered stays selectable. */
+button,
+a,
+[role="button"] {
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+input,
+textarea,
+code,
+p {
+  -webkit-touch-callout: default;
+  -webkit-user-select: text;
+  user-select: text;
 }
 
 html,
@@ -34,6 +64,31 @@ select {
 input,
 select {
   min-width: 0;
+}
+
+/* Apple asks for a 44pt touch target. A few controls here are deliberately
+   small — a text link inside a dense row, an icon button in a table cell — so
+   the *target* is grown around the label rather than the label itself. Only
+   vertically: widening these would let them steal taps from the control
+   sitting next to them. */
+.tap-target {
+  position: relative;
+}
+
+.tap-target::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 50%;
+  width: 100%;
+  height: 44px;
+  transform: translateY(-50%);
+}
+
+@media (pointer: fine) {
+  .tap-target::after {
+    display: none;
+  }
 }
 
 /* Bottom-sheet transitions, shared by the category and new-category sheets.

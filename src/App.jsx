@@ -2,8 +2,8 @@ import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useUser, useAuth, SignInButton, UserButton } from "@clerk/clerk-react";
 import { LANGUAGES, LANG_KEY, makeT } from "./i18n";
 import { readCache, writeCache, clearCache, setPendingSync, getPendingSync, clearPendingSync } from "./storage";
-import { shareReport, syncBillReminders, biometricAvailable, biometricUnlock, openExternal, BIOMETRIC_LOCK_KEY, isNative } from "./native";
-import { FREQUENCIES, freqToMonthly, computeHealthScore, computeEmergencyFundCoverage, scoreColor, scoreLabelKey, parseAmount, CURRENCIES, CURRENCY_KEY, DEFAULT_CURRENCY, currencyMeta, makeMoney, conversionRate, convertAmount } from "./utils.js";
+import { shareReport, syncBillReminders, biometricAvailable, biometricUnlock, readBiometricLock, setBiometricLock, openExternal, isNative } from "./native";
+import { FREQUENCIES, freqToMonthly, parseNumeric, computeHealthScore, computeEmergencyFundCoverage, scoreColor, scoreLabelKey, parseAmount, CURRENCIES, CURRENCY_KEY, DEFAULT_CURRENCY, currencyMeta, makeMoney, conversionRate, convertAmount } from "./utils.js";
 
 export const CLERK_ENABLED = !!import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
 
@@ -487,7 +487,7 @@ function CategoryModal({ cat, label, color, icon, catExpenses, closing, onClose,
     setAmountStr(String(expense.amount));
   };
   const commitAmount = (expenseId, currentAmount) => {
-    const n = parseFloat(amountStr);
+    const n = parseNumeric(amountStr);
     onUpdate(expenseId, "amount", isNaN(n) ? currentAmount : n);
   };
 
@@ -1490,11 +1490,8 @@ export default function App() {
       if (cancelled) return;
       setBioAvailable(ok);
       if (!ok) return;
-      try {
-        const { Preferences } = await import("@capacitor/preferences");
-        const { value } = await Preferences.get({ key: BIOMETRIC_LOCK_KEY });
-        if (!cancelled) setBioEnabled(value === "1");
-      } catch { /* default off */ }
+      const on = await readBiometricLock();
+      if (!cancelled) setBioEnabled(on);
     })();
     return () => { cancelled = true; };
   }, []);
@@ -1505,8 +1502,7 @@ export default function App() {
     // their own data with a face the device will not accept.
     if (next && !(await biometricUnlock("Enable Face ID for Spending Plan"))) return;
     try {
-      const { Preferences } = await import("@capacitor/preferences");
-      await Preferences.set({ key: BIOMETRIC_LOCK_KEY, value: next ? "1" : "0" });
+      await setBiometricLock(next);
       setBioEnabled(next);
     } catch { /* leave the toggle as it was */ }
   }, [bioEnabled]);
@@ -1625,11 +1621,11 @@ export default function App() {
   // Shared handlers for the editable investment number field (Overview + Savings).
   const onInvestInput = (v) => {
     setInvestStr(v);
-    const n = parseFloat(v);
+    const n = parseNumeric(v);
     if (!isNaN(n)) setInvest(n);
   };
   const onInvestBlur = () => {
-    const n = parseFloat(investStr);
+    const n = parseNumeric(investStr);
     const val = isNaN(n) ? 0 : n;
     setInvest(val);
     setInvestStr(String(val));
@@ -2638,7 +2634,7 @@ export default function App() {
                     const pct = totalIncome > 0 ? (item.value / totalIncome) * 100 : 0;
                     const isActive = activeCategory === item.name;
                     const hasActive = activeCategory !== null;
-                    const limit = parseFloat(categoryLimits[item.name]) || 0;
+                    const limit = parseNumeric(categoryLimits[item.name]) || 0;
                     const limitPct = limit > 0 ? (item.value / limit) * 100 : 0;
                     const overLimit = limit > 0 && limitPct > 100;
                     const nearLimit = limit > 0 && !overLimit && limitPct >= 90;
@@ -2646,7 +2642,7 @@ export default function App() {
                     const barColor = overLimit ? "#FF3B30" : nearLimit ? "#FF9500" : item.color;
                     const isEditingLimit = editingLimitCat === item.name;
                     const commitLimit = () => {
-                      const n = parseFloat(limitInput);
+                      const n = parseNumeric(limitInput);
                       setCategoryLimits((current) => {
                         const next = { ...current };
                         if (isNaN(n) || n <= 0) delete next[item.name];
@@ -2745,6 +2741,7 @@ export default function App() {
                           ) : (
                             <button
                               onClick={() => { setEditingLimitCat(item.name); setLimitInput(limit > 0 ? String(limit) : ""); }}
+                              className="tap-target"
                               style={{ border: "none", background: "transparent", color: limit > 0 ? "#6C6C70" : "#007AFF", fontSize: 11, fontWeight: 500, padding: 0, cursor: "pointer" }}
                             >
                               {limit > 0 ? `✎ ${t("editLimit")}` : `+ ${t("setLimit")}`}
@@ -3107,7 +3104,7 @@ export default function App() {
                                 value={editingExpenseAmountStr}
                                 onChange={e => setEditingExpenseAmountStr(e.target.value)}
                                 onBlur={() => {
-                                  const n = parseFloat(editingExpenseAmountStr);
+                                  const n = parseNumeric(editingExpenseAmountStr);
                                   updateExpense(item.id, "amount", isNaN(n) ? item.amount : n);
                                 }}
                                 style={{
@@ -3145,7 +3142,7 @@ export default function App() {
                             </button>
                             <button
                               onClick={() => {
-                                const n = parseFloat(editingExpenseAmountStr);
+                                const n = parseNumeric(editingExpenseAmountStr);
                                 updateExpense(item.id, "amount", isNaN(n) ? item.amount : n);
                                 setEditingExpense(null);
                               }}
@@ -3310,12 +3307,12 @@ export default function App() {
                             value={editingExpenseAmountStr}
                             onChange={e => setEditingExpenseAmountStr(e.target.value)}
                             onBlur={() => {
-                              const n = parseFloat(editingExpenseAmountStr);
+                              const n = parseNumeric(editingExpenseAmountStr);
                               updateExpense(item.id, "amount", isNaN(n) ? item.amount : n);
                             }}
                             onKeyDown={(e) => {
                               if (e.key === "Enter") {
-                                const n = parseFloat(editingExpenseAmountStr);
+                                const n = parseNumeric(editingExpenseAmountStr);
                                 updateExpense(item.id, "amount", isNaN(n) ? item.amount : n);
                                 setEditingExpense(null);
                               }
@@ -3358,7 +3355,7 @@ export default function App() {
                         {isEditing && (
                           <button
                             onClick={() => {
-                              const n = parseFloat(editingExpenseAmountStr);
+                              const n = parseNumeric(editingExpenseAmountStr);
                               updateExpense(item.id, "amount", isNaN(n) ? item.amount : n);
                               setEditingExpense(null);
                             }}
@@ -3375,6 +3372,7 @@ export default function App() {
                         <button
                           onClick={() => deleteExpense(item.id)}
                           aria-label={t("btn_delete")}
+                          className="tap-target"
                           style={{
                             width: 28, height: 28, borderRadius: "50%", border: "none",
                             background: "#FFE5E5", color: "#FF3B30", cursor: "pointer",
@@ -3428,7 +3426,7 @@ export default function App() {
                       placeholder="0"
                       value={newExpense.amount || ""}
                       onChange={(event) =>
-                        setNewExpense((current) => ({ ...current, amount: parseFloat(event.target.value) || 0 }))
+                        setNewExpense((current) => ({ ...current, amount: parseNumeric(event.target.value) || 0 }))
                       }
                       style={{
                         border: "none",
@@ -3550,7 +3548,7 @@ export default function App() {
                         placeholder="0"
                         value={newExpense.amount || ""}
                         onChange={e => setNewExpense(c => ({ ...c, amount: e.target.value }))}
-                        onBlur={e => setNewExpense(c => ({ ...c, amount: parseFloat(e.target.value) || 0 }))}
+                        onBlur={e => setNewExpense(c => ({ ...c, amount: parseNumeric(e.target.value) || 0 }))}
                         style={{
                           fontSize: 16, fontWeight: 700, color: "#007AFF", width: "100%",
                           border: "none", borderBottom: "2px solid #007AFF",
@@ -3736,7 +3734,7 @@ export default function App() {
                           type="text" inputMode="decimal" placeholder="0"
                           value={newIncome.amount || ""}
                           onChange={e => setNewIncome(c => ({ ...c, amount: e.target.value }))}
-                          onBlur={e => setNewIncome(c => ({ ...c, amount: parseFloat(e.target.value) || 0 }))}
+                          onBlur={e => setNewIncome(c => ({ ...c, amount: parseNumeric(e.target.value) || 0 }))}
                           style={{ fontSize: 16, fontWeight: 700, color: "#34C759", width: "100%", border: "none", borderBottom: "2px solid #34C759", background: "transparent", outline: "none", paddingBottom: 2 }}
                         />
                       </div>
@@ -3876,6 +3874,7 @@ export default function App() {
                         <button
                           onClick={() => deleteIncome(item.id)}
                           aria-label={t("btn_delete")}
+                          className="tap-target"
                           style={{ width: 28, height: 28, borderRadius: "50%", border: "none", background: "#FFE5E5", color: "#FF3B30", cursor: "pointer", fontSize: 14, display: "flex", alignItems: "center", justifyContent: "center" }}
                         >
                           ×
@@ -3895,7 +3894,7 @@ export default function App() {
                     <input
                       type="number" placeholder="0"
                       value={newIncome.amount || ""}
-                      onChange={(event) => setNewIncome((current) => ({ ...current, amount: parseFloat(event.target.value) || 0 }))}
+                      onChange={(event) => setNewIncome((current) => ({ ...current, amount: parseNumeric(event.target.value) || 0 }))}
                       style={{ border: "none", borderBottom: "2px solid #34C759", background: "transparent", fontSize: 16, fontWeight: 700, outline: "none", textAlign: "right" }}
                     />
                     <select
@@ -4015,7 +4014,7 @@ export default function App() {
                               value={account.amount}
                               onChange={e => setSavingsAccounts(s => s.map(a => a.id === account.id ? { ...a, amount: e.target.value } : a))}
                               onBlur={e => {
-                                const n = parseFloat(e.target.value);
+                                const n = parseNumeric(e.target.value);
                                 setSavingsAccounts(s => s.map(a => a.id === account.id ? { ...a, amount: isNaN(n) ? 0 : n } : a));
                               }}
                               style={{ fontSize: 16, fontWeight: 700, color: "#30D158", width: "100%", border: "none", borderBottom: "2px solid #30D158", background: "transparent", outline: "none", paddingBottom: 2 }}
@@ -4049,7 +4048,7 @@ export default function App() {
                                 value={account.target ?? ""}
                                 onChange={e => setSavingsAccounts(s => s.map(a => a.id === account.id ? { ...a, target: e.target.value } : a))}
                                 onBlur={e => {
-                                  const n = parseFloat(e.target.value);
+                                  const n = parseNumeric(e.target.value);
                                   setSavingsAccounts(s => s.map(a => a.id === account.id ? { ...a, target: isNaN(n) || n <= 0 ? "" : n } : a));
                                 }}
                                 style={{ fontSize: 14, fontWeight: 600, color: "#30D158", width: "100%", border: "none", borderBottom: "2px solid #30D158", background: "transparent", outline: "none", paddingBottom: 2 }}
@@ -4074,7 +4073,7 @@ export default function App() {
                             </button>
                             <button
                               onClick={() => {
-                                setSavingsAccounts(s => s.map(a => a.id === account.id ? { ...a, amount: parseFloat(a.amount) || 0 } : a));
+                                setSavingsAccounts(s => s.map(a => a.id === account.id ? { ...a, amount: parseNumeric(a.amount) || 0 } : a));
                                 setEditingSavings(null);
                               }}
                               style={{ padding: "7px 18px", borderRadius: 10, border: "none", background: "#30D158", color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer" }}
@@ -4108,9 +4107,9 @@ export default function App() {
                             <div style={{ color: "#C7C7CC", fontSize: 13 }}>›</div>
                           </div>
                           {(() => {
-                            const target = parseFloat(account.target) || 0;
+                            const target = parseNumeric(account.target) || 0;
                             if (target <= 0) return null;
-                            const balance = parseFloat(account.amount) || 0;
+                            const balance = parseNumeric(account.amount) || 0;
                             const goalPct = Math.min(100, (balance / target) * 100);
                             const reached = balance >= target;
                             let neededLine = null;
@@ -4163,7 +4162,7 @@ export default function App() {
                         type="text" inputMode="decimal" placeholder="0"
                         value={newSavings.amount || ""}
                         onChange={e => setNewSavings(c => ({ ...c, amount: e.target.value }))}
-                        onBlur={e => setNewSavings(c => ({ ...c, amount: parseFloat(e.target.value) || 0 }))}
+                        onBlur={e => setNewSavings(c => ({ ...c, amount: parseNumeric(e.target.value) || 0 }))}
                         style={{ fontSize: 16, fontWeight: 700, color: "#30D158", width: "100%", border: "none", borderBottom: "2px solid #30D158", background: "transparent", outline: "none", paddingBottom: 2 }}
                       />
                     </div>
@@ -4210,8 +4209,8 @@ export default function App() {
                           setSavingsAccounts(s => [...s, {
                             id: Date.now(),
                             name: newSavings.name,
-                            amount: parseFloat(newSavings.amount) || 0,
-                            target: parseFloat(newSavings.target) > 0 ? parseFloat(newSavings.target) : "",
+                            amount: parseNumeric(newSavings.amount) || 0,
+                            target: parseNumeric(newSavings.target) > 0 ? parseNumeric(newSavings.target) : "",
                             targetMonth: newSavings.targetMonth || "",
                             type: newSavings.type || "cash",
                           }]);
@@ -4380,6 +4379,7 @@ export default function App() {
           <div style={{ marginTop: 28, textAlign: "center" }}>
             <button
               onClick={() => { setShowImport(true); setImportError(null); setImportSuccess(false); }}
+              className="tap-target"
               style={{
                 background: "none", border: "none", cursor: "pointer",
                 fontSize: 12, color: "#8E8E93", textDecoration: "underline",
@@ -4397,6 +4397,7 @@ export default function App() {
                   origin has no /privacy.html of its own. */}
               <button
                 onClick={() => openExternal(`${API_BASE || window.location.origin}/privacy.html`)}
+                className="tap-target"
                 style={{
                   background: "none", border: "none", cursor: "pointer",
                   fontSize: 12, color: "#8E8E93", textDecoration: "underline",
@@ -4407,6 +4408,7 @@ export default function App() {
               </button>
               <button
                 onClick={() => { setShowDeleteAccount(true); setDeleteConfirmText(""); setDeleteError(null); }}
+                className="tap-target"
                 style={{
                   background: "none", border: "none", cursor: "pointer",
                   fontSize: 12, color: "#C7736C", textDecoration: "underline",
@@ -4510,6 +4512,10 @@ export default function App() {
             </div>
             <input
               autoFocus
+              autoCapitalize="characters"
+              autoCorrect="off"
+              autoComplete="off"
+              spellCheck={false}
               aria-label={t("deleteAccountConfirmLabel")}
               value={deleteConfirmText}
               onChange={(e) => { setDeleteConfirmText(e.target.value); setDeleteError(null); }}
@@ -4653,6 +4659,10 @@ export default function App() {
 
             <input
               autoFocus
+              autoCapitalize="none"
+              autoCorrect="off"
+              autoComplete="off"
+              spellCheck={false}
               value={importInput}
               onChange={(e) => { setImportInput(e.target.value); setImportError(null); }}
               onKeyDown={(e) => { if (e.key === "Enter" && importInput.trim() && !importLoading) handleImportFromOldAccount(); }}

@@ -151,8 +151,41 @@ export function scoreLabelKey(score) {
   return "scoreLabel_needsWork";
 }
 
-/** Safe parseFloat that returns `fallback` instead of snapping to 0 on empty/invalid input. */
+/**
+ * parseFloat for money somebody typed. The iOS decimal keypad offers whatever
+ * separator the device locale uses — a comma in Bulgarian, Spanish and most of
+ * Europe — and `parseFloat("12,5")` quietly returns 12. A tenfold error in a
+ * figure the user watched themselves enter is the worst kind of wrong for a
+ * budgeting app, so both separators are accepted.
+ *
+ * Returns NaN for anything unparseable, like parseFloat does.
+ */
+export function parseNumeric(value) {
+  if (typeof value === "number") return value;
+  const text = String(value ?? "").trim();
+  if (!text) return NaN;
+
+  const lastComma = text.lastIndexOf(",");
+  const lastDot = text.lastIndexOf(".");
+
+  if (lastComma > -1 && lastDot > -1) {
+    // Both present, so the later one is the decimal mark and the other groups.
+    return parseFloat(
+      lastComma > lastDot
+        ? text.replace(/\./g, "").replace(",", ".")
+        : text.replace(/,/g, ""),
+    );
+  }
+  if (lastComma > -1) {
+    // A lone comma is a decimal mark, unless the shape is plainly grouping.
+    const grouped = /^-?\d{1,3}(,\d{3})+$/.test(text);
+    return parseFloat(grouped ? text.replace(/,/g, "") : text.replace(",", "."));
+  }
+  return parseFloat(text);
+}
+
+/** Safe parse that returns `fallback` instead of snapping to 0 on empty/invalid input. */
 export function parseAmount(value, fallback = 0) {
-  const n = parseFloat(value);
+  const n = parseNumeric(value);
   return isNaN(n) ? fallback : n;
 }

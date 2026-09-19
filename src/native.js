@@ -146,6 +146,49 @@ export async function syncBillReminders(items) {
 
 export const BIOMETRIC_LOCK_KEY = "biometric_lock_enabled";
 
+/**
+ * Synchronous best guess at whether the lock is on.
+ *
+ * Capacitor Preferences is async even on device, and the gate cannot wait for
+ * it: rendering the app for the frames that read takes puts the user's
+ * finances on screen — and into the iOS app-switcher snapshot — before the
+ * lock engages, which is the one thing the lock exists to prevent. So the flag
+ * is mirrored into localStorage, which a WKWebView answers synchronously, and
+ * the authoritative read corrects it a moment later.
+ */
+export function biometricLockHint() {
+  try {
+    return localStorage.getItem(BIOMETRIC_LOCK_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+/** Authoritative read. Refreshes the synchronous hint on the way past. */
+export async function readBiometricLock() {
+  let on = false;
+  try {
+    if (isNative) {
+      const { Preferences } = await import("@capacitor/preferences");
+      on = (await Preferences.get({ key: BIOMETRIC_LOCK_KEY })).value === "1";
+    } else {
+      on = biometricLockHint();
+    }
+  } catch {
+    return biometricLockHint();
+  }
+  try { localStorage.setItem(BIOMETRIC_LOCK_KEY, on ? "1" : "0"); } catch { /* ignore */ }
+  return on;
+}
+
+/** Writes both the durable store and the synchronous hint. */
+export async function setBiometricLock(on) {
+  try { localStorage.setItem(BIOMETRIC_LOCK_KEY, on ? "1" : "0"); } catch { /* ignore */ }
+  if (!isNative) return;
+  const { Preferences } = await import("@capacitor/preferences");
+  await Preferences.set({ key: BIOMETRIC_LOCK_KEY, value: on ? "1" : "0" });
+}
+
 /** Whether this device can actually do Face ID / Touch ID. */
 export async function biometricAvailable() {
   if (!isNative) return false;
