@@ -3,7 +3,7 @@ import { useUser, useAuth, SignInButton, UserButton } from "@clerk/clerk-react";
 import { LANGUAGES, LANG_KEY, makeT } from "./i18n";
 import { readCache, writeCache, clearCache, setPendingSync, getPendingSync, clearPendingSync } from "./storage";
 import { shareReport, syncBillReminders, biometricAvailable, biometricUnlock, openExternal, BIOMETRIC_LOCK_KEY, isNative } from "./native";
-import { FREQUENCIES, freqToMonthly, fmt, computeHealthScore, computeEmergencyFundCoverage, scoreColor, scoreLabelKey, parseAmount, CURRENCIES, CURRENCY_KEY, DEFAULT_CURRENCY, currencyMeta, makeMoney, conversionRate, convertAmount } from "./utils.js";
+import { FREQUENCIES, freqToMonthly, computeHealthScore, computeEmergencyFundCoverage, scoreColor, scoreLabelKey, parseAmount, CURRENCIES, CURRENCY_KEY, DEFAULT_CURRENCY, currencyMeta, makeMoney, conversionRate, convertAmount } from "./utils.js";
 
 export const CLERK_ENABLED = !!import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
 
@@ -135,6 +135,16 @@ const EXAMPLE_EXPENSES = DEFAULT_EXPENSES.map((e) => ({
   ...e,
   amount: EXAMPLE_AMOUNTS[e.id] ?? 0,
 }));
+
+// Every value the user typed is interpolated straight into the report's HTML.
+// An apostrophe or an ampersand in an expense name is enough to garble it, and
+// a "<" opens the door to arbitrary markup in a file the app then hands to the
+// share sheet.
+function escapeHtml(value) {
+  return String(value ?? "").replace(/[&<>"']/g, (c) => (
+    { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]
+  ));
+}
 
 function renderMarkdown(text) {
   // Lightweight inline renderer: handles headings, bullets, bold, and paragraph breaks.
@@ -455,7 +465,7 @@ const MODAL_CSS = `
 @keyframes sheetOut { from { transform: translateY(0) } to { transform: translateY(100%) } }
 `;
 
-function CategoryModal({ cat, label, color, icon, catExpenses, closing, onClose, onUpdate, onDelete, t, fmt }) {
+function CategoryModal({ cat, label, color, icon, catExpenses, closing, onClose, onUpdate, onDelete, t, money, curSymbol }) {
   const [editingId, setEditingId] = useState(null);
   const [amountStr, setAmountStr] = useState("");
   const catTotal = catExpenses.reduce((s, e) => s + freqToMonthly(e.amount, e.frequency), 0);
@@ -921,6 +931,7 @@ export default function App() {
   const [saveError, setSaveError] = useState(false);
   const [undoInfo, setUndoInfo] = useState(null); // { name, restore } for the delete-undo toast
   const undoTimerRef = useRef(null);
+  const undoInfoRef = useRef(null);
   // Recovery path for data stranded under a different account id (e.g. after a
   // Clerk instance change, which mints new user ids for the same person).
   const [showImport, setShowImport] = useState(false);
@@ -1121,16 +1132,18 @@ export default function App() {
   const deleteWithUndo = useCallback((name, doDelete, restore) => {
     doDelete();
     if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
-    setUndoInfo({ name, restore });
-    undoTimerRef.current = setTimeout(() => setUndoInfo(null), 6000);
+    undoInfoRef.current = { name, restore };
+    setUndoInfo(undoInfoRef.current);
+    undoTimerRef.current = setTimeout(() => { undoInfoRef.current = null; setUndoInfo(null); }, 6000);
   }, []);
 
+  // The restore callback dispatches its own state updates, so it must not run
+  // from inside a setState updater — React may invoke an updater more than
+  // once, which would put the deleted row back twice.
   const handleUndo = useCallback(() => {
     if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
-    setUndoInfo((info) => {
-      info?.restore();
-      return null;
-    });
+    undoInfoRef.current?.restore();
+    setUndoInfo(null);
   }, []);
 
   // Every category the app knows about — the fixed built-ins plus any
@@ -1483,7 +1496,7 @@ export default function App() {
 
   const totalIncome = income.reduce((sum, item) => sum + freqToMonthly(item.amount, item.frequency), 0);
   const totalExpenses = expenses.reduce((sum, item) => sum + freqToMonthly(item.amount, item.frequency), 0);
-  const totalSavingsBalance = savingsAccounts.reduce((sum, a) => sum + (a.amount || 0), 0);
+  const totalSavingsBalance = savingsAccounts.reduce((sum, a) => sum + (Number(a.amount) || 0), 0);
   const investMonthly = freqToMonthly(invest, "Monthly");
   const savings = totalIncome - totalExpenses - investMonthly;
   // Let the slider grow past its default 1000 ceiling so it never misrepresents
@@ -1660,14 +1673,14 @@ export default function App() {
       const catTotal = items.reduce((s, e) => s + freqToMonthly(e.amount, e.frequency), 0);
       const itemRows = items.map(e => `
         <tr>
-          <td style="padding:5px 10px;border-bottom:1px solid #f0f0f0;color:#444">${e.name}</td>
+          <td style="padding:5px 10px;border-bottom:1px solid #f0f0f0;color:#444">${escapeHtml(e.name)}</td>
           <td style="padding:5px 10px;border-bottom:1px solid #f0f0f0;text-align:right">${money(e.amount)}</td>
           <td style="padding:5px 10px;border-bottom:1px solid #f0f0f0;color:#888">${t.freq(e.frequency)}</td>
           <td style="padding:5px 10px;border-bottom:1px solid #f0f0f0;text-align:right;color:#555">${money(freqToMonthly(e.amount, e.frequency))}${t("perMo")}</td>
         </tr>`).join("");
       return `
         <tr style="background:#f5f5f7">
-          <td colspan="3" style="padding:8px 10px;font-weight:700;font-size:12px">${getCategoryMeta(cat, customCategories).icon} ${getCategoryLabel(cat, customCategories, t)}</td>
+          <td colspan="3" style="padding:8px 10px;font-weight:700;font-size:12px">${escapeHtml(getCategoryMeta(cat, customCategories).icon)} ${escapeHtml(getCategoryLabel(cat, customCategories, t))}</td>
           <td style="padding:8px 10px;text-align:right;font-weight:700;font-size:12px">${money(catTotal)}${t("perMo")}</td>
         </tr>${itemRows}`;
     }).join("");
@@ -1700,12 +1713,12 @@ export default function App() {
           ${savingsAccounts.map(a => {
             const bal = Number(a.amount) || 0;
             const target = Number(a.target) || 0;
-            const goal = target > 0 ? `${money(target)}${a.targetMonth ? ` · ${a.targetMonth}` : ""} (${((bal / target) * 100).toFixed(0)}%)` : "—";
+            const goal = target > 0 ? `${money(target)}${a.targetMonth ? ` · ${escapeHtml(a.targetMonth)}` : ""} (${((bal / target) * 100).toFixed(0)}%)` : "—";
             const typeTag = a.type === "emergency" ? ` <span style="font-size:10px;color:#007AFF">(${t("type_emergency")})</span>`
               : a.type === "investment" ? ` <span style="font-size:10px;color:#AF52DE">(${t("type_investment")})</span>`
               : "";
             return `<tr>
-              <td style="padding:6px 10px;border-bottom:1px solid #f0f0f0;font-weight:600">${a.name}${typeTag}</td>
+              <td style="padding:6px 10px;border-bottom:1px solid #f0f0f0;font-weight:600">${escapeHtml(a.name)}${typeTag}</td>
               <td style="padding:6px 10px;border-bottom:1px solid #f0f0f0;color:#888">${goal}</td>
               <td style="padding:6px 10px;border-bottom:1px solid #f0f0f0;text-align:right;font-weight:700;color:#30D158">${money(bal)}</td>
             </tr>`;
@@ -1720,7 +1733,7 @@ export default function App() {
         <thead><tr><th>${t("ph_billName")}</th><th>${t("bill_dueDay")}</th><th style="text-align:right">${t("col_amount")}</th></tr></thead>
         <tbody>
           ${bills.map(b => `<tr>
-            <td style="padding:6px 10px;border-bottom:1px solid #f0f0f0;font-weight:600">${b.name}</td>
+            <td style="padding:6px 10px;border-bottom:1px solid #f0f0f0;font-weight:600">${escapeHtml(b.name)}</td>
             <td style="padding:6px 10px;border-bottom:1px solid #f0f0f0;color:#888">${t("bill_dayOfMonth", { d: b.dueDay })}</td>
             <td style="padding:6px 10px;border-bottom:1px solid #f0f0f0;text-align:right;font-weight:700">${money(Number(b.amount) || 0)}</td>
           </tr>`).join("")}
@@ -1728,7 +1741,7 @@ export default function App() {
         </tbody>
       </table>` : "";
 
-    const ownerLine = auth?.email ? auth.email : `#${syncId}`;
+    const ownerLine = escapeHtml(auth?.email ? auth.email : `#${syncId}`);
 
     const html = `<!DOCTYPE html>
 <html>
@@ -1811,7 +1824,7 @@ export default function App() {
     <tbody>
       ${income.map(i => `
         <tr>
-          <td style="padding:6px 10px;border-bottom:1px solid #f0f0f0;font-weight:600">${i.name}</td>
+          <td style="padding:6px 10px;border-bottom:1px solid #f0f0f0;font-weight:600">${escapeHtml(i.name)}</td>
           <td style="padding:6px 10px;border-bottom:1px solid #f0f0f0;color:#888">${t.freq(i.frequency)}</td>
           <td style="padding:6px 10px;border-bottom:1px solid #f0f0f0">${money(i.amount)}</td>
           <td style="padding:6px 10px;border-bottom:1px solid #f0f0f0;text-align:right;font-weight:700;color:#34C759">${money(freqToMonthly(i.amount, i.frequency))}${t("perMo")}</td>
@@ -1910,7 +1923,7 @@ export default function App() {
       return;
     }
 
-    setExpenses((current) => [...current, { ...newExpense, id: Date.now() }]);
+    setExpenses((current) => [...current, { ...newExpense, amount: parseAmount(newExpense.amount, 0), id: Date.now() }]);
     setNewExpense({ name: "", type: "", category: "Personal", amount: 0, frequency: "Monthly" });
     setAddingExpense(false);
   };
@@ -1920,7 +1933,7 @@ export default function App() {
       return;
     }
 
-    setIncome((current) => [...current, { ...newIncome, id: Date.now() }]);
+    setIncome((current) => [...current, { ...newIncome, amount: parseAmount(newIncome.amount, 0), id: Date.now() }]);
     setNewIncome({ name: "", amount: 0, frequency: "Monthly" });
     setAddingIncome(false);
   };
@@ -2619,7 +2632,7 @@ export default function App() {
                 <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 4 }}>💹 {t("monthlyInvestment")}</div>
                 <div style={{ position: "relative", marginBottom: 14 }} ref={investMenuRef}>
                   <button
-                    onClick={() => { setShowInvestMenu(v => !v); setInvestCustomInput(""); }}
+                    onClick={() => setShowInvestMenu(v => !v)}
                     style={{
                       background: "none", border: "none", padding: 0, cursor: "pointer",
                       fontSize: 12, color: "#007AFF", fontWeight: 500, display: "flex",
@@ -2638,7 +2651,7 @@ export default function App() {
                       {INVEST_TYPES.map((opt) => (
                         <button
                           key={opt}
-                          onClick={() => { setInvestLabel(opt); setShowInvestMenu(false); setInvestCustomInput(""); }}
+                          onClick={() => { setInvestLabel(opt); setShowInvestMenu(false); }}
                           style={{
                             display: "block", width: "100%", textAlign: "left",
                             padding: "8px 12px", borderRadius: 8, border: "none",
@@ -3100,7 +3113,7 @@ export default function App() {
                       >
                         {isEditing ? (
                           <input
-                            ref={(el) => { if (el && editingExpenseFocusField === "name") el.focus(); }}
+                            ref={(el) => { if (el && editingExpenseFocusField === "name" && document.activeElement !== el) el.focus(); }}
                             value={item.name}
                             onChange={(event) => updateExpense(item.id, "name", event.target.value)}
                             style={{
@@ -3126,7 +3139,7 @@ export default function App() {
                       >
                         {isEditing ? (
                           <select
-                            ref={(el) => { if (el && editingExpenseFocusField === "category") el.focus(); }}
+                            ref={(el) => { if (el && editingExpenseFocusField === "category" && document.activeElement !== el) el.focus(); }}
                             value={item.category}
                             onChange={(event) => updateExpense(item.id, "category", event.target.value)}
                             style={{
@@ -3160,7 +3173,7 @@ export default function App() {
                       >
                         {isEditing ? (
                           <input
-                            ref={(el) => { if (el && editingExpenseFocusField === "amount") { el.focus(); el.select(); } }}
+                            ref={(el) => { if (el && editingExpenseFocusField === "amount" && document.activeElement !== el) { el.focus(); el.select(); } }}
                             type="text"
                             inputMode="decimal"
                             value={editingExpenseAmountStr}
@@ -3672,7 +3685,7 @@ export default function App() {
                       <div onClick={() => (isEditing ? null : startEditingIncome(item, "name"))} style={{ cursor: isEditing ? "default" : "pointer" }}>
                         {isEditing ? (
                           <input
-                            ref={(el) => { if (el && editingIncomeFocusField === "name") el.focus(); }}
+                            ref={(el) => { if (el && editingIncomeFocusField === "name" && document.activeElement !== el) el.focus(); }}
                             value={item.name}
                             onChange={(event) => updateIncome(item.id, "name", event.target.value)}
                             onKeyDown={(e) => { if (e.key === "Enter") { commitIncomeAmount(item.id); setEditingIncome(null); } if (e.key === "Escape") setEditingIncome(null); }}
@@ -3688,7 +3701,7 @@ export default function App() {
                       >
                         {isEditing ? (
                           <input
-                            ref={(el) => { if (el && editingIncomeFocusField === "amount") { el.focus(); el.select(); } }}
+                            ref={(el) => { if (el && editingIncomeFocusField === "amount" && document.activeElement !== el) { el.focus(); el.select(); } }}
                             type="text"
                             inputMode="decimal"
                             value={editingIncomeAmountStr}
@@ -4104,7 +4117,7 @@ export default function App() {
               <div style={{ fontSize: 12, color: "#6C6C70", marginBottom: 14 }}>{t("savings_sub")}</div>
               <div style={{ position: "relative", marginBottom: 14 }} ref={investMenuRef}>
                 <button
-                  onClick={() => { setShowInvestMenu(v => !v); setInvestCustomInput(""); }}
+                  onClick={() => setShowInvestMenu(v => !v)}
                   style={{ background: "none", border: "none", padding: 0, cursor: "pointer", fontSize: 12, color: "#007AFF", fontWeight: 500, display: "flex", alignItems: "center", gap: 4 }}
                 >
                   {investLabel} ▾
@@ -4112,7 +4125,7 @@ export default function App() {
                 {showInvestMenu && (
                   <div style={{ position: "absolute", top: "calc(100% + 6px)", left: 0, background: "#fff", border: "1.5px solid #E5E5EA", borderRadius: 14, padding: 6, minWidth: 220, boxShadow: "0 8px 32px rgba(0,0,0,0.12)", zIndex: 200 }}>
                     {INVEST_TYPES.map((opt) => (
-                      <button key={opt} onClick={() => { setInvestLabel(opt); setShowInvestMenu(false); setInvestCustomInput(""); }}
+                      <button key={opt} onClick={() => { setInvestLabel(opt); setShowInvestMenu(false); }}
                         style={{ display: "block", width: "100%", textAlign: "left", padding: "8px 12px", borderRadius: 8, border: "none", background: investLabel === opt ? "#F2F2F7" : "transparent", color: "#1C1C1E", fontSize: 13, fontWeight: investLabel === opt ? 700 : 400, cursor: "pointer" }}
                       >
                         {investLabel === opt && <span style={{ color: "#007AFF", marginRight: 6 }}>✓</span>}
@@ -4292,7 +4305,8 @@ export default function App() {
             onUpdate={updateExpense}
             onDelete={deleteExpense}
             t={t}
-            fmt={fmt}
+            money={money}
+            curSymbol={curSymbol}
           />
         );
       })()}

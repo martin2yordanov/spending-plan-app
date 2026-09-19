@@ -44,7 +44,11 @@ export function convertAmount(amount, from, to) {
   return Math.round(amount * rate * 100) / 100;
 }
 
-export function freqToMonthly(amount, freq) {
+// `amount` is coerced because a row being edited holds the raw input string
+// ("12.5", "") until it is committed, and the autosave can persist it in that
+// state — an uncoerced string turns every running total into concatenation.
+export function freqToMonthly(value, freq) {
+  const amount = Number(value) || 0;
   switch (freq) {
     case "Monthly":   return amount;
     case "Annual":    return amount / 12;
