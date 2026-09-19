@@ -10,6 +10,11 @@ function redact(message) {
   return String(message ?? "Internal error").replace(/rediss?:\/\/\S*/gi, "redis://[redacted]");
 }
 
+// A plan is a few hundred rows of text and numbers; anything approaching this
+// is not one. Writing to a Clerk id needs a session, but a sync code is open by
+// design, so without a ceiling one caller can park megabytes per id in Redis.
+const MAX_PLAN_BYTES = 512 * 1024;
+
 let _client = null;
 function getClient() {
   if (!process.env.REDIS_URL) throw new Error("REDIS_URL env var is not set");
@@ -74,7 +79,11 @@ export default async function handler(req, res) {
       return res.status(200).json(raw ? JSON.parse(raw) : null);
     }
     if (req.method === "POST") {
-      await redis.set(KEY, JSON.stringify(req.body));
+      const payload = JSON.stringify(req.body ?? null);
+      if (payload.length > MAX_PLAN_BYTES) {
+        return res.status(413).json({ error: "Plan too large" });
+      }
+      await redis.set(KEY, payload);
       return res.status(200).json({ ok: true });
     }
     if (req.method === "DELETE") {

@@ -1,6 +1,24 @@
 import { applyCors } from "./_cors.js";
+import { rateLimit, clientKey } from "./_ratelimit.js";
 
 export const config = { maxDuration: 60 };
+
+// This endpoint spends money on someone else's API key and needs no
+// credentials to call, so the only thing standing between it and a drained
+// quota is the fact that nobody has found it yet. A regenerating user does not
+// come close to this.
+const RATE_LIMIT = { limit: 20, windowSeconds: 3600 };
+
+// The prompt is built from whatever the caller posts. Without a ceiling, one
+// request can turn into a six-figure token bill.
+const MAX_ITEMS = 300;
+const MAX_TEXT = 120;
+// Groq can stall; the function is billed for the wait either way, and
+// maxDuration would kill it without ever answering the client.
+const GROQ_TIMEOUT_MS = 50000;
+
+const text = (v) => String(v ?? "").slice(0, MAX_TEXT);
+const capped = (v) => (Array.isArray(v) ? v.slice(0, MAX_ITEMS) : []);
 
 const SYSTEM_PROMPT = `You are a senior financial advisor with 25+ years of experience advising individuals and families on personal finance, budgeting, expense optimization, and investment strategy. You hold the CFP (Certified Financial Planner) designation and have managed portfolios across all market conditions.
 
@@ -81,7 +99,12 @@ A short bullet list (4-6 items) outlining what they should do over the next year
 
 const CURRENCY_SYMBOLS = { EUR: "\u20ac", BGN: "\u043b\u0432", USD: "$", GBP: "\u00a3" };
 
-function formatFinancialData({ income, expenses, invest, emergencyMonths, savingsAccounts, categoryLimits, bills, currency }) {
+function formatFinancialData(raw) {
+  const { invest, emergencyMonths, categoryLimits, currency } = raw;
+  const income = capped(raw.income);
+  const expenses = capped(raw.expenses);
+  const savingsAccounts = capped(raw.savingsAccounts);
+  const bills = capped(raw.bills);
   const sym = CURRENCY_SYMBOLS[currency] ?? CURRENCY_SYMBOLS.EUR;
   // Amounts may arrive as strings (mid-edit saves); coerce before any .toFixed.
   const num = (v) => Number(v) || 0;
@@ -102,12 +125,12 @@ function formatFinancialData({ income, expenses, invest, emergencyMonths, saving
   const netMonthly = totalIncomeMonthly - totalExpensesMonthly - num(invest);
 
   const incomeLines = (income ?? [])
-    .map((i) => `  - ${i.name}: ${sym}${num(i.amount).toFixed(2)} ${i.frequency} (${sym}${freqToMonthly(i.amount, i.frequency).toFixed(2)}/mo)`)
+    .map((i) => `  - ${text(i.name)}: ${sym}${num(i.amount).toFixed(2)} ${i.frequency} (${sym}${freqToMonthly(i.amount, i.frequency).toFixed(2)}/mo)`)
     .join("\n");
 
   const expensesByCategory = {};
   for (const e of expenses ?? []) {
-    const cat = e.category || "Other";
+    const cat = text(e.category) || "Other";
     if (!expensesByCategory[cat]) expensesByCategory[cat] = [];
     expensesByCategory[cat].push(e);
   }
@@ -115,16 +138,16 @@ function formatFinancialData({ income, expenses, invest, emergencyMonths, saving
     .map(([cat, items]) => {
       const catTotal = items.reduce((s, e) => s + freqToMonthly(e.amount, e.frequency), 0);
       const itemLines = items
-        .map((e) => `    - ${e.name}: ${sym}${num(e.amount).toFixed(2)} ${e.frequency} (${sym}${freqToMonthly(e.amount, e.frequency).toFixed(2)}/mo)`)
+        .map((e) => `    - ${text(e.name)}: ${sym}${num(e.amount).toFixed(2)} ${e.frequency} (${sym}${freqToMonthly(e.amount, e.frequency).toFixed(2)}/mo)`)
         .join("\n");
-      return `  ${cat} (${sym}${catTotal.toFixed(2)}/mo total):\n${itemLines}`;
+      return `  ${text(cat)} (${sym}${catTotal.toFixed(2)}/mo total):\n${itemLines}`;
     })
     .join("\n");
 
-  const limitLines = Object.entries(categoryLimits ?? {})
+  const limitLines = Object.entries(categoryLimits ?? {}).slice(0, MAX_ITEMS)
     .map(([cat, limit]) => {
-      const spent = (expensesByCategory[cat] ?? []).reduce((s, e) => s + freqToMonthly(e.amount, e.frequency), 0);
-      return `  - ${cat}: ${sym}${num(limit).toFixed(2)}/mo limit (currently spending ${sym}${spent.toFixed(2)}/mo, ${num(limit) > 0 ? ((spent / num(limit)) * 100).toFixed(0) : "?"}% of limit)`;
+      const spent = (expensesByCategory[text(cat)] ?? []).reduce((s, e) => s + freqToMonthly(e.amount, e.frequency), 0);
+      return `  - ${text(cat)}: ${sym}${num(limit).toFixed(2)}/mo limit (currently spending ${sym}${spent.toFixed(2)}/mo, ${num(limit) > 0 ? ((spent / num(limit)) * 100).toFixed(0) : "?"}% of limit)`;
     })
     .join("\n");
 
@@ -146,7 +169,7 @@ function formatFinancialData({ income, expenses, invest, emergencyMonths, saving
       const typeNote = a.type === "emergency" ? " [dedicated emergency fund]"
         : a.type === "investment" ? " [investment]"
         : "";
-      return `  - ${a.name}: ${sym}${balance.toFixed(2)}${typeNote}${goal}`;
+      return `  - ${text(a.name)}: ${sym}${balance.toFixed(2)}${typeNote}${goal}`;
     })
     .join("\n");
   const emergencyCoverageTotal = emergencyDedicated + emergencyFromSavings;
@@ -155,7 +178,7 @@ function formatFinancialData({ income, expenses, invest, emergencyMonths, saving
 
   const billsTotal = (bills ?? []).reduce((s, b) => s + (Number(b.amount) || 0), 0);
   const billLines = (bills ?? [])
-    .map((b) => `  - ${b.name}: ${sym}${(Number(b.amount) || 0).toFixed(2)} due on day ${b.dueDay} of each month`)
+    .map((b) => `  - ${text(b.name)}: ${sym}${(Number(b.amount) || 0).toFixed(2)} due on day ${Number(b.dueDay) || 0} of each month`)
     .join("\n");
 
   return `Please analyze my spending plan and provide recommendations.
@@ -196,6 +219,12 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: "GROQ_API_KEY env var is not set" });
   }
 
+  const quota = await rateLimit(`suggestions:${clientKey(req)}`, RATE_LIMIT);
+  if (!quota.allowed) {
+    res.setHeader("Retry-After", String(quota.retryAfter));
+    return res.status(429).json({ error: "Too many requests. Try again later." });
+  }
+
   try {
     const userMessage = formatFinancialData(req.body || {});
 
@@ -205,22 +234,30 @@ export default async function handler(req, res) {
       ? `${SYSTEM_PROMPT}\n\nIMPORTANT: Write your entire response in ${langName}. Keep the markdown section headings and the currency symbols exactly as given, but translate all prose into ${langName}.`
       : SYSTEM_PROMPT;
 
-    const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${process.env.GROQ_API_KEY}`,
-      },
-      body: JSON.stringify({
-        model: "llama-3.3-70b-versatile",
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userMessage },
-        ],
-        temperature: 0.7,
-        max_tokens: 4000,
-      }),
-    });
+    const controller = typeof AbortController === "undefined" ? null : new AbortController();
+    const timer = controller ? setTimeout(() => controller.abort(), GROQ_TIMEOUT_MS) : null;
+    let response;
+    try {
+      response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+        signal: controller?.signal,
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${process.env.GROQ_API_KEY}`,
+        },
+        body: JSON.stringify({
+          model: "llama-3.3-70b-versatile",
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: userMessage },
+          ],
+          temperature: 0.7,
+          max_tokens: 4000,
+        }),
+      });
+    } finally {
+      if (timer) clearTimeout(timer);
+    }
 
     if (!response.ok) {
       const errBody = await response.json().catch(() => ({}));
