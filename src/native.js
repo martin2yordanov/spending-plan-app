@@ -23,6 +23,19 @@ export async function initNative() {
     await StatusBar.setOverlaysWebView({ overlay: true });
   } catch { /* leave the system default */ }
 
+  // WKWebView zooms the page in when a field whose font is under 16px takes
+  // focus, and there is no gesture to undo it inside an app shell — the user
+  // is left on a cropped, side-scrolling layout. Several fields here are
+  // 11-14px by design, so the zoom is disabled on device only; the web build
+  // keeps pinch-to-zoom, where disabling it would be an accessibility loss.
+  const viewport = document.querySelector('meta[name="viewport"]');
+  if (viewport) {
+    viewport.setAttribute(
+      "content",
+      "width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover",
+    );
+  }
+
   // The splash is held (launchAutoHide: false) until the first render, so the
   // user never sees an empty WebView between launch and paint.
   try {

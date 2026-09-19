@@ -232,12 +232,31 @@ function getSyncId() {
 const API_BASE = (import.meta.env.VITE_API_BASE_URL ?? "").replace(/\/+$/, "");
 const apiUrl = (path) => `${API_BASE}${path}`;
 
+// A phone that has drifted out of coverage does not refuse a connection, it
+// just never answers. Without a deadline the app sits on the loading state (or
+// the "Saving…" pill) for as long as the platform's own default — a minute or
+// more — before it will fall back to the cached plan.
+const REQUEST_TIMEOUT_MS = 12000;
+// The advisor call waits on a model, so it gets a far longer leash.
+const SUGGESTIONS_TIMEOUT_MS = 60000;
+
+async function fetchWithTimeout(url, options = {}, timeoutMs = REQUEST_TIMEOUT_MS) {
+  if (typeof AbortController === "undefined") return fetch(url, options);
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, { ...options, signal: controller.signal });
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 async function loadData(id) {
   // Deliberately unauthenticated: "Import data from another account" reads
   // an id that is by definition not the caller's current one, so it could
   // never carry that id's session token anyway. Read access to a plan is
   // knowledge-of-id, same as a pre-sign-in sync code already is.
-  const res = await fetch(apiUrl(`/api/data?id=${encodeURIComponent(id)}`));
+  const res = await fetchWithTimeout(apiUrl(`/api/data?id=${encodeURIComponent(id)}`));
   if (!res.ok) throw new Error(`API ${res.status}`);
   return await res.json();
 }
@@ -260,7 +279,7 @@ async function authHeaders() {
 }
 
 async function deleteData(id) {
-  const res = await fetch(apiUrl(`/api/data?id=${encodeURIComponent(id)}`), {
+  const res = await fetchWithTimeout(apiUrl(`/api/data?id=${encodeURIComponent(id)}`), {
     method: "DELETE",
     headers: await authHeaders(),
   });
@@ -272,7 +291,7 @@ async function saveData(id, data) {
   // retry, import — carries one, which is what lets a local copy and the
   // server copy be compared after time offline.
   const body = { ...data, updatedAt: Date.now() };
-  const res = await fetch(apiUrl(`/api/data?id=${encodeURIComponent(id)}`), {
+  const res = await fetchWithTimeout(apiUrl(`/api/data?id=${encodeURIComponent(id)}`), {
     method: "POST",
     headers: { "Content-Type": "application/json", ...(await authHeaders()) },
     body: JSON.stringify(body),
@@ -902,7 +921,10 @@ function useIsMobile() {
   );
 
   useEffect(() => {
-    const onResize = () => setIsMobile(window.innerWidth < 768);
+    // Returning the same value makes React bail out of the re-render. iOS
+    // fires resize every time the keyboard opens or closes, and this tree is
+    // large enough that re-rendering it on each one is felt while typing.
+    const onResize = () => setIsMobile((prev) => (window.innerWidth < 768) === prev ? prev : !prev);
     window.addEventListener("resize", onResize);
     return () => window.removeEventListener("resize", onResize);
   }, []);
@@ -972,6 +994,7 @@ export default function App() {
   }, []);
 
   const autoSaveTimerRef = useRef(null);
+  const pendingPlanRef = useRef(null);
   const skipNextSaveRef = useRef(false);
   const tabRefs = useRef({});
   const expensesSectionRef = useRef(null);
@@ -1072,6 +1095,10 @@ export default function App() {
   const [deleteConfirmText, setDeleteConfirmText] = useState("");
   const [deleteBusy, setDeleteBusy] = useState(false);
   const [deleteError, setDeleteError] = useState(null);
+
+  // Bumped whenever the app comes back to the foreground, to re-run everything
+  // derived from today's date.
+  const [foregroundTick, setForegroundTick] = useState(0);
 
   const [savedFlag, setSavedFlag] = useState(false);
   // True when the last sync attempt failed for what looks like a connectivity
@@ -1298,6 +1325,32 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [auth?.userId]);
 
+  const persistPlan = useCallback(async (userId, plan) => {
+    // Local first, and stamped the same way a server write is, so an edit
+    // made offline is recognisably newer than the server copy next launch.
+    await writeCache(userId, { ...plan, updatedAt: Date.now() });
+    try {
+      await saveData(userId, plan);
+      setIsDirty(false);
+      setSaveError(false);
+      setOffline(false);
+      await clearPendingSync();
+      setSavedFlag(true);
+      setTimeout(() => setSavedFlag(false), 2000);
+    } catch {
+      setIsDirty(false);
+      await setPendingSync(userId);
+      // The edit is safely on the device either way; only call it an error
+      // when the network is actually up and the server still refused.
+      if (navigator.onLine === false) {
+        setOffline(true);
+        setSaveError(false);
+      } else {
+        setSaveError(true);
+      }
+    }
+  }, []);
+
   // Debounced auto-save: persist 2s after the last change (signed-in only).
   useEffect(() => {
     if (!loaded || !auth?.userId) return;
@@ -1305,37 +1358,58 @@ export default function App() {
       skipNextSaveRef.current = false;
       return;
     }
+    const userId = auth.userId;
+    const plan = { income, expenses, invest, investLabel, emergencyMonths, savingsAccounts, categoryLimits, bills, customCategories, currency };
     setIsDirty(true);
     setSaveError(false);
     if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
-    autoSaveTimerRef.current = setTimeout(async () => {
-      const plan = { income, expenses, invest, investLabel, emergencyMonths, savingsAccounts, categoryLimits, bills, customCategories, currency };
-      // Local first, and stamped the same way a server write is, so an edit
-      // made offline is recognisably newer than the server copy next launch.
-      await writeCache(auth.userId, { ...plan, updatedAt: Date.now() });
-      try {
-        await saveData(auth.userId, plan);
-        setIsDirty(false);
-        setSaveError(false);
-        setOffline(false);
-        await clearPendingSync();
-        setSavedFlag(true);
-        setTimeout(() => setSavedFlag(false), 2000);
-      } catch {
-        setIsDirty(false);
-        await setPendingSync(auth.userId);
-        // The edit is safely on the device either way; only call it an error
-        // when the network is actually up and the server still refused.
-        if (navigator.onLine === false) {
-          setOffline(true);
-          setSaveError(false);
-        } else {
-          setSaveError(true);
-        }
-      }
+    // Also parked where the backgrounding handler can find it: two seconds is
+    // long enough to swipe the app away in, and iOS does not run the pending
+    // timer afterwards — the edit would be gone from the device as well as
+    // the server.
+    pendingPlanRef.current = { userId, plan };
+    autoSaveTimerRef.current = setTimeout(() => {
+      pendingPlanRef.current = null;
+      persistPlan(userId, plan);
     }, 2000);
     return () => { if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current); };
-  }, [loaded, income, expenses, invest, investLabel, emergencyMonths, savingsAccounts, categoryLimits, bills, customCategories, currency, auth?.userId]);
+  }, [loaded, income, expenses, invest, investLabel, emergencyMonths, savingsAccounts, categoryLimits, bills, customCategories, currency, auth?.userId, persistPlan]);
+
+  // Write the debounced edit out immediately when the app is about to lose the
+  // foreground, rather than letting a suspended timer swallow it.
+  const flushPendingSave = useCallback(() => {
+    const pending = pendingPlanRef.current;
+    if (!pending) return;
+    pendingPlanRef.current = null;
+    if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
+    persistPlan(pending.userId, pending.plan);
+  }, [persistPlan]);
+
+  useEffect(() => {
+    if (!auth?.userId) return;
+    let remove;
+    if (isNative) {
+      (async () => {
+        const { App: CapacitorApp } = await import("@capacitor/app");
+        const handle = await CapacitorApp.addListener("appStateChange", ({ isActive }) => {
+          if (!isActive) flushPendingSave();
+        });
+        remove = () => handle.remove();
+      })();
+    } else {
+      // pagehide rather than beforeunload: Safari fires it on a swipe back and
+      // on a tab going into the page cache, where beforeunload does not.
+      const onHide = () => flushPendingSave();
+      const onVisibility = () => { if (document.visibilityState === "hidden") flushPendingSave(); };
+      window.addEventListener("pagehide", onHide);
+      document.addEventListener("visibilitychange", onVisibility);
+      remove = () => {
+        window.removeEventListener("pagehide", onHide);
+        document.removeEventListener("visibilitychange", onVisibility);
+      };
+    }
+    return () => { if (remove) remove(); };
+  }, [auth?.userId, flushPendingSave]);
 
   // Push anything written while offline as soon as the connection is back.
   // Also runs once on mount, which covers the case where the app was closed
@@ -1366,8 +1440,43 @@ export default function App() {
 
     flush();
     window.addEventListener("online", flush);
-    return () => { cancelled = true; window.removeEventListener("online", flush); };
+    // `online` is unreliable in a WKWebView — it can stay silent through a
+    // whole airplane-mode round trip. Returning to the foreground is the
+    // moment a stranded write is most likely to get through, so retry there
+    // too; flush() is a no-op when there is nothing pending.
+    let removeResume;
+    if (isNative) {
+      (async () => {
+        const { App: CapacitorApp } = await import("@capacitor/app");
+        const handle = await CapacitorApp.addListener("resume", flush);
+        if (cancelled) handle.remove();
+        else removeResume = () => handle.remove();
+      })();
+    }
+    return () => {
+      cancelled = true;
+      window.removeEventListener("online", flush);
+      if (removeResume) removeResume();
+    };
   }, [auth?.userId]);
+
+  useEffect(() => {
+    const bump = () => setForegroundTick((n) => n + 1);
+    let remove;
+    if (isNative) {
+      let cancelled = false;
+      (async () => {
+        const { App: CapacitorApp } = await import("@capacitor/app");
+        const handle = await CapacitorApp.addListener("resume", bump);
+        if (cancelled) handle.remove();
+        else remove = () => handle.remove();
+      })();
+      return () => { cancelled = true; if (remove) remove(); };
+    }
+    const onVisible = () => { if (document.visibilityState === "visible") bump(); };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => document.removeEventListener("visibilitychange", onVisible);
+  }, []);
 
   // Discover biometric support once, and read back whether the lock is on.
   useEffect(() => {
@@ -1536,7 +1645,10 @@ export default function App() {
   const emergencyCoveragePct = emergencyTarget > 0 ? (emergencyCoverage.total / emergencyTarget) * 100 : 0;
 
   // Safe-to-spend: what's left this month spread over the remaining days (incl. today).
-  const now = new Date();
+  // `foregroundTick` is in the dependency list of everything derived from it:
+  // an iOS app stays resident for days, so without a nudge on resume the
+  // "12 days left" from Tuesday is still on screen on Wednesday.
+  const now = useMemo(() => new Date(), [foregroundTick]);
   const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
   const daysLeftInMonth = daysInMonth - now.getDate() + 1;
   const safeToSpendDaily = savings / daysLeftInMonth;
@@ -1544,6 +1656,8 @@ export default function App() {
   // Exact Mon-Fri count for the current calendar month, not a fixed average
   // (a 28-day February and a 31-day month with 5 weekends differ enough to
   // move this by more than a rounding error).
+  // Keyed on the month itself, not just its length: January and March are both
+  // 31 days but do not share a weekday layout.
   const workDaysInMonth = useMemo(() => {
     let count = 0;
     for (let d = 1; d <= daysInMonth; d++) {
@@ -1551,18 +1665,18 @@ export default function App() {
       if (weekday !== 0 && weekday !== 6) count++;
     }
     return count;
-  }, [daysInMonth]);
+  }, [now, daysInMonth]);
   const incomePerWorkDay = workDaysInMonth > 0 ? totalIncome / workDaysInMonth : 0;
 
   const generateSuggestions = useCallback(async () => {
     setSuggestionsLoading(true);
     setSuggestionsError(null);
     try {
-      const res = await fetch(apiUrl("/api/suggestions"), {
+      const res = await fetchWithTimeout(apiUrl("/api/suggestions"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ income, expenses, invest, investLabel, emergencyMonths, savingsAccounts, totalSavingsBalance, categoryLimits, bills, lang, currency }),
-      });
+      }, SUGGESTIONS_TIMEOUT_MS);
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data?.error ?? `API ${res.status}`);
       setSuggestions(data.suggestions ?? "");
