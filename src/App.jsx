@@ -96,10 +96,6 @@ const DEFAULT_EXPENSES = [
   { id: 32, name: "Fathers", type: "Personal", category: "Personal", amount: 0, frequency: "Monthly" },
 ];
 
-const DEFAULT_INCOME = [
-  { id: 1, name: "Salary", amount: 0, frequency: "Monthly" },
-];
-
 // Realistic sample data shown to logged-out visitors and seeded for brand-new
 // accounts on first sign-in, so the app looks alive instead of empty.
 const EXAMPLE_INCOME = [
@@ -217,12 +213,18 @@ function renderInline(text) {
 const SYNC_KEY = "spending_sync_id";
 
 function getSyncId() {
-  let id = localStorage.getItem(SYNC_KEY);
-  if (!id) {
-    id = Math.random().toString(36).slice(2, 8).toUpperCase();
+  // Runs in a useState initialiser, and localStorage throws outright — rather
+  // than returning null — in some privacy configurations. An exception here
+  // would be a blank app, not a lost sync code.
+  try {
+    const existing = localStorage.getItem(SYNC_KEY);
+    if (existing) return existing;
+    const id = Math.random().toString(36).slice(2, 8).toUpperCase();
     localStorage.setItem(SYNC_KEY, id);
+    return id;
+  } catch {
+    return Math.random().toString(36).slice(2, 8).toUpperCase();
   }
-  return id;
 }
 
 // On the web the app is served from the same origin as /api, so a relative
@@ -986,6 +988,10 @@ export default function App() {
 
   const autoSaveTimerRef = useRef(null);
   const pendingPlanRef = useRef(null);
+  // Whether the user has changed anything since the current load began. The
+  // app is editable from the moment the cached plan paints, which is well
+  // before the server answers.
+  const localEditsRef = useRef(false);
   const skipNextSaveRef = useRef(false);
   const tabRefs = useRef({});
   const expensesSectionRef = useRef(null);
@@ -1250,6 +1256,7 @@ export default function App() {
 
     let cancelled = false;
     setLoaded(false);
+    localEditsRef.current = false;
     const userId = auth.userId;
 
     (async () => {
@@ -1276,6 +1283,16 @@ export default function App() {
         // local copy to fall back on; otherwise the app just works offline.
         setOffline(true);
         if (!hasCache) setLoadError(err?.message ?? "Failed to load");
+        setLoaded(true);
+        return;
+      }
+
+      // The cached plan paints and the app is editable from that moment, but
+      // the request that gets here can take seconds on a cellular connection.
+      // Anything typed in that window is newer than either stored copy, so
+      // adopting the server's would silently throw it away. The debounced
+      // autosave is already queued to push what is on screen up instead.
+      if (localEditsRef.current) {
         setLoaded(true);
         return;
       }
@@ -1362,6 +1379,7 @@ export default function App() {
       skipNextSaveRef.current = false;
       return;
     }
+    localEditsRef.current = true;
     const userId = auth.userId;
     const plan = { income, expenses, invest, investLabel, emergencyMonths, savingsAccounts, categoryLimits, bills, customCategories, currency };
     setIsDirty(true);

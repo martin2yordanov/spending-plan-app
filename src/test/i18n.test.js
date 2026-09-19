@@ -83,3 +83,48 @@ describe("LANGUAGES", () => {
     }
   });
 });
+
+// A key missing from a dictionary silently falls back to English, so an
+// untranslated string looks like a rendering choice rather than a gap. These
+// keep the three dictionaries in step as new strings are added.
+describe("translation coverage", () => {
+  // Every language the picker offers, driven off LANGUAGES so a new one cannot
+  // be added without its dictionary.
+  const codes = LANGUAGES.map((l) => l.code);
+
+  it("offers a dictionary for every language in the picker", () => {
+    for (const code of codes) {
+      const t = makeT(code);
+      expect(t("appTitle")).toBeTruthy();
+      expect(t("tab_overview")).toBeTruthy();
+    }
+  });
+
+  it("translates every key away from the English wording", () => {
+    const en = makeT("en");
+    // Sampled across the app rather than exhaustive, so this stays readable;
+    // the untranslated case it guards against is a whole missing block.
+    const sample = [
+      "tab_overview", "tab_expenses", "tab_income", "tab_savings", "tab_suggestions",
+      "card_monthlyIncome", "card_monthlyExpenses", "card_netSavings",
+      "sts_title", "healthScore", "emergencyFund", "advisorTitle",
+      "btn_delete", "btn_cancel", "btn_done", "addExpense", "addIncome",
+      "deleteAccountTitle", "importTitle", "privacyPolicy", "faceIdLock",
+    ];
+    for (const code of codes.filter((c) => c !== "en")) {
+      const t = makeT(code);
+      const untranslated = sample.filter((k) => t(k) === en(k));
+      expect(untranslated, `${code} falls back to English for: ${untranslated.join(", ")}`).toEqual([]);
+    }
+  });
+
+  it("names every category and frequency in every language", () => {
+    const categories = ["Child", "Bills", "Food", "Car", "Entertainment", "Personal", "Medical", "Holidays", "Other", "Savings"];
+    const frequencies = ["Monthly", "Annual", "Weekly", "Quarterly", "Bi-weekly"];
+    for (const code of codes) {
+      const t = makeT(code);
+      for (const c of categories) expect(t.cat(c), `${code}/${c}`).toBeTruthy();
+      for (const f of frequencies) expect(t.freq(f), `${code}/${f}`).toBeTruthy();
+    }
+  });
+});
