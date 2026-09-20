@@ -1324,6 +1324,16 @@ export default function App() {
           await writeCache(userId, saved);
         }
         setLoaded(true);
+      } else if (hasCache) {
+        // The device has a real plan and the server has nothing. That is a
+        // gap on the server — an evicted key, a restore, a write that never
+        // landed — not a new account. Seeding example data here would replace
+        // the user's figures on screen with invented ones and then push those
+        // up, destroying the only remaining copy. Send the local one instead.
+        saveData(userId, cached)
+          .then(() => clearPendingSync())
+          .catch(() => setPendingSync(userId));
+        setLoaded(true);
       } else {
         // Brand-new account: check for pre-auth sync code data first.
         let oldSyncId = null;
