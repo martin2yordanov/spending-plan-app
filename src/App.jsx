@@ -1303,29 +1303,59 @@ export default function App() {
     setRenameInput(getCategoryLabel(category, customCategories, t));
   }, [customCategories, t]);
 
+  // Reads the key it is renaming directly rather than from inside a setState
+  // updater: React may run an updater more than once, and dispatching another
+  // update from within one is how that bites.
   const commitRenameCategory = useCallback(() => {
-    setRenamingCategory((key) => {
-      const label = renameInput.trim();
-      if (key && label) {
-        setCustomCategories((current) => ({ ...current, [key]: { ...current[key], label } }));
-      }
-      return null;
-    });
+    const label = renameInput.trim();
+    const key = renamingCategory;
+    if (key && label) {
+      setCustomCategories((current) => ({ ...current, [key]: { ...current[key], label } }));
+    }
+    setRenamingCategory(null);
     setRenameInput("");
-  }, [renameInput]);
+  }, [renameInput, renamingCategory]);
 
   const cancelRenameCategory = useCallback(() => {
     setRenamingCategory(null);
     setRenameInput("");
   }, []);
 
+  // Opening the add form with the category already set to whatever is being
+  // filtered. It defaulted to Personal, so creating a category, which switches
+  // the filter to it, and then adding an expense filed that expense somewhere
+  // else — and the filter promptly hid it. The row looked like it had simply
+  // not been added.
+  const startAddingExpense = useCallback(() => {
+    setNewExpense((current) => ({
+      ...current,
+      category: filterCat === "All" ? current.category : filterCat,
+    }));
+    setAddingExpense(true);
+  }, [filterCat]);
+
   const handleCreateCategory = useCallback((name, icon) => {
-    const key = name.trim();
-    if (!key) return;
-    setCustomCategories((current) => ({ ...current, [key]: { icon } }));
+    const label = name.trim();
+    if (!label) return;
+
+    // The key is the stable identity stored on every expense; the label is
+    // only what it is shown as. The dialog rejects a duplicate *label*, which
+    // leaves one way through: rename the built-in "Bills" to something else,
+    // then create a category called "Bills". Keying the new one on "Bills"
+    // would take the built-in's key over and drop the rename with it.
+    let key = label;
+    if (CATEGORY_COLORS[key] || customCategories[key]) {
+      let suffix = 2;
+      while (CATEGORY_COLORS[`${label} ${suffix}`] || customCategories[`${label} ${suffix}`]) suffix++;
+      key = `${label} ${suffix}`;
+    }
+
+    // Stored explicitly, so the label the user typed is what shows even when
+    // the key underneath had to differ from it.
+    setCustomCategories((current) => ({ ...current, [key]: { icon, label } }));
     setFilterCat(key);
     closeNewCategoryModal();
-  }, [closeNewCategoryModal]);
+  }, [customCategories, closeNewCategoryModal]);
 
   useEffect(() => {
     // Logged out: show example demo data, no backend reads/writes.
@@ -3696,7 +3726,7 @@ export default function App() {
                 ) : (
                   <div style={{ padding: "12px 20px", borderTop: "1px solid #F2F2F7" }}>
                     <button
-                      onClick={() => setAddingExpense(true)}
+                      onClick={startAddingExpense}
                       style={{
                         display: "flex",
                         alignItems: "center",
@@ -3811,7 +3841,7 @@ export default function App() {
                 </div>
               ) : (
                 <button
-                  onClick={() => setAddingExpense(true)}
+                  onClick={startAddingExpense}
                   style={{
                     marginTop: 10, width: "100%", padding: "14px", borderRadius: 16,
                     border: "2px dashed #C7C7CC", background: "transparent",
