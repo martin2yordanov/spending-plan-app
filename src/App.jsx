@@ -140,8 +140,35 @@ const EXAMPLE_EXPENSES = DEFAULT_EXPENSES.map((e) => ({
 // cache entry, a response from a server having a bad day. The screen is built
 // straight out of it, so a string where a list belongs is a crash rather than a
 // wrong number — and the crash takes the whole app with it.
-const rowsOf = (value) =>
-  (Array.isArray(value) ? value.filter((row) => row && typeof row === "object") : null);
+const rowsOf = (value) => {
+  if (!Array.isArray(value)) return null;
+  const seen = new Set();
+  return value
+    .filter((row) => row && typeof row === "object")
+    .map((row) => {
+      // Rows are addressed by id everywhere — the React key, editing, deleting.
+      // A missing id or a repeated one means React reuses the wrong node and
+      // every edit-by-id touches both rows at once, which reads as the app
+      // changing a figure the user did not touch.
+      if (row.id != null && !seen.has(row.id)) {
+        seen.add(row.id);
+        return row;
+      }
+      let fresh = Date.now();
+      while (seen.has(fresh)) fresh++;
+      seen.add(fresh);
+      return { ...row, id: fresh };
+    });
+};
+
+// Date.now() called twice inside the same millisecond hands out the same id
+// twice, and an imported plan can already be using one.
+function nextId(rows) {
+  const highest = rows.reduce((max, row) => (
+    typeof row?.id === "number" && row.id > max ? row.id : max
+  ), 0);
+  return Math.max(Date.now(), highest + 1);
+}
 const mapOf = (value) =>
   (value && typeof value === "object" && !Array.isArray(value) ? value : null);
 const numberOf = (value) => {
@@ -2230,7 +2257,7 @@ export default function App() {
       return;
     }
 
-    setExpenses((current) => [...current, { ...newExpense, amount: parseAmount(newExpense.amount, 0), id: Date.now() }]);
+    setExpenses((current) => [...current, { ...newExpense, amount: parseAmount(newExpense.amount, 0), id: nextId(current) }]);
     setNewExpense({ name: "", type: "", category: "Personal", amount: 0, frequency: "Monthly" });
     setAddingExpense(false);
   };
@@ -2240,7 +2267,7 @@ export default function App() {
       return;
     }
 
-    setIncome((current) => [...current, { ...newIncome, amount: parseAmount(newIncome.amount, 0), id: Date.now() }]);
+    setIncome((current) => [...current, { ...newIncome, amount: parseAmount(newIncome.amount, 0), id: nextId(current) }]);
     setNewIncome({ name: "", amount: 0, frequency: "Monthly" });
     setAddingIncome(false);
   };
@@ -4408,7 +4435,7 @@ export default function App() {
                         onClick={() => {
                           if (!newSavings.name) return;
                           setSavingsAccounts(s => [...s, {
-                            id: Date.now(),
+                            id: nextId(s),
                             name: newSavings.name,
                             amount: parseNumeric(newSavings.amount) || 0,
                             target: parseNumeric(newSavings.target) > 0 ? parseNumeric(newSavings.target) : "",
