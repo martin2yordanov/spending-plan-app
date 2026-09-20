@@ -3,7 +3,10 @@ dist
 .DS_Store
 .vercel
 .npm-cache
-data/spending-plan.json
+# The local API's plan store. The old pattern was `data/spending-plan.json`,
+# but the files it actually writes are `data/spending-plan-<id>.json`, so real
+# figures from local testing were never ignored at all.
+data/
 .env.local
 .env*.local
 .claude/
