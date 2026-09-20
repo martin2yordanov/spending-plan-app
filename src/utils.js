@@ -48,7 +48,9 @@ export function convertAmount(amount, from, to) {
 // ("12.5", "") until it is committed, and the autosave can persist it in that
 // state — an uncoerced string turns every running total into concatenation.
 export function freqToMonthly(value, freq) {
-  const amount = Number(value) || 0;
+  // parseNumeric rather than Number, so a half-typed "12,5" reads as 12.5
+  // instead of collapsing the row to zero until the field is committed.
+  const amount = parseNumeric(value) || 0;
   switch (freq) {
     case "Monthly":   return amount;
     case "Annual":    return amount / 12;

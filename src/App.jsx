@@ -1502,6 +1502,21 @@ export default function App() {
     return () => document.removeEventListener("visibilitychange", onVisible);
   }, []);
 
+  // The foreground nudge covers an app that was put away and picked back up.
+  // This covers the other case — left open across midnight — which used to
+  // right itself on the next keystroke, back when every render read the clock.
+  // A minute's granularity on a figure that changes once a day is plenty.
+  useEffect(() => {
+    let day = new Date().getDate();
+    const id = setInterval(() => {
+      const today = new Date().getDate();
+      if (today === day) return;
+      day = today;
+      setForegroundTick((n) => n + 1);
+    }, 60000);
+    return () => clearInterval(id);
+  }, []);
+
   // Discover biometric support once, and read back whether the lock is on.
   useEffect(() => {
     let cancelled = false;

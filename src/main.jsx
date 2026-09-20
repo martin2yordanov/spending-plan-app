@@ -36,4 +36,14 @@ ReactDOM.createRoot(document.getElementById("root")).render(
 // *schedules* the work, so calling this straight after it was a race. Two
 // frames is the usual way to land after a real paint: the first callback runs
 // before the upcoming frame, the second after it has been committed.
-requestAnimationFrame(() => requestAnimationFrame(() => { initNative(); }));
+let nativeStarted = false;
+const startNative = () => {
+  if (nativeStarted) return;
+  nativeStarted = true;
+  initNative();
+};
+requestAnimationFrame(() => requestAnimationFrame(startNative));
+// iOS can launch an app straight into the background, where animation frames
+// do not run. Nothing is on screen to protect then, and a splash that never
+// comes down would outlast the reason for holding it.
+setTimeout(startNative, 2000);

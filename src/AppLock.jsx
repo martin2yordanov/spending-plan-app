@@ -53,7 +53,7 @@ export default function AppLock({ children }) {
         setUnlocked(true);
         return;
       }
-      setUnlocked((already) => already && false);
+      setUnlocked(false);
       await attempt();
     })();
     return () => { cancelled = true; };

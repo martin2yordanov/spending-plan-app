@@ -213,3 +213,28 @@ describe("parseNumeric", () => {
     expect(parseAmount("", 99)).toBe(99);
   });
 });
+
+describe("freqToMonthly with a half-typed amount", () => {
+  // A row being edited holds the raw input string until it is committed, and
+  // the 2s autosave can persist it in that state.
+  it("reads a string amount", () => {
+    expect(freqToMonthly("120", "Monthly")).toBe(120);
+    expect(freqToMonthly("1200", "Annual")).toBe(100);
+  });
+
+  it("reads a comma the same way the input does", () => {
+    expect(freqToMonthly("12,5", "Monthly")).toBe(12.5);
+  });
+
+  it("treats nothing as zero rather than NaN", () => {
+    expect(freqToMonthly("", "Monthly")).toBe(0);
+    expect(freqToMonthly(undefined, "Monthly")).toBe(0);
+    expect(freqToMonthly("abc", "Monthly")).toBe(0);
+  });
+
+  it("keeps totals numeric when a row is mid-edit", () => {
+    const rows = [{ amount: 100, frequency: "Monthly" }, { amount: "50", frequency: "Monthly" }];
+    const total = rows.reduce((s, r) => s + freqToMonthly(r.amount, r.frequency), 0);
+    expect(total).toBe(150);
+  });
+});
