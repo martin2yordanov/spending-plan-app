@@ -139,9 +139,18 @@ argue against that:
 | Capability | Why it is not "just the website" |
 |---|---|
 | Works offline | Plan is cached on device; edits sync when the connection returns |
-| Face ID lock | Biometric hardware, re-locks on backgrounding |
-| Bill reminders | Local notifications scheduled from due dates |
+| Face ID lock | Biometric hardware, re-locks on backgrounding, re-prompts on resume |
 | Native share sheet | Report goes through Files / Print / Messages |
+
+> **Bill reminders are not currently reachable.** The scheduling is all
+> there — `syncBillReminders` in `src/native.js`, the `bills` field in the
+> stored plan, the report section, the translated notification text — but the
+> card that created a bill was removed, and nothing replaced it. A plan can
+> only hold bills if it already had them. So the feature cannot be
+> demonstrated to a reviewer, and it should not be argued in a 4.2 response
+> until there is a way to add one. Either restore an editor for it or drop the
+> claim; leaving it as is means the app schedules nothing and the code path is
+> dead.
 
 If it is still rejected under 4.2, the strongest next additions are a **home
 screen widget** (WidgetKit, shows safe-to-spend without opening the app) and
@@ -164,9 +173,19 @@ test, which is why they are not here.
   definition not the caller's own, the same knowledge-of-id model a
   pre-sign-in sync code already relies on.
 - **Sync is last-write-wins by device clock.** Fine for one person's own
-  devices; would need real conflict handling for a shared household plan.
+  devices; would need real conflict handling for a shared household plan. The
+  app refetches when it returns to the foreground, so a device left running no
+  longer keeps stale figures it would then stamp as the newest — but two
+  devices edited at genuinely the same moment still resolve by clock.
 - **Reminders fire on the due day**, not before, because "two days before the
-  1st" lands in the previous month, whose length varies.
+  1st" lands in the previous month, whose length varies. Permission is only
+  requested once there is actually a reminder to schedule, so a first launch
+  no longer asks for notifications it has no use for.
+
+- **The web build has no service worker.** The native app bundles its assets,
+  so it opens with no connection; the web app caches the *plan* offline but
+  not the app shell, and a cold load with no connection still fails. The
+  manifest claims `display: standalone`, which oversells that.
 - **Redis password** may still be in Vercel's runtime logs from before the
   scrubbing fix. Rotate it.
 - **Set `RATELIMIT_SALT`** in Vercel to any long random string. Both API
