@@ -337,6 +337,7 @@ async function saveData(id, data) {
     body: JSON.stringify(body),
   });
   if (!res.ok) throw apiError(res.status);
+  return body.updatedAt;
 }
 
 
@@ -1032,6 +1033,12 @@ export default function App() {
   // app is editable from the moment the cached plan paints, which is well
   // before the server answers.
   const localEditsRef = useRef(false);
+  // updatedAt of the plan currently on screen, so a copy fetched later can be
+  // compared against it rather than against whatever happens to be cached.
+  const localStampRef = useRef(0);
+  // Whether a row is open for editing. Adopting a newer plan underneath an
+  // open editor would rewrite the row being typed into.
+  const isEditingRef = useRef(false);
   const skipNextSaveRef = useRef(false);
   const tabRefs = useRef({});
   const expensesSectionRef = useRef(null);
@@ -1322,6 +1329,7 @@ export default function App() {
       if (cancelled) return;
       if (hasCache) {
         applyPlan(cached);
+        localStampRef.current = Number(cached.updatedAt) || 0;
         setLoadError(null);
         setLoaded(true);
       }
@@ -1365,6 +1373,7 @@ export default function App() {
             .catch(() => setPendingSync(userId));
         } else {
           applyPlan(saved);
+          localStampRef.current = remoteAt;
           await writeCache(userId, saved);
         }
         setLoaded(true);
@@ -1414,9 +1423,11 @@ export default function App() {
   const persistPlan = useCallback(async (userId, plan) => {
     // Local first, and stamped the same way a server write is, so an edit
     // made offline is recognisably newer than the server copy next launch.
-    await writeCache(userId, { ...plan, updatedAt: Date.now() });
+    const stamp = Date.now();
+    await writeCache(userId, { ...plan, updatedAt: stamp });
+    localStampRef.current = stamp;
     try {
-      await saveData(userId, plan);
+      localStampRef.current = (await saveData(userId, plan)) ?? stamp;
       setIsDirty(false);
       setSaveError(false);
       setOffline(false);
@@ -1472,6 +1483,65 @@ export default function App() {
     }, 2000);
     return () => { if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current); };
   }, [loaded, income, expenses, invest, investLabel, emergencyMonths, savingsAccounts, categoryLimits, bills, customCategories, currency, auth?.userId, persistPlan]);
+
+  useEffect(() => {
+    isEditingRef.current =
+      editingExpense != null || editingIncome != null || editingSavings != null ||
+      editingLimitCat != null || renamingCategory != null ||
+      addingExpense || addingIncome || addingSavings;
+  }, [editingExpense, editingIncome, editingSavings, editingLimitCat, renamingCategory, addingExpense, addingIncome, addingSavings]);
+
+  // Pick up an edit made on another device when this one comes back to the
+  // foreground.
+  //
+  // Without it a phone left running shows yesterday's figures indefinitely —
+  // and worse, the first edit made on those stale figures is stamped *now*,
+  // so it wins the next comparison and the edit made elsewhere is gone. The
+  // guards are what keep this from being the thing that loses data: nothing
+  // queued, nothing stranded, no editor open, and the fetched copy has to be
+  // strictly newer than what is on screen.
+  useEffect(() => {
+    if (!auth?.userId) return;
+    const userId = auth.userId;
+    let cancelled = false;
+
+    async function refresh() {
+      if (cancelled || !navigator.onLine) return;
+      if (pendingPlanRef.current || isEditingRef.current) return;
+      if ((await getPendingSync()) === userId) return;
+
+      let saved;
+      try {
+        saved = await loadData(userId);
+      } catch {
+        return; // offline or refused; the existing flush paths handle it
+      }
+      if (cancelled || !saved || typeof saved !== "object") return;
+      // Re-checked because the fetch gave them time to start typing.
+      if (pendingPlanRef.current || isEditingRef.current) return;
+
+      const remoteAt = Number(saved.updatedAt) || 0;
+      if (remoteAt <= localStampRef.current) return;
+      applyPlan(saved);
+      localStampRef.current = remoteAt;
+      await writeCache(userId, saved);
+    }
+
+    let remove;
+    if (isNative) {
+      (async () => {
+        const { App: CapacitorApp } = await import("@capacitor/app");
+        const handle = await CapacitorApp.addListener("resume", refresh);
+        if (cancelled) handle.remove();
+        else remove = () => handle.remove();
+      })();
+    } else {
+      const onVisible = () => { if (document.visibilityState === "visible") refresh(); };
+      document.addEventListener("visibilitychange", onVisible);
+      remove = () => document.removeEventListener("visibilitychange", onVisible);
+    }
+    return () => { cancelled = true; if (remove) remove(); };
+  }, [auth?.userId, applyPlan]);
 
   // Write the debounced edit out immediately when the app is about to lose the
   // foreground, rather than letting a suspended timer swallow it.
