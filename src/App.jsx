@@ -285,7 +285,13 @@ async function deleteData(id) {
     method: "DELETE",
     headers: await authHeaders(),
   });
-  if (!res.ok) throw new Error(`API ${res.status}`);
+  if (!res.ok) throw apiError(res.status);
+}
+
+function apiError(status) {
+  const err = new Error(`API ${status}`);
+  err.status = status;
+  return err;
 }
 
 async function saveData(id, data) {
@@ -298,7 +304,7 @@ async function saveData(id, data) {
     headers: { "Content-Type": "application/json", ...(await authHeaders()) },
     body: JSON.stringify(body),
   });
-  if (!res.ok) throw new Error(`API ${res.status}`);
+  if (!res.ok) throw apiError(res.status);
 }
 
 
@@ -1104,6 +1110,9 @@ export default function App() {
   // reason. Distinct from saveError: the work is safe on the device, so this
   // is informational rather than an error the user must act on.
   const [offline, setOffline] = useState(false);
+  // The server refused the write because the Clerk session is no longer valid.
+  // Distinct from saveError: retrying cannot fix it, signing back in can.
+  const [sessionExpired, setSessionExpired] = useState(false);
   const [filterCat, setFilterCat] = useState("All");
   const [customCategories, setCustomCategories] = useState({}); // { [key]: { label?, icon?, color? } }
   const [showNewCategoryModal, setShowNewCategoryModal] = useState(false);
@@ -1357,12 +1366,23 @@ export default function App() {
       setIsDirty(false);
       setSaveError(false);
       setOffline(false);
+      setSessionExpired(false);
       await clearPendingSync();
       setSavedFlag(true);
       setTimeout(() => setSavedFlag(false), 2000);
-    } catch {
+    } catch (err) {
       setIsDirty(false);
       await setPendingSync(userId);
+      // A refused write is not a failed one. 401 means the session has
+      // expired, and no amount of retrying fixes that — say so instead of
+      // offering a Retry that can only fail again.
+      if (err?.status === 401) {
+        setSessionExpired(true);
+        setSaveError(false);
+        setOffline(false);
+        return;
+      }
+      setSessionExpired(false);
       // The edit is safely on the device either way; only call it an error
       // when the network is actually up and the server still refused.
       if (navigator.onLine === false) {
@@ -2126,7 +2146,18 @@ export default function App() {
 
   // Header save-status pill (signed-in only): saving / saved / retry.
   const saveStatus = (
-    saveError ? (
+    sessionExpired ? (
+      <span
+        title={t("sessionExpiredHint")}
+        style={{
+          padding: "6px 12px", borderRadius: 20, border: "1.5px solid #FFE0B2",
+          background: "#FFF6E5", color: "#9A6200", fontSize: 12, fontWeight: 600,
+          display: "flex", alignItems: "center", gap: 5, whiteSpace: "nowrap",
+        }}
+      >
+        ⚠ {t("sessionExpired")}
+      </span>
+    ) : saveError ? (
       <button
         onClick={retrySave}
         style={{
