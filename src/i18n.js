@@ -376,6 +376,24 @@ const TRANSLATIONS = {
   },
 };
 
+/**
+ * The language the user last chose, read straight from storage.
+ *
+ * For the two screens that render outside the app's own state: the Face ID
+ * gate, which is up before anything has loaded, and the error boundary, which
+ * is up precisely because something threw — possibly the thing that would have
+ * given it a translation. Both keep their own small string tables for the same
+ * reason, rather than reaching into this one.
+ */
+export function storedLang() {
+  try {
+    const code = localStorage.getItem(LANG_KEY);
+    return LANGUAGES.some((l) => l.code === code) ? code : "en";
+  } catch {
+    return "en";
+  }
+}
+
 export function makeT(lang) {
   const dict = TRANSLATIONS[lang] || TRANSLATIONS.en;
   const en = TRANSLATIONS.en;

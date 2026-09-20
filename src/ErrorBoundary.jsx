@@ -1,4 +1,29 @@
 import { Component } from "react";
+import { storedLang } from "./i18n";
+
+// Its own string table, deliberately. This screen is up because something
+// threw, and reaching into the main dictionary to render it means trusting the
+// code that may well be what threw. Five strings is a cheap independence.
+const COPY = {
+  en: {
+    title: "Something went wrong",
+    body: "Your plan is saved on this device and nothing has been lost. Restarting usually clears it.",
+    restart: "Restart",
+    details: "Technical details",
+  },
+  bg: {
+    title: "Нещо се обърка",
+    body: "Планът ти е запазен на това устройство и нищо не е загубено. Рестартирането обикновено оправя нещата.",
+    restart: "Рестартирай",
+    details: "Технически детайли",
+  },
+  es: {
+    title: "Algo ha ido mal",
+    body: "Tu plan está guardado en este dispositivo y no se ha perdido nada. Reiniciar suele resolverlo.",
+    restart: "Reiniciar",
+    details: "Detalles técnicos",
+  },
+};
 
 /**
  * Last line of defence for a render-time exception.
@@ -33,6 +58,8 @@ export default class ErrorBoundary extends Component {
   render() {
     if (!this.state.error) return this.props.children;
 
+    const copy = COPY[storedLang()] ?? COPY.en;
+
     return (
       <div
         role="alert"
@@ -51,10 +78,9 @@ export default class ErrorBoundary extends Component {
         }}
       >
         <div style={{ fontSize: 40, lineHeight: 1 }}>😵‍💫</div>
-        <div style={{ fontSize: 18, fontWeight: 700 }}>Something went wrong</div>
+        <div style={{ fontSize: 18, fontWeight: 700 }}>{copy.title}</div>
         <div style={{ fontSize: 13.5, color: "#6C6C70", lineHeight: 1.55, maxWidth: 300 }}>
-          Your plan is saved on this device and nothing has been lost. Restarting
-          usually clears it.
+          {copy.body}
         </div>
         <button
           onClick={() => window.location.reload()}
@@ -70,13 +96,13 @@ export default class ErrorBoundary extends Component {
             fontWeight: 600,
           }}
         >
-          Restart
+          {copy.restart}
         </button>
         {/* Collapsed, because the message means nothing to most people, but
             present so a bug report can carry something useful. */}
         <details style={{ marginTop: 8, maxWidth: 320, width: "100%" }}>
           <summary style={{ fontSize: 12, color: "#8E8E93", cursor: "pointer" }}>
-            Technical details
+            {copy.details}
           </summary>
           <pre
             style={{

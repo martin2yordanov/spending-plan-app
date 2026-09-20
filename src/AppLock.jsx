@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { storedLang } from "./i18n";
 import {
   isNative,
   biometricAvailable,
@@ -6,6 +7,14 @@ import {
   biometricLockHint,
   readBiometricLock,
 } from "./native";
+
+// Kept here rather than pulled from the main dictionary: this screen is up
+// before the app has loaded anything, and it is four strings.
+const COPY = {
+  en: { title: "Spending Plan", unlocking: "Unlocking…", failed: "Unlock failed. Try again.", unlock: "Unlock", reason: "Unlock Spending Plan" },
+  bg: { title: "Spending Plan", unlocking: "Отключване…", failed: "Отключването не успя. Опитай пак.", unlock: "Отключи", reason: "Отключи Spending Plan" },
+  es: { title: "Spending Plan", unlocking: "Desbloqueando…", failed: "No se pudo desbloquear. Inténtalo de nuevo.", unlock: "Desbloquear", reason: "Desbloquea Spending Plan" },
+};
 
 /**
  * Holds the app behind Face ID / Touch ID when the user has switched the lock
@@ -25,6 +34,7 @@ export default function AppLock({ children }) {
   const [unlocked, setUnlocked] = useState(() => !biometricLockHint());
   const [failed, setFailed] = useState(false);
   const busyRef = useRef(false);
+  const copy = COPY[storedLang()] ?? COPY.en;
 
   const attempt = useCallback(async () => {
     // A second prompt raised while the first is still up is rejected by iOS,
@@ -33,13 +43,13 @@ export default function AppLock({ children }) {
     busyRef.current = true;
     setFailed(false);
     try {
-      const ok = await biometricUnlock("Unlock Spending Plan");
+      const ok = await biometricUnlock(copy.reason);
       setUnlocked(ok);
       setFailed(!ok);
     } finally {
       busyRef.current = false;
     }
-  }, []);
+  }, [copy.reason]);
 
   useEffect(() => {
     let cancelled = false;
@@ -90,9 +100,9 @@ export default function AppLock({ children }) {
       justifyContent: "center", gap: 18, padding: 24, zIndex: 9999,
     }}>
       <img src="/money-bag.png" alt="" aria-hidden="true" style={{ height: 84, width: "auto" }} />
-      <div style={{ fontSize: 17, fontWeight: 700, color: "#3B2E20" }}>Spending Plan</div>
+      <div style={{ fontSize: 17, fontWeight: 700, color: "#3B2E20" }}>{copy.title}</div>
       <div style={{ fontSize: 13, color: "#6B5A45", textAlign: "center", maxWidth: 260 }}>
-        {failed ? "Unlock failed. Try again." : "Unlocking…"}
+        {failed ? copy.failed : copy.unlocking}
       </div>
       <button
         onClick={attempt}
@@ -101,7 +111,7 @@ export default function AppLock({ children }) {
           background: "#3B2E20", color: "#fff", fontSize: 14, fontWeight: 600,
         }}
       >
-        Unlock
+        {copy.unlock}
       </button>
     </div>
   );

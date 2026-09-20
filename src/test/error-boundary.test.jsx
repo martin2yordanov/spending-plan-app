@@ -38,6 +38,18 @@ describe("ErrorBoundary", () => {
     expect(screen.getByText(/money is not defined/)).toBeInTheDocument();
   });
 
+  it("speaks the language the app was last set to", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    localStorage.setItem("spending_lang", "bg");
+    try {
+      render(<ErrorBoundary><Boom /></ErrorBoundary>);
+      expect(screen.getByText("Нещо се обърка")).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Рестартирай" })).toBeInTheDocument();
+    } finally {
+      localStorage.clear();
+    }
+  });
+
   it("reloads when Restart is pressed", async () => {
     vi.spyOn(console, "error").mockImplementation(() => {});
     const reload = vi.fn();
