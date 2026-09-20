@@ -131,3 +131,48 @@ describe("api/data.js payload ceiling", () => {
     expect(store.has("spending-plan:AB12CD")).toBe(true);
   });
 });
+
+describe("api/data.js rate limiting", () => {
+  const get = (ip = "5.5.5.5") => ({ method: "GET", query: { id: "AB12CD" }, headers: { "x-forwarded-for": ip } });
+
+  // A sync code is a six-character secret. A ceiling does not make guessing
+  // every value impossible, it makes it impractical from one source.
+  it("refuses a caller grinding through ids", async () => {
+    let last;
+    for (let i = 0; i < 201; i++) {
+      last = fakeRes();
+      await dataHandler(get(), last);
+    }
+    expect(last.statusCode).toBe(429);
+    expect(last.headers["Retry-After"]).toBeTruthy();
+  });
+
+  it("counts each caller separately", async () => {
+    for (let i = 0; i < 201; i++) await dataHandler(get("1.1.1.1"), fakeRes());
+    const other = fakeRes();
+    await dataHandler(get("2.2.2.2"), other);
+    expect(other.statusCode).toBe(200);
+  });
+
+  // Saves are debounced to one per 2s of editing, so a long session is tens of
+  // writes. A refused save surfaces as "Couldn't save" to somebody who did
+  // nothing wrong, so reads and writes are budgeted apart.
+  it("does not let reads eat into the write budget", async () => {
+    for (let i = 0; i < 201; i++) await dataHandler(get("3.3.3.3"), fakeRes());
+    const write = fakeRes();
+    await dataHandler(
+      { method: "POST", query: { id: "AB12CD" }, headers: { "x-forwarded-for": "3.3.3.3" }, body: { income: [] } },
+      write,
+    );
+    expect(write.statusCode).toBe(200);
+  });
+
+  it("serves normally when Redis is unreachable", async () => {
+    redisBroken = true;
+    const res = fakeRes();
+    await dataHandler(get("4.4.4.4"), res);
+    // The read itself fails on the broken store, but not with a 429 — the
+    // limiter must not be what takes the endpoint down.
+    expect(res.statusCode).not.toBe(429);
+  });
+});

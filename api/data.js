@@ -1,6 +1,7 @@
 import Redis from "ioredis";
 import { applyCors } from "./_cors.js";
 import { isClerkUserId, getVerifiedUserId, authConfigured } from "./_auth.js";
+import { rateLimit, clientKey } from "./_ratelimit.js";
 
 // ioredis embeds the whole connection string — password included — in its
 // connection error messages ("connect ENOENT redis://default:hunter2@host").
@@ -14,6 +15,17 @@ function redact(message) {
 // is not one. Writing to a Clerk id needs a session, but a sync code is open by
 // design, so without a ceiling one caller can park megabytes per id in Redis.
 const MAX_PLAN_BYTES = 512 * 1024;
+
+// Reading a plan is knowledge-of-id by design, which is what makes "import
+// from another account" work at all — but it also means a sync code is a
+// six-character secret somebody could simply try every value of. A ceiling
+// does not make that impossible, it makes it impractical from one source.
+// The app itself does one GET per launch, so nothing legitimate is near this.
+const READ_LIMIT = { limit: 200, windowSeconds: 3600 };
+// Writes are debounced to one per 2s of editing, so a long session is tens,
+// not hundreds. Deliberately far above that: a save that gets refused surfaces
+// as "Couldn't save" to somebody who did nothing wrong.
+const WRITE_LIMIT = { limit: 600, windowSeconds: 3600 };
 
 let _client = null;
 function getClient() {
@@ -68,6 +80,16 @@ export default async function handler(req, res) {
         return res.status(401).json({ error: "Sign-in required to modify this account's data" });
       }
     }
+  }
+
+  const isWrite = req.method === "POST" || req.method === "DELETE";
+  const quota = await rateLimit(
+    `data:${isWrite ? "w" : "r"}:${clientKey(req)}`,
+    isWrite ? WRITE_LIMIT : READ_LIMIT,
+  );
+  if (!quota.allowed) {
+    res.setHeader("Retry-After", String(quota.retryAfter));
+    return res.status(429).json({ error: "Too many requests. Try again later." });
   }
 
   const KEY = `spending-plan:${id}`;
