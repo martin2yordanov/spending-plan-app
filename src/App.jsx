@@ -1504,12 +1504,26 @@ export default function App() {
     if (!auth?.userId) return;
     const userId = auth.userId;
     let cancelled = false;
+    let inFlight = false;
+    let lastCheckedAt = 0;
 
     async function refresh() {
       if (cancelled || !navigator.onLine) return;
+      // Switching browser tabs fires this too, and a fetch per flick would be
+      // both wasteful and a good way to meet the endpoint's own rate limit.
+      if (inFlight || Date.now() - lastCheckedAt < 30000) return;
       if (pendingPlanRef.current || isEditingRef.current) return;
       if ((await getPendingSync()) === userId) return;
+      inFlight = true;
+      lastCheckedAt = Date.now();
+      try {
+        await fetchNewer();
+      } finally {
+        inFlight = false;
+      }
+    }
 
+    async function fetchNewer() {
       let saved;
       try {
         saved = await loadData(userId);
