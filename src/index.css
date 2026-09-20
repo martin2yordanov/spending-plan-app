@@ -66,6 +66,13 @@ select {
   min-width: 0;
 }
 
+/* The tab strip hides its scrollbar. `scrollbar-width` is the Firefox
+   spelling and `-ms-overflow-style` the IE one; WebKit needs a pseudo-element,
+   which an inline style cannot express. */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
 /* Apple asks for a 44pt touch target. A few controls here are deliberately
    small — a text link inside a dense row, an icon button in a table cell — so
    the *target* is grown around the label rather than the label itself. Only

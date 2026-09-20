@@ -31,5 +31,9 @@ ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>{tree}</React.StrictMode>,
 );
 
-// After the first paint, so hiding the splash never reveals a blank WebView.
-initNative();
+// The splash is held open (launchAutoHide: false) until this runs, and it must
+// not come down over an empty WebView. `render()` on a concurrent root only
+// *schedules* the work, so calling this straight after it was a race. Two
+// frames is the usual way to land after a real paint: the first callback runs
+// before the upcoming frame, the second after it has been committed.
+requestAnimationFrame(() => requestAnimationFrame(() => { initNative(); }));

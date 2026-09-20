@@ -569,7 +569,7 @@ function CategoryModal({ cat, label, color, icon, catExpenses, closing, onClose,
           </div>
 
           {/* Expense list */}
-          <div style={{ overflowY: "auto", padding: "14px 16px 32px", display: "flex", flexDirection: "column", gap: 10 }}>
+          <div style={{ overflowY: "auto", padding: "14px 16px calc(32px + env(safe-area-inset-bottom))", display: "flex", flexDirection: "column", gap: 10 }}>
             {catExpenses.length === 0 && (
               <div style={{ textAlign: "center", padding: "40px 0", color: "#6C6C70", fontSize: 14 }}>
                 {t("no_expenses_in_cat")}
@@ -740,7 +740,7 @@ function NewCategoryModal({ closing, onClose, onCreate, existingLabels, t }) {
             overflowY: "auto",
             display: "flex",
             flexDirection: "column",
-            padding: "22px 22px 28px",
+            padding: "22px 22px calc(28px + env(safe-area-inset-bottom))",
             animation: `${closing ? "sheetOut" : "sheetIn"} 0.3s cubic-bezier(0.32,0.72,0,1) forwards`,
           }}
         >
@@ -1905,7 +1905,7 @@ export default function App() {
   </style>
 </head>
 <body>
-  <div id="dl-bar" style="position:sticky;top:0;z-index:99;background:rgba(255,255,255,0.92);backdrop-filter:blur(10px);border-bottom:1px solid #e0e0e0;padding:12px 40px;display:flex;align-items:center;justify-content:space-between;margin:-40px -40px 32px">
+  <div id="dl-bar" style="position:sticky;top:0;z-index:99;background:rgba(255,255,255,0.92);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);border-bottom:1px solid #e0e0e0;padding:12px 40px;display:flex;align-items:center;justify-content:space-between;margin:-40px -40px 32px">
     <span style="font-size:14px;font-weight:600;color:#1C1C1E">💰 ${t("appTitle")} &nbsp;·&nbsp; <span style="font-weight:400;color:#888">${date}</span></span>
     <button id="dl-btn" onclick="downloadPDF()">⬇ Download PDF</button>
   </div>
@@ -2156,6 +2156,7 @@ export default function App() {
         style={{
           background: "rgba(255,255,255,0.9)",
           backdropFilter: "blur(20px)",
+          WebkitBackdropFilter: "blur(20px)",
           borderBottom: "1px solid rgba(0,0,0,0.08)",
           // Safe-area insets keep the header clear of the status bar / Dynamic
           // Island in a native shell and in landscape, where the notch eats
@@ -2269,7 +2270,7 @@ export default function App() {
               <div style={{
                 display: "flex", gap: 4, overflowX: "auto", paddingBottom: 8, paddingRight: 24,
                 scrollbarWidth: "none", msOverflowStyle: "none",
-              }}>
+              }} className="no-scrollbar">
                 {["overview", "expenses", "income", "savings", "suggestions"].map(tab => (
                   <button
                     key={tab}
@@ -4481,7 +4482,9 @@ export default function App() {
           style={{
             position: "fixed",
             left: "50%",
-            bottom: isMobile ? 20 : 28,
+            // Clear of the home indicator, which is where the toast otherwise
+            // lands on a notched iPhone.
+            bottom: `calc(${isMobile ? "20px" : "28px"} + env(safe-area-inset-bottom))`,
             transform: "translateX(-50%)",
             zIndex: 3000,
             display: "flex",
