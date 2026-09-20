@@ -189,3 +189,43 @@ describe("api/data.js rate limiting", () => {
     expect(res.statusCode).not.toBe(429);
   });
 });
+
+describe("api/suggestions.js error handling", () => {
+  const req = (ip) => ({
+    method: "POST",
+    headers: { "x-forwarded-for": ip },
+    body: { income: [], expenses: [] },
+  });
+
+  // An upstream message can carry details of an account and a key that are
+  // none of the caller's business, and the app shows its own wording anyway.
+  it("does not pass an upstream error through to the caller", async () => {
+    global.fetch = vi.fn(async () => ({
+      ok: false,
+      status: 401,
+      json: async () => ({ error: { message: "Invalid API key gsk_live_secret123 for org acme" } }),
+    }));
+    const res = fakeRes();
+    await suggestionsHandler(req("6.6.6.1"), res);
+    expect(JSON.stringify(res.body)).not.toContain("gsk_live_secret123");
+    expect(res.statusCode).toBe(502);
+  });
+
+  it("keeps a 429 as a 429 so the caller can back off", async () => {
+    global.fetch = vi.fn(async () => ({ ok: false, status: 429, json: async () => ({}) }));
+    const res = fakeRes();
+    await suggestionsHandler(req("6.6.6.2"), res);
+    expect(res.statusCode).toBe(429);
+  });
+
+  it("reports its own deadline as a timeout, not a crash", async () => {
+    global.fetch = vi.fn(async () => {
+      const err = new Error("This operation was aborted");
+      err.name = "AbortError";
+      throw err;
+    });
+    const res = fakeRes();
+    await suggestionsHandler(req("6.6.6.3"), res);
+    expect(res.statusCode).toBe(504);
+  });
+});

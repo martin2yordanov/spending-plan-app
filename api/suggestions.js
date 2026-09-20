@@ -260,9 +260,12 @@ export default async function handler(req, res) {
     }
 
     if (!response.ok) {
+      // The upstream message goes to the logs, not to the client: it can carry
+      // details of an account and a key that are none of the caller's
+      // business, and the app shows its own wording for any failure anyway.
       const errBody = await response.json().catch(() => ({}));
-      const message = errBody?.error?.message ?? `Groq API error ${response.status}`;
-      return res.status(response.status).json({ error: message });
+      console.error("[api/suggestions] upstream", response.status, errBody?.error?.message ?? "");
+      return res.status(response.status === 429 ? 429 : 502).json({ error: "The advisor is unavailable right now." });
     }
 
     const data = await response.json();
@@ -271,6 +274,10 @@ export default async function handler(req, res) {
     res.status(200).json({ suggestions: text });
   } catch (err) {
     console.error("[api/suggestions]", err?.message ?? err);
-    res.status(500).json({ error: err?.message ?? "Internal error" });
+    // An abort is the deadline above, not a bug in the request.
+    const timedOut = err?.name === "AbortError";
+    res.status(timedOut ? 504 : 500).json({
+      error: timedOut ? "The advisor took too long to answer." : "The advisor is unavailable right now.",
+    });
   }
 }
