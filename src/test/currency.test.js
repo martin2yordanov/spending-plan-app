@@ -121,3 +121,29 @@ describe("CURRENCIES list", () => {
     }
   });
 });
+
+describe("converting an amount that is not a number yet", () => {
+  // A row being edited holds the raw input string. Arithmetic on one produced
+  // NaN, which JSON.stringify writes out as null — so switching currency
+  // mid-edit silently turned that figure into nothing.
+  it("leaves a half-typed amount alone rather than destroying it", () => {
+    expect(convertAmount("", "EUR", "BGN")).toBe("");
+    expect(convertAmount(null, "EUR", "BGN")).toBe(null);
+    expect(convertAmount(undefined, "EUR", "BGN")).toBe(undefined);
+    expect(convertAmount("abc", "EUR", "BGN")).toBe("abc");
+  });
+
+  it("converts a numeric string properly, comma and all", () => {
+    expect(convertAmount("100", "EUR", "BGN")).toBe(195.58);
+    expect(convertAmount("12,5", "EUR", "BGN")).toBeCloseTo(24.45, 2);
+  });
+
+  // It will not make a figure worse than it found it, and it will not invent
+  // one either: an amount that is already NaN stays NaN rather than becoming a
+  // confident zero.
+  it("never turns a good value into NaN", () => {
+    for (const value of ["", " ", "abc", null, undefined, {}, [], "0", 0, -5]) {
+      expect(Number.isNaN(convertAmount(value, "EUR", "BGN"))).toBe(false);
+    }
+  });
+});

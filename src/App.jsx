@@ -1099,7 +1099,7 @@ export default function App() {
         ...r,
         amount: conv(r.amount),
         // Goal targets are money too, so they have to move with the balance.
-        ...(r.target === "" || r.target == null ? {} : { target: conv(Number(r.target)) }),
+        ...(r.target === "" || r.target == null ? {} : { target: conv(r.target) }),
       })));
       setCategoryLimits((limits) => {
         const next = {};

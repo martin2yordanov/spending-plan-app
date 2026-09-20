@@ -38,10 +38,18 @@ export function conversionRate(from, to) {
 }
 
 // Rounds to cents; amounts are entered by hand, so sub-cent precision is noise.
+//
+// Anything that is not a finite number comes back untouched. A row being
+// edited holds the raw input string, and arithmetic on one used to produce
+// NaN, which JSON.stringify writes out as null — so switching currency
+// mid-edit silently turned that amount into nothing. Losing a figure is worse
+// than converting it late.
 export function convertAmount(amount, from, to) {
   const rate = conversionRate(from, to);
   if (rate == null) return amount;
-  return Math.round(amount * rate * 100) / 100;
+  const n = parseNumeric(amount);
+  if (!Number.isFinite(n)) return amount;
+  return Math.round(n * rate * 100) / 100;
 }
 
 // `amount` is coerced because a row being edited holds the raw input string
