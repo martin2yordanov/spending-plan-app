@@ -782,8 +782,10 @@ function NewCategoryModal({ closing, onClose, onCreate, existingLabels, t }) {
               return (
                 <button
                   key={e}
+                  type="button"
                   onClick={() => setIcon(e)}
                   aria-label={e}
+                  aria-pressed={selected}
                   style={{
                     width: 42, height: 42, borderRadius: 12,
                     border: selected ? "2px solid #007AFF" : "1.5px solid transparent",
@@ -2225,7 +2227,7 @@ export default function App() {
                 <div style={{ position: "relative" }} ref={langMenuRef}>
                   <button
                     onClick={() => setShowLangMenu(v => !v)}
-                    aria-label="Language"
+                    aria-label={t("language")}
                     style={{
                       width: 34, height: 34, borderRadius: "50%", border: "1.5px solid #E5E5EA",
                       background: showLangMenu ? "#F2F2F7" : "#fff", cursor: "pointer",
@@ -2388,7 +2390,8 @@ export default function App() {
             <div style={{ position: "relative" }} ref={langMenuRef}>
               <button
                 onClick={() => setShowLangMenu((v) => !v)}
-                title="Language"
+                title={t("language")}
+                aria-label={t("language")}
                 style={{
                   padding: "7px 12px", borderRadius: 20, border: "1.5px solid #E5E5EA",
                   cursor: "pointer", fontSize: 13, fontWeight: 600,
@@ -3467,6 +3470,7 @@ export default function App() {
                     </select>
                     <button
                       onClick={addExpense}
+                      aria-label={t("addExpense")}
                       style={{
                         width: 28,
                         height: 28,
@@ -3924,7 +3928,7 @@ export default function App() {
                         <option key={frequency} value={frequency}>{t.freq(frequency)}</option>
                       ))}
                     </select>
-                    <button onClick={addIncome} style={{ width: 28, height: 28, borderRadius: "50%", border: "none", background: "#34C759", color: "#fff", cursor: "pointer", fontSize: 16, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                    <button onClick={addIncome} aria-label={t("addIncome")} style={{ width: 28, height: 28, borderRadius: "50%", border: "none", background: "#34C759", color: "#fff", cursor: "pointer", fontSize: 16, display: "flex", alignItems: "center", justifyContent: "center" }}>
                       +
                     </button>
                   </div>
@@ -4642,7 +4646,7 @@ export default function App() {
               <span style={{ fontSize: 17, fontWeight: 700 }}>{t("importTitle")}</span>
               <button
                 onClick={() => setShowImport(false)}
-                aria-label="Close"
+                aria-label={t("close")}
                 style={{ border: "none", background: "#F2F2F7", borderRadius: "50%", width: 28, height: 28, cursor: "pointer", fontSize: 15, color: "#3C3C43" }}
               >
                 ×
@@ -4658,6 +4662,7 @@ export default function App() {
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 <code style={{ fontSize: 11.5, color: "#3C3C43", wordBreak: "break-all", flex: 1 }}>{auth?.userId}</code>
                 <button
+                  aria-label={t("copyId")}
                   onClick={() => {
                     navigator.clipboard?.writeText(auth?.userId ?? "").then(
                       () => { setCopiedId(true); window.setTimeout(() => setCopiedId(false), 1800); },

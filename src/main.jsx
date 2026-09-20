@@ -4,13 +4,18 @@ import { ClerkProvider } from "@clerk/clerk-react";
 import App from "./App";
 import { initNative } from "./native";
 import AppLock from "./AppLock";
+import ErrorBoundary from "./ErrorBoundary";
 import "./index.css";
 
 const PUBLISHABLE_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
 
+// Inside the lock, so a crash in the app cannot take the gate down with it
+// and expose the plan behind it.
 const app = (
   <AppLock>
-    <App />
+    <ErrorBoundary>
+      <App />
+    </ErrorBoundary>
   </AppLock>
 );
 

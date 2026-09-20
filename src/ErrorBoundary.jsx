@@ -1,0 +1,102 @@
+import { Component } from "react";
+
+/**
+ * Last line of defence for a render-time exception.
+ *
+ * Without one, React unmounts the whole tree and the user is left looking at a
+ * white rectangle. In a browser that is at least a page they can reload; in a
+ * WebView there is no reload button, no address bar and no console — the only
+ * way out is to force-quit the app, and nothing tells them that. This has
+ * already happened once here, from a component reading a variable that was
+ * never passed to it.
+ *
+ * The plan itself is safe either way: it is cached on the device and stamped,
+ * so a restart picks it back up. This says so, because the first thing anyone
+ * assumes when a budgeting app goes blank is that their figures are gone.
+ */
+export default class ErrorBoundary extends Component {
+  constructor(props) {
+    super(props);
+    this.state = { error: null };
+  }
+
+  static getDerivedStateFromError(error) {
+    return { error };
+  }
+
+  componentDidCatch(error, info) {
+    // No reporting service is wired up, so this at least reaches the Safari
+    // Web Inspector when the app is attached to a Mac for debugging.
+    console.error("[ErrorBoundary]", error, info?.componentStack);
+  }
+
+  render() {
+    if (!this.state.error) return this.props.children;
+
+    return (
+      <div
+        role="alert"
+        style={{
+          minHeight: "100vh",
+          background: "#F2F2F7",
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: 14,
+          padding: "24px calc(24px + env(safe-area-inset-left)) calc(24px + env(safe-area-inset-bottom))",
+          textAlign: "center",
+          fontFamily: "-apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', sans-serif",
+          color: "#1C1C1E",
+        }}
+      >
+        <div style={{ fontSize: 40, lineHeight: 1 }}>😵‍💫</div>
+        <div style={{ fontSize: 18, fontWeight: 700 }}>Something went wrong</div>
+        <div style={{ fontSize: 13.5, color: "#6C6C70", lineHeight: 1.55, maxWidth: 300 }}>
+          Your plan is saved on this device and nothing has been lost. Restarting
+          usually clears it.
+        </div>
+        <button
+          onClick={() => window.location.reload()}
+          style={{
+            marginTop: 4,
+            padding: "11px 22px",
+            borderRadius: 12,
+            border: "none",
+            cursor: "pointer",
+            background: "#007AFF",
+            color: "#fff",
+            fontSize: 14,
+            fontWeight: 600,
+          }}
+        >
+          Restart
+        </button>
+        {/* Collapsed, because the message means nothing to most people, but
+            present so a bug report can carry something useful. */}
+        <details style={{ marginTop: 8, maxWidth: 320, width: "100%" }}>
+          <summary style={{ fontSize: 12, color: "#8E8E93", cursor: "pointer" }}>
+            Technical details
+          </summary>
+          <pre
+            style={{
+              marginTop: 8,
+              fontSize: 11,
+              color: "#6C6C70",
+              textAlign: "left",
+              whiteSpace: "pre-wrap",
+              wordBreak: "break-word",
+              background: "#fff",
+              borderRadius: 10,
+              padding: 12,
+              maxHeight: 180,
+              overflow: "auto",
+            }}
+          >
+            {String(this.state.error?.stack || this.state.error)}
+          </pre>
+        </details>
+      </div>
+    );
+  }
+}
