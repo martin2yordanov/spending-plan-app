@@ -143,3 +143,41 @@ describe("a plan whose rows share ids", () => {
     expect(await screen.findByText("€1,500")).toBeInTheDocument();
   });
 });
+
+describe("a plan with absent numbers", () => {
+  let served;
+
+  beforeEach(() => {
+    global.fetch = vi.fn(async (url, opts) => {
+      if (opts?.method === "POST") return { ok: true, status: 200, json: async () => ({ ok: true }) };
+      return { ok: true, status: 200, json: async () => served };
+    });
+    localStorage.setItem("walkthrough_done_user_NEW", "1");
+  });
+
+  afterEach(() => {
+    localStorage.clear();
+    vi.unstubAllEnvs();
+    vi.restoreAllMocks();
+  });
+
+  // An amount that went through NaN is written out as null, so a plan holding
+  // one is reachable. Number() reads null as 0, which would quietly turn "not
+  // recorded" into "explicitly nothing".
+  it("does not read a null investment as zero", async () => {
+    served = {
+      income: [{ id: 1, name: "Salary", amount: 2000, frequency: "Monthly" }],
+      expenses: [],
+      invest: null,
+      updatedAt: 5,
+    };
+    vi.resetModules();
+    vi.stubEnv("VITE_CLERK_PUBLISHABLE_KEY", "pk_test_fake");
+    const { default: App } = await import("../App.jsx");
+    render(<App />);
+    await screen.findByText("€2,000");
+    // The example default (250/mo, so 3,000 a year) is left in place rather
+    // than being overwritten with a confident zero.
+    expect(screen.getByText("€3,000")).toBeInTheDocument();
+  });
+});

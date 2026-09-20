@@ -172,6 +172,11 @@ function nextId(rows) {
 const mapOf = (value) =>
   (value && typeof value === "object" && !Array.isArray(value) ? value : null);
 const numberOf = (value) => {
+  // null and "" are rejected rather than read as zero. Number() turns both
+  // into 0, which would quietly set "no investment" or "no emergency fund"
+  // from a field that is merely absent — and an amount that went through NaN
+  // is stored as null, so that case is reachable.
+  if (value == null || value === "") return null;
   const n = Number(value);
   return Number.isFinite(n) ? n : null;
 };
