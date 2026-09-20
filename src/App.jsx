@@ -136,6 +136,19 @@ const EXAMPLE_EXPENSES = DEFAULT_EXPENSES.map((e) => ({
 // An apostrophe or an ampersand in an expense name is enough to garble it, and
 // a "<" opens the door to arbitrary markup in a file the app then hands to the
 // share sheet.
+// A stored plan is whatever survived JSON.parse: an older shape, a half-written
+// cache entry, a response from a server having a bad day. The screen is built
+// straight out of it, so a string where a list belongs is a crash rather than a
+// wrong number — and the crash takes the whole app with it.
+const rowsOf = (value) =>
+  (Array.isArray(value) ? value.filter((row) => row && typeof row === "object") : null);
+const mapOf = (value) =>
+  (value && typeof value === "object" && !Array.isArray(value) ? value : null);
+const numberOf = (value) => {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : null;
+};
+
 function escapeHtml(value) {
   return String(value ?? "").replace(/[&<>"']/g, (c) => (
     { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]
@@ -1077,18 +1090,30 @@ export default function App() {
   // as fields are added. Declared after the state it writes to, since this
   // file has had TDZ regressions before.
   const applyPlan = useCallback((plan) => {
-    if (!plan) return;
+    if (!plan || typeof plan !== "object") return;
     skipNextSaveRef.current = true;
-    if (plan.income) setIncome(plan.income);
-    if (plan.expenses) setExpenses(plan.expenses);
-    if (plan.invest != null) setInvest(plan.invest);
-    if (plan.investLabel) setInvestLabel(plan.investLabel);
-    if (plan.emergencyMonths != null) setEmergencyMonths(plan.emergencyMonths);
-    if (plan.savingsAccounts) setSavingsAccounts(plan.savingsAccounts);
-    if (plan.categoryLimits) setCategoryLimits(plan.categoryLimits);
-    if (plan.bills) setBills(plan.bills);
-    if (plan.customCategories) setCustomCategories(plan.customCategories);
-    if (plan.currency) applyCurrency(plan.currency);
+
+    const income = rowsOf(plan.income);
+    if (income) setIncome(income);
+    const expenses = rowsOf(plan.expenses);
+    if (expenses) setExpenses(expenses);
+    const savings = rowsOf(plan.savingsAccounts);
+    if (savings) setSavingsAccounts(savings);
+    const bills = rowsOf(plan.bills);
+    if (bills) setBills(bills);
+
+    const invest = numberOf(plan.invest);
+    if (invest != null) setInvest(invest);
+    const months = numberOf(plan.emergencyMonths);
+    if (months != null) setEmergencyMonths(months);
+
+    const limits = mapOf(plan.categoryLimits);
+    if (limits) setCategoryLimits(limits);
+    const custom = mapOf(plan.customCategories);
+    if (custom) setCustomCategories(custom);
+
+    if (typeof plan.investLabel === "string" && plan.investLabel) setInvestLabel(plan.investLabel);
+    if (typeof plan.currency === "string" && plan.currency) applyCurrency(plan.currency);
   }, [applyCurrency]);
 
   // Only offered where the hardware exists, so the web build and simulators
@@ -1822,17 +1847,7 @@ export default function App() {
       // Persist first: if the write fails we surface the error and leave the
       // on-screen plan untouched rather than showing data that wasn't saved.
       await saveData(auth.userId, data);
-      skipNextSaveRef.current = true;
-      if (data.income) setIncome(data.income);
-      if (data.expenses) setExpenses(data.expenses);
-      if (data.invest != null) setInvest(data.invest);
-      if (data.investLabel) setInvestLabel(data.investLabel);
-      if (data.emergencyMonths != null) setEmergencyMonths(data.emergencyMonths);
-      if (data.savingsAccounts) setSavingsAccounts(data.savingsAccounts);
-      if (data.categoryLimits) setCategoryLimits(data.categoryLimits);
-      if (data.bills) setBills(data.bills);
-      if (data.customCategories) setCustomCategories(data.customCategories);
-      if (data.currency) applyCurrency(data.currency);
+      applyPlan(data);
       setImportSuccess(true);
       setImportInput("");
       window.setTimeout(() => { setShowImport(false); setImportSuccess(false); }, 1600);
@@ -1841,7 +1856,7 @@ export default function App() {
     } finally {
       setImportLoading(false);
     }
-  }, [importInput, auth, t]);
+  }, [importInput, auth, applyPlan, t]);
 
   const handleExportPDF = useCallback(() => {
     const date = new Date().toLocaleDateString("en-GB", { year: "numeric", month: "long", day: "numeric" });
