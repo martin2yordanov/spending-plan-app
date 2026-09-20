@@ -3,7 +3,7 @@ import { useUser, useAuth, SignInButton, UserButton } from "@clerk/clerk-react";
 import { LANGUAGES, LANG_KEY, makeT } from "./i18n";
 import { readCache, writeCache, clearCache, setPendingSync, getPendingSync, clearPendingSync } from "./storage";
 import { shareReport, syncBillReminders, biometricAvailable, biometricUnlock, readBiometricLock, setBiometricLock, openExternal, isNative } from "./native";
-import { FREQUENCIES, freqToMonthly, parseNumeric, computeHealthScore, computeEmergencyFundCoverage, scoreColor, scoreLabelKey, parseAmount, CURRENCIES, CURRENCY_KEY, DEFAULT_CURRENCY, currencyMeta, makeMoney, conversionRate, convertAmount } from "./utils.js";
+import { FREQUENCIES, freqToMonthly, parseNumeric, barPercent, computeHealthScore, computeEmergencyFundCoverage, scoreColor, scoreLabelKey, parseAmount, CURRENCIES, CURRENCY_KEY, DEFAULT_CURRENCY, currencyMeta, makeMoney, conversionRate, convertAmount } from "./utils.js";
 
 export const CLERK_ENABLED = !!import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
 
@@ -898,9 +898,15 @@ const DonutChart = memo(function DonutChart({ data, total, activeCategory, onCat
   const strokeWidth = 28;
   const r = (size - strokeWidth) / 2;
   const circ = 2 * Math.PI * r;
+  // Divided by what is actually drawn, not by the overall total: a negative
+  // amount somewhere — a refund, a credit — makes that total smaller than the
+  // positive values on the chart, and the wedges then add up to more than a
+  // full circle and wrap over each other. The figure in the centre still shows
+  // the real total, which is the number that should be honest.
+  const drawn = data.reduce((sum, d) => sum + Math.max(0, d.value), 0);
   let offset = 0;
   const segments = data.map((d) => {
-    const pct = total > 0 ? d.value / total : 0;
+    const pct = drawn > 0 ? Math.max(0, d.value) / drawn : 0;
     const midAngle = (offset + pct / 2) * 2 * Math.PI;
     const segment = { ...d, pct, dasharray: `${pct * circ} ${circ}`, dashoffset: -offset * circ, midAngle };
     offset += pct;
@@ -2946,7 +2952,7 @@ export default function App() {
                         <div style={{ background: "#F2F2F7", borderRadius: 4, height: 6, overflow: "hidden" }}>
                           <div
                             style={{
-                              width: `${Math.min(barPct, 100)}%`,
+                              width: `${barPercent(item.value, limit > 0 ? limit : totalIncome)}%`,
                               height: "100%",
                               background: barColor,
                               borderRadius: 4,
@@ -3149,7 +3155,7 @@ export default function App() {
                     <div style={{ background: "#F2F2F7", borderRadius: 4, height: 5, overflow: "hidden" }}>
                       <div
                         style={{
-                          width: `${Math.min(emergencyCoveragePct, 100)}%`,
+                          width: `${barPercent(emergencyCoverage.total, emergencyTarget)}%`,
                           height: "100%",
                           background: emergencyCoveragePct >= 100 ? "#34C759" : "#007AFF",
                           borderRadius: 4,
@@ -3208,7 +3214,7 @@ export default function App() {
                             </span>
                           </div>
                           <div style={{ background: "#F2F2F7", borderRadius: 4, height: 6, overflow: "hidden" }}>
-                            <div style={{ width: `${(item.score / 25) * 100}%`, height: "100%", background: scoreColor(item.score * 4), borderRadius: 4, transition: "width 0.6s ease" }} />
+                            <div style={{ width: `${barPercent(item.score, 25)}%`, height: "100%", background: scoreColor(item.score * 4), borderRadius: 4, transition: "width 0.6s ease" }} />
                           </div>
                         </div>
                       ))}
@@ -4368,7 +4374,7 @@ export default function App() {
                             const target = parseNumeric(account.target) || 0;
                             if (target <= 0) return null;
                             const balance = parseNumeric(account.amount) || 0;
-                            const goalPct = Math.min(100, (balance / target) * 100);
+                            const goalPct = barPercent(balance, target);
                             const reached = balance >= target;
                             let neededLine = null;
                             if (!reached && /^\d{4}-\d{2}$/.test(account.targetMonth || "")) {

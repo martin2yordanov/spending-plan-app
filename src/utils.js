@@ -147,6 +147,22 @@ export function computeHealthScore(totalIncome, totalExpenses, invest, emergency
   };
 }
 
+/**
+ * Percentage for a progress bar's CSS width.
+ *
+ * Clamped, because a negative percentage is not a valid CSS length: the
+ * browser drops the declaration and the bar falls back to its container's full
+ * width — the exact opposite of the number printed beside it. Negatives are
+ * reachable without doing anything strange: a refund entered as a negative
+ * expense, an overdraft recorded as a negative balance.
+ */
+export function barPercent(value, total) {
+  if (!(parseNumeric(total) > 0)) return 0;
+  const pct = (parseNumeric(value) / parseNumeric(total)) * 100;
+  if (!Number.isFinite(pct)) return 0;
+  return Math.max(0, Math.min(100, pct));
+}
+
 export function scoreColor(score) {
   if (score >= 80) return "#34C759";
   if (score >= 60) return "#FF9500";

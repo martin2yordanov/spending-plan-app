@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { freqToMonthly, fmt, computeHealthScore, computeEmergencyFundCoverage, scoreColor, scoreLabelKey, parseAmount, parseNumeric } from "../utils.js";
+import { freqToMonthly, fmt, computeHealthScore, computeEmergencyFundCoverage, scoreColor, scoreLabelKey, parseAmount, parseNumeric, barPercent } from "../utils.js";
 
 describe("freqToMonthly", () => {
   it("returns amount unchanged for Monthly", () => {
@@ -236,5 +236,37 @@ describe("freqToMonthly with a half-typed amount", () => {
     const rows = [{ amount: 100, frequency: "Monthly" }, { amount: "50", frequency: "Monthly" }];
     const total = rows.reduce((s, r) => s + freqToMonthly(r.amount, r.frequency), 0);
     expect(total).toBe(150);
+  });
+});
+
+describe("barPercent", () => {
+  it("is the plain proportion in the ordinary case", () => {
+    expect(barPercent(25, 100)).toBe(25);
+    expect(barPercent(100, 100)).toBe(100);
+  });
+
+  // A negative percentage is not a valid CSS length. The browser drops the
+  // declaration and the bar falls back to its container's full width — the
+  // exact opposite of the number printed beside it.
+  it("never goes below zero", () => {
+    expect(barPercent(-600, 1000)).toBe(0);
+    expect(barPercent(-1, 1)).toBe(0);
+  });
+
+  it("never goes above a hundred", () => {
+    expect(barPercent(500, 100)).toBe(100);
+  });
+
+  it("treats an absent or impossible total as nothing to show", () => {
+    expect(barPercent(50, 0)).toBe(0);
+    expect(barPercent(50, -10)).toBe(0);
+    expect(barPercent(50, null)).toBe(0);
+    expect(barPercent(50, "")).toBe(0);
+  });
+
+  it("copes with a value that is still a string", () => {
+    expect(barPercent("25", 100)).toBe(25);
+    expect(barPercent("12,5", 100)).toBe(12.5);
+    expect(barPercent("abc", 100)).toBe(0);
   });
 });
