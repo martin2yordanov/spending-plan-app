@@ -78,3 +78,35 @@ describe("editing an amount in the desktop table", () => {
     expect(input).toHaveValue("123");
   });
 });
+
+describe("adding a row from the wide table layout", () => {
+  // type="number" rejects a comma outright — the browser blanks the value
+  // rather than reporting it — so a European decimal vanished as it was typed.
+  it("takes a comma decimal in the new-expense amount", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await user.click(screen.getByRole("button", { name: /Expenses/ }));
+    await user.click(screen.getAllByRole("button", { name: /Add Expense/ }).at(-1));
+    await user.type(screen.getByPlaceholderText("Name"), "Coffee");
+    const amount = screen.getByPlaceholderText("0");
+    await user.type(amount, "45,5");
+    expect(amount).toHaveValue("45,5");
+    await user.click(screen.getByRole("button", { name: /Add Expense/ }));
+    expect(await screen.findByText("Coffee")).toBeInTheDocument();
+    // €46 rounded, not €0 and not €455.
+    expect(screen.getAllByText("€46").length).toBeGreaterThan(0);
+  });
+
+  it("takes a comma decimal in the new-income amount", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await user.click(screen.getByRole("button", { name: /Income/ }));
+    await user.click(screen.getAllByRole("button", { name: /Add Income Source/ }).at(-1));
+    await user.type(screen.getByPlaceholderText("Income source"), "Tutoring");
+    const amount = screen.getByPlaceholderText("0");
+    await user.type(amount, "120,5");
+    await user.click(screen.getByRole("button", { name: /Add Income Source/ }));
+    expect(await screen.findByText("Tutoring")).toBeInTheDocument();
+    expect(screen.getAllByText("€121").length).toBeGreaterThan(0);
+  });
+});

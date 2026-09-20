@@ -3459,12 +3459,12 @@ export default function App() {
                       ))}
                     </select>
                     <input
-                      type="number"
+                      type="text"
+                      inputMode="decimal"
                       placeholder="0"
                       value={newExpense.amount || ""}
-                      onChange={(event) =>
-                        setNewExpense((current) => ({ ...current, amount: parseNumeric(event.target.value) || 0 }))
-                      }
+                      onChange={(event) => setNewExpense((current) => ({ ...current, amount: event.target.value }))}
+                      onBlur={(event) => setNewExpense((current) => ({ ...current, amount: parseAmount(event.target.value, 0) }))}
                       style={{
                         border: "none",
                         borderBottom: "2px solid #007AFF",
@@ -3930,9 +3930,10 @@ export default function App() {
                       style={{ border: "none", borderBottom: "2px solid #34C759", background: "transparent", fontSize: 15, fontWeight: 600, outline: "none" }}
                     />
                     <input
-                      type="number" placeholder="0"
+                      type="text" inputMode="decimal" placeholder="0"
                       value={newIncome.amount || ""}
-                      onChange={(event) => setNewIncome((current) => ({ ...current, amount: parseNumeric(event.target.value) || 0 }))}
+                      onChange={(event) => setNewIncome((current) => ({ ...current, amount: event.target.value }))}
+                      onBlur={(event) => setNewIncome((current) => ({ ...current, amount: parseAmount(event.target.value, 0) }))}
                       style={{ border: "none", borderBottom: "2px solid #34C759", background: "transparent", fontSize: 16, fontWeight: 700, outline: "none", textAlign: "right" }}
                     />
                     <select
