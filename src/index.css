@@ -28,16 +28,20 @@ a,
   -webkit-tap-highlight-color: transparent;
 }
 
-body {
+/* Scoped to the native shell (the class is set by initNative). In an app a
+   long press on a row bringing up the selection magnifier and the Copy/Look Up
+   callout reads as a broken web page; on the web, selecting a figure to copy
+   it is ordinary and expected, so the web build keeps it. */
+.native body {
   -webkit-touch-callout: none;
   -webkit-user-select: none;
   user-select: none;
 }
 
-input,
-textarea,
-code,
-p {
+.native input,
+.native textarea,
+.native code,
+.native .selectable {
   -webkit-touch-callout: default;
   -webkit-user-select: text;
   user-select: text;

@@ -4527,7 +4527,7 @@ export default function App() {
             )}
 
             {suggestions && (
-              <div style={{ marginTop: 20, paddingTop: 20, borderTop: "1px solid #F2F2F7" }}>
+              <div className="selectable" style={{ marginTop: 20, paddingTop: 20, borderTop: "1px solid #F2F2F7" }}>
                 {renderMarkdown(suggestions)}
                 <p style={{ marginTop: 24, fontSize: 11, color: "#6C6C70", fontStyle: "italic" }}>
                   ⚠️ {t("disclaimer")}

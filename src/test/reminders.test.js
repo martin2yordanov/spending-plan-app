@@ -1,12 +1,18 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
-// syncBillReminders is a no-op off-device, so the native flag has to be forced
-// before the module under test reads it.
+// syncBillReminders and initNative are no-ops off-device, so the native flag
+// has to be forced before the module under test reads it.
 vi.mock("@capacitor/core", () => ({ Capacitor: { isNativePlatform: () => true } }));
 
 const calls = { requested: 0, scheduled: [], cancelled: 0 };
 let permission = "prompt";
 let pending = [];
+
+vi.mock("@capacitor/status-bar", () => ({
+  StatusBar: { setStyle: async () => {}, setOverlaysWebView: async () => {} },
+  Style: { Light: "LIGHT" },
+}));
+vi.mock("@capacitor/splash-screen", () => ({ SplashScreen: { hide: async () => {} } }));
 
 vi.mock("@capacitor/local-notifications", () => ({
   LocalNotifications: {
@@ -61,5 +67,25 @@ describe("bill reminders", () => {
     permission = "denied";
     expect(await syncBillReminders([{ key: 1, dueDay: 5 }])).toEqual({ scheduled: 0, denied: true });
     expect(calls.scheduled).toHaveLength(0);
+  });
+});
+
+describe("initNative", () => {
+  it("marks the document so the stylesheet can tell the shell from the web", async () => {
+    const { initNative } = await import("../native.js");
+    document.head.insertAdjacentHTML("beforeend", '<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">');
+    await initNative();
+    expect(document.documentElement.classList.contains("native")).toBe(true);
+  });
+
+  // Focusing a field under 16px zooms WKWebView in with no gesture to undo it.
+  it("pins the viewport so a small field cannot zoom the app in", async () => {
+    const { initNative } = await import("../native.js");
+    await initNative();
+    const content = document.querySelector('meta[name="viewport"]').getAttribute("content");
+    expect(content).toContain("maximum-scale=1.0");
+    expect(content).toContain("user-scalable=no");
+    // Still needed, or every safe-area inset resolves to 0.
+    expect(content).toContain("viewport-fit=cover");
   });
 });

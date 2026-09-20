@@ -23,6 +23,10 @@ export async function initNative() {
     await StatusBar.setOverlaysWebView({ overlay: true });
   } catch { /* leave the system default */ }
 
+  // Lets the stylesheet tell the app shell apart from the web build, for the
+  // handful of behaviours that should differ between them.
+  document.documentElement.classList.add("native");
+
   // WKWebView zooms the page in when a field whose font is under 16px takes
   // focus, and there is no gesture to undo it inside an app shell — the user
   // is left on a cropped, side-scrolling layout. Several fields here are
