@@ -149,6 +149,25 @@ const numberOf = (value) => {
   return Number.isFinite(n) ? n : null;
 };
 
+// Rows and cards that behave like buttons but are laid out as divs. Without a
+// role a screen reader announces them as ordinary text with nothing to
+// activate, and there is no way to reach them from a keyboard at all. Applied
+// only where the whole area is one target — a row that contains a button of
+// its own would be an invalid nesting, so those are left alone.
+function tappable(onActivate, label) {
+  return {
+    role: "button",
+    tabIndex: 0,
+    "aria-label": label,
+    onClick: onActivate,
+    onKeyDown: (event) => {
+      if (event.key !== "Enter" && event.key !== " ") return;
+      event.preventDefault();
+      onActivate(event);
+    },
+  };
+}
+
 function escapeHtml(value) {
   return String(value ?? "").replace(/[&<>"']/g, (c) => (
     { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]
@@ -2604,7 +2623,7 @@ export default function App() {
               ].map((card) => (
                 <div
                   key={card.label}
-                  onClick={() => card.tab && setActiveTab(card.tab)}
+                  {...(card.tab ? tappable(() => setActiveTab(card.tab), card.label) : {})}
                   style={{
                     background: "#fff",
                     borderRadius: 18,
@@ -2704,7 +2723,10 @@ export default function App() {
                           }}
                           onMouseEnter={() => setActiveCategory(item.name)}
                           onMouseLeave={() => setActiveCategory(null)}
-                          onClick={() => setActiveCategory(isActive ? null : item.name)}
+                          {...tappable(
+                            () => setActiveCategory(isActive ? null : item.name),
+                            getCategoryLabel(item.name, customCategories, t),
+                          )}
                         >
                           <div style={{
                             width: 8, height: 8, borderRadius: "50%", background: item.color, flexShrink: 0,
@@ -3252,10 +3274,10 @@ export default function App() {
                       ) : (
                         <div
                           style={{ display: "flex", alignItems: "center", gap: 12, cursor: "pointer" }}
-                          onClick={() => {
+                          {...tappable(() => {
                             setEditingExpense(item.id);
                             setEditingExpenseAmountStr(String(item.amount));
-                          }}
+                          }, item.name)}
                         >
                           <div style={{ flex: 1 }}>
                             <div style={{ fontSize: 14, fontWeight: 600, color: "#1C1C1E", marginBottom: 3 }}>{item.name}</div>
@@ -3793,7 +3815,7 @@ export default function App() {
                       ) : (
                         <div
                           style={{ display: "flex", alignItems: "center", gap: 12, cursor: "pointer" }}
-                          onClick={() => startEditingIncome(item)}
+                          {...tappable(() => startEditingIncome(item), item.name)}
                         >
                           <div style={{ flex: 1 }}>
                             <div style={{ fontSize: 14, fontWeight: 600, color: "#1C1C1E", marginBottom: 2 }}>{item.name}</div>
@@ -4178,7 +4200,7 @@ export default function App() {
                           </div>
                         </div>
                       ) : (
-                        <div style={{ cursor: "pointer" }} onClick={() => setEditingSavings(account.id)}>
+                        <div style={{ cursor: "pointer" }} {...tappable(() => setEditingSavings(account.id), account.name)}>
                           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
                             <div style={{ flex: 1 }}>
                               <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 2 }}>

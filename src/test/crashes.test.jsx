@@ -48,7 +48,7 @@ describe("amount entry stays numeric", () => {
   it("adds a mobile expense with a numeric amount", async () => {
     const user = userEvent.setup();
     render(<App />);
-    await user.click(screen.getByRole("button", { name: /Expenses/ }));
+    await user.click(screen.getByRole("button", { name: "Expenses" }));
     await user.click(screen.getByRole("button", { name: /^\+ Add Expense$/ }));
     await user.type(screen.getByPlaceholderText("Name"), "Coffee");
     const amount = screen.getAllByPlaceholderText("0")[0];
@@ -66,7 +66,7 @@ describe("editing an amount in the desktop table", () => {
   it("keeps every character typed into the amount field", async () => {
     const user = userEvent.setup();
     render(<App />);
-    await user.click(screen.getByRole("button", { name: /Expenses/ }));
+    await user.click(screen.getByRole("button", { name: "Expenses" }));
     const row = screen.getByText("Supermarket").closest("div").parentElement;
     const amountCell = within(row).getByText("€400");
     await user.click(amountCell);
@@ -85,7 +85,7 @@ describe("adding a row from the wide table layout", () => {
   it("takes a comma decimal in the new-expense amount", async () => {
     const user = userEvent.setup();
     render(<App />);
-    await user.click(screen.getByRole("button", { name: /Expenses/ }));
+    await user.click(screen.getByRole("button", { name: "Expenses" }));
     await user.click(screen.getAllByRole("button", { name: /Add Expense/ }).at(-1));
     await user.type(screen.getByPlaceholderText("Name"), "Coffee");
     const amount = screen.getByPlaceholderText("0");
@@ -100,7 +100,7 @@ describe("adding a row from the wide table layout", () => {
   it("takes a comma decimal in the new-income amount", async () => {
     const user = userEvent.setup();
     render(<App />);
-    await user.click(screen.getByRole("button", { name: /Income/ }));
+    await user.click(screen.getByRole("button", { name: "Income" }));
     await user.click(screen.getAllByRole("button", { name: /Add Income Source/ }).at(-1));
     await user.type(screen.getByPlaceholderText("Income source"), "Tutoring");
     const amount = screen.getByPlaceholderText("0");
@@ -108,5 +108,38 @@ describe("adding a row from the wide table layout", () => {
     await user.click(screen.getByRole("button", { name: /Add Income Source/ }));
     expect(await screen.findByText("Tutoring")).toBeInTheDocument();
     expect(screen.getAllByText("€121").length).toBeGreaterThan(0);
+  });
+});
+
+describe("rows that behave like buttons", () => {
+  // These are divs, laid out as cards and rows. Without a role a screen reader
+  // announces them as ordinary text with nothing to activate, and there is no
+  // way to reach them from a keyboard at all.
+  it("announces the Overview cards by their label, not their figures", () => {
+    render(<App />);
+    const card = screen.getByRole("button", { name: "Monthly Expenses" });
+    expect(card).toHaveAttribute("tabindex", "0");
+  });
+
+  it("opens a tab from the keyboard", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    screen.getByRole("button", { name: "Monthly Income" }).focus();
+    await user.keyboard("{Enter}");
+    expect(screen.getByRole("button", { name: /Add Income Source/ })).toBeInTheDocument();
+  });
+
+  it("opens an expense row from the keyboard", async () => {
+    const user = userEvent.setup();
+    setViewport(375);
+    try {
+      render(<App />);
+      await user.click(screen.getByRole("button", { name: "Expenses" }));
+      screen.getByRole("button", { name: "Supermarket" }).focus();
+      await user.keyboard(" ");
+      expect(screen.getByDisplayValue("Supermarket")).toBeInTheDocument();
+    } finally {
+      setViewport(1024);
+    }
   });
 });

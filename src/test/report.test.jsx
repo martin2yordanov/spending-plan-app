@@ -33,12 +33,12 @@ describe("exported report", () => {
   it("escapes markup typed into an expense name", async () => {
     const user = userEvent.setup();
     render(<App />);
-    await user.click(screen.getByRole("button", { name: /Expenses/ }));
+    await user.click(screen.getByRole("button", { name: "Expenses" }));
     await user.click(screen.getByText("Supermarket"));
     const name = screen.getByDisplayValue("Supermarket");
     await user.clear(name);
     await user.type(name, "<script>x</script> & Co");
-    await user.click(screen.getByRole("button", { name: /Overview/ }));
+    await user.click(screen.getByRole("button", { name: "Overview" }));
     await user.click(screen.getByRole("button", { name: /Report/ }));
 
     expect(shared.html).toBeTruthy();
