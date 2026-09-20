@@ -83,3 +83,47 @@ describe("a write the server refuses as unauthenticated", () => {
     expect(screen.queryByText(/Sign in again/)).not.toBeInTheDocument();
   });
 });
+
+// Account deletion is the one flow App Review specifically checks. "Could not
+// delete the account: API 401" tells the person nothing they can act on.
+describe("an expired session in the flows that are not autosave", () => {
+  beforeEach(async () => {
+    global.fetch = vi.fn(async (url, opts) => {
+      if (opts?.method === "DELETE" || opts?.method === "POST") {
+        return { ok: false, status: 401, json: async () => ({}) };
+      }
+      return { ok: true, status: 200, json: async () => plan };
+    });
+    localStorage.setItem("walkthrough_done_user_NEW", "1");
+    localStorage.setItem(CACHE_KEY, JSON.stringify(plan));
+    vi.resetModules();
+    vi.stubEnv("VITE_CLERK_PUBLISHABLE_KEY", "pk_test_fake");
+    const { default: App } = await import("../App.jsx");
+    render(<App />);
+    await screen.findByText("€3,000");
+  });
+
+  afterEach(() => {
+    localStorage.clear();
+    vi.unstubAllEnvs();
+    vi.restoreAllMocks();
+  });
+
+  it("says what to do when deleting the account is refused", async () => {
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("button", { name: /Delete my account/ }));
+    await user.type(screen.getByLabelText(/Type DELETE/), "DELETE");
+    await user.click(screen.getByRole("button", { name: /Delete permanently/ }));
+    expect(await screen.findByText(/Sign in again and try once more/)).toBeInTheDocument();
+    expect(screen.queryByText(/API 401/)).not.toBeInTheDocument();
+  });
+
+  it("says what to do when an import is refused", async () => {
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("button", { name: /Import data from another account/ }));
+    await user.type(screen.getByPlaceholderText(/Account ID/), "user_OLD");
+    await user.click(screen.getByRole("button", { name: /^Import$/ }));
+    expect(await screen.findByText(/Sign in again and try once more/)).toBeInTheDocument();
+    expect(screen.queryByText(/API 401/)).not.toBeInTheDocument();
+  });
+});

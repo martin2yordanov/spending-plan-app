@@ -1997,11 +1997,13 @@ export default function App() {
       await auth.deleteAccount?.();
       setShowDeleteAccount(false);
     } catch (err) {
-      setDeleteError(err?.message ?? "Failed to delete account");
+      setDeleteError(
+        err?.status === 401 ? t("signInAndRetry") : (err?.message ?? "Failed to delete account"),
+      );
     } finally {
       setDeleteBusy(false);
     }
-  }, [auth, deleteBusy]);
+  }, [auth, deleteBusy, t]);
 
   const handleImportFromOldAccount = useCallback(async () => {
     const oldId = importInput.trim();
@@ -2023,7 +2025,8 @@ export default function App() {
       setImportInput("");
       window.setTimeout(() => { setShowImport(false); setImportSuccess(false); }, 1600);
     } catch (err) {
-      setImportError(err?.message ? `${t("importFailed")}: ${err.message}` : t("importFailed"));
+      if (err?.status === 401) setImportError(t("signInAndRetry"));
+      else setImportError(err?.message ? `${t("importFailed")}: ${err.message}` : t("importFailed"));
     } finally {
       setImportLoading(false);
     }
