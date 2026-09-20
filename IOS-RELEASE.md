@@ -169,3 +169,13 @@ test, which is why they are not here.
   1st" lands in the previous month, whose length varies.
 - **Redis password** may still be in Vercel's runtime logs from before the
   scrubbing fix. Rotate it.
+- **Set `RATELIMIT_SALT`** in Vercel to any long random string. Both API
+  endpoints are rate limited per caller, and the counter stores a hash of the
+  network address rather than the address itself — but without a salt that
+  hash is reversible over the whole IPv4 space, so the salt is what turns it
+  from tidiness into real minimisation. The limiter works either way.
+- **The advisor endpoint has no authentication.** It is capped at 20 calls an
+  hour per caller, which is what stands between the Groq key and a drained
+  quota. Requiring a signed-in session would be stronger, but it would also
+  take the advisor away from the logged-out demo, which is a product call
+  rather than a bug.

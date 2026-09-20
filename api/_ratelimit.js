@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import Redis from "ioredis";
 
 // A fixed-window counter in the Redis that already backs the plan store.
@@ -18,13 +19,26 @@ function getClient() {
   return _client;
 }
 
-/** Best guess at the caller, behind Vercel's proxy. */
+/**
+ * Identifies the caller behind Vercel's proxy, as a hash rather than the
+ * address itself — the counter only ever needs to tell callers apart, so there
+ * is no reason for a bucket of IP addresses to sit in Redis for an hour.
+ *
+ * Set RATELIMIT_SALT to make that hash one-way in practice. Without it the
+ * whole IPv4 space can simply be hashed and compared, so the salt is what
+ * turns this from tidiness into actual minimisation.
+ */
 export function clientKey(req) {
   const forwarded = req.headers?.["x-forwarded-for"];
-  if (typeof forwarded === "string" && forwarded.trim()) {
-    return forwarded.split(",")[0].trim();
-  }
-  return req.headers?.["x-real-ip"] || req.socket?.remoteAddress || "unknown";
+  const address = (typeof forwarded === "string" && forwarded.trim())
+    ? forwarded.split(",")[0].trim()
+    : req.headers?.["x-real-ip"] || req.socket?.remoteAddress || "";
+
+  if (!address) return "unknown";
+  return createHash("sha256")
+    .update(`${process.env.RATELIMIT_SALT ?? ""}:${address}`)
+    .digest("base64url")
+    .slice(0, 22);
 }
 
 /**

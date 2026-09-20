@@ -69,7 +69,20 @@ describe("rateLimit", () => {
   });
 
   it("reads the caller through Vercel's proxy header", () => {
-    expect(clientKey({ headers: { "x-forwarded-for": "1.2.3.4, 10.0.0.1" } })).toBe("1.2.3.4");
+    const first = clientKey({ headers: { "x-forwarded-for": "1.2.3.4, 10.0.0.1" } });
+    expect(first).toBe(clientKey({ headers: { "x-forwarded-for": "1.2.3.4" } }));
+    expect(first).not.toBe(clientKey({ headers: { "x-forwarded-for": "1.2.3.5" } }));
+  });
+
+  // The counter only needs to tell callers apart, so there is no reason for a
+  // bucket of IP addresses to sit in Redis for an hour.
+  it("does not keep the address itself", () => {
+    const key = clientKey({ headers: { "x-forwarded-for": "203.0.113.9" } });
+    expect(key).not.toContain("203.0.113.9");
+    expect(key).toMatch(/^[A-Za-z0-9_-]{22}$/);
+  });
+
+  it("falls back to a constant when there is no address at all", () => {
     expect(clientKey({ headers: {} })).toBe("unknown");
   });
 });
