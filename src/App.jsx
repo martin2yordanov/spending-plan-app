@@ -617,9 +617,9 @@ function CategoryModal({ cat, label, color, icon, catExpenses, closing, onClose,
               <div style={{ fontSize: 11, color: "#6C6C70", textTransform: "uppercase", letterSpacing: 0.6, marginBottom: 3 }}>
                 {t("categoryBreakdown")}
               </div>
-              <div style={{ fontSize: 22, fontWeight: 800, color: "#1C1C1E", letterSpacing: "-0.5px" }}>
+              <h2 style={{ fontSize: 22, fontWeight: 800, color: "#1C1C1E", letterSpacing: "-0.5px", margin: 0 }}>
                 {icon} {label}
-              </div>
+              </h2>
               <div style={{ fontSize: 13, color: color, fontWeight: 600, marginTop: 2 }}>
                 {money(catTotal)} / {t.freq("Monthly").toLowerCase()}
               </div>
@@ -2427,9 +2427,9 @@ export default function App() {
                   aria-hidden="true"
                   style={{ height: 26, width: "auto", display: "block", flexShrink: 0 }}
                 />
-                <span style={{ fontSize: 19, fontWeight: 800, letterSpacing: "-0.6px", color: "#1C1C1E", whiteSpace: "nowrap" }}>
+                <h1 style={{ fontSize: 19, fontWeight: 800, letterSpacing: "-0.6px", color: "#1C1C1E", whiteSpace: "nowrap", margin: 0 }}>
                   {t("appTitle")}
-                </span>
+                </h1>
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 {isSignedIn && saveStatus}
@@ -2569,9 +2569,9 @@ export default function App() {
                 aria-hidden="true"
                 style={{ height: 30, width: "auto", display: "block", flexShrink: 0 }}
               />
-              <span style={{ fontSize: 22, fontWeight: 800, letterSpacing: "-0.7px", color: "#1C1C1E" }}>
+              <h1 style={{ fontSize: 22, fontWeight: 800, letterSpacing: "-0.7px", color: "#1C1C1E", margin: 0 }}>
                 {t("appTitle")}
-              </span>
+              </h1>
             </div>
             <div style={{ display: "flex", gap: 6 }}>
               {["overview", "expenses", "income", "savings", "suggestions"].map((tab) => (
@@ -2835,7 +2835,7 @@ export default function App() {
               }}
             >
               <div style={{ background: "#fff", borderRadius: 18, padding: 22, boxShadow: "0 2px 12px rgba(0,0,0,0.06)", display: "flex", flexDirection: "column" }}>
-                <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 16 }}>{t("spendingByCategory")}</div>
+                <h2 style={{ fontSize: 15, fontWeight: 600, margin: "0 0 16px" }}>{t("spendingByCategory")}</h2>
                 <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 20, flexDirection: isMobile ? "column" : "row" }}>
                   <div style={{ position: "relative", flexShrink: 0 }}>
                     <DonutChart data={donutData} total={totalExpenses} activeCategory={activeCategory} onCategoryChange={setActiveCategory} />
@@ -2898,7 +2898,7 @@ export default function App() {
               </div>
 
               <div style={{ background: "#fff", borderRadius: 18, padding: 22, boxShadow: "0 2px 12px rgba(0,0,0,0.06)" }}>
-                <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 16 }}>{t("categoryBreakdown")}</div>
+                <h2 style={{ fontSize: 15, fontWeight: 600, margin: "0 0 16px" }}>{t("categoryBreakdown")}</h2>
                 <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                   {categoryTotals.map((item) => {
                     const pct = totalIncome > 0 ? (item.value / totalIncome) * 100 : 0;
@@ -3027,7 +3027,7 @@ export default function App() {
 
             <div style={{ display: "grid", gridTemplateColumns: twoColGrid, gap: 14 }}>
               <div style={{ background: "#fff", borderRadius: 18, padding: 22, boxShadow: "0 2px 12px rgba(0,0,0,0.06)" }}>
-                <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 4 }}>💹 {t("monthlyInvestment")}</div>
+                <h2 style={{ fontSize: 15, fontWeight: 600, margin: "0 0 4px" }}>💹 {t("monthlyInvestment")}</h2>
                 <div style={{ position: "relative", marginBottom: 14 }} ref={investMenuRef}>
                   <button
                     onClick={() => setShowInvestMenu(v => !v)}
@@ -3110,7 +3110,7 @@ export default function App() {
               </div>
 
               <div style={{ background: "#fff", borderRadius: 18, padding: 18, boxShadow: "0 2px 12px rgba(0,0,0,0.06)" }}>
-                <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 2 }}>🛡️ {t("emergencyFund")}</div>
+                <h2 style={{ fontSize: 15, fontWeight: 600, margin: "0 0 2px" }}>🛡️ {t("emergencyFund")}</h2>
                 <div style={{ fontSize: 11, color: "#6C6C70", marginBottom: 10 }}>{t("emergencySub")}</div>
                 <div style={{ display: "flex", gap: 6, marginBottom: 10 }}>
                   {[0, 3, 6, 12].map((months) => (
@@ -3191,7 +3191,7 @@ export default function App() {
                 <div style={{ background: "#fff", borderRadius: 18, padding: 22, boxShadow: "0 2px 12px rgba(0,0,0,0.06)", marginTop: 14 }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 20, flexWrap: "wrap", gap: 12 }}>
                     <div>
-                      <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 2 }}>{t("healthScore")}</div>
+                      <h2 style={{ fontSize: 15, fontWeight: 600, margin: "0 0 2px" }}>{t("healthScore")}</h2>
                       <div style={{ fontSize: 12, color: "#6C6C70" }}>{t("healthSub")}</div>
                     </div>
                     <button
@@ -4254,9 +4254,9 @@ export default function App() {
           <div>
             {/* Savings accounts list */}
             <div style={{ marginBottom: 14 }}>
-              <div style={{ fontSize: 15, fontWeight: 700, color: "#1C1C1E", marginBottom: 10 }}>
+              <h2 style={{ fontSize: 15, fontWeight: 700, color: "#1C1C1E", margin: "0 0 10px" }}>
                 💰 {t("savings_title")}
-              </div>
+              </h2>
               <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                 {savingsAccounts.map((account) => {
                   const isEditing = editingSavings === account.id;
@@ -4515,7 +4515,7 @@ export default function App() {
 
             {/* Monthly investment section */}
             <div style={{ background: "#fff", borderRadius: 18, padding: 22, boxShadow: "0 2px 12px rgba(0,0,0,0.06)" }}>
-              <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 4 }}>💹 {t("monthlyInvestment")}</div>
+              <h2 style={{ fontSize: 15, fontWeight: 600, margin: "0 0 4px" }}>💹 {t("monthlyInvestment")}</h2>
               <div style={{ fontSize: 12, color: "#6C6C70", marginBottom: 14 }}>{t("savings_sub")}</div>
               <div style={{ position: "relative", marginBottom: 14 }} ref={investMenuRef}>
                 <button

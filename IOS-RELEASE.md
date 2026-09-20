@@ -182,6 +182,13 @@ test, which is why they are not here.
   requested once there is actually a reminder to schedule, so a first launch
   no longer asks for notifications it has no use for.
 
+- **Text does not follow Dynamic Type.** A WKWebView does not scale web
+  content to the system text size, and every size in this app is a fixed
+  pixel value, so somebody who has turned text up sees it at the same size as
+  everybody else. Fixing it properly means moving the type scale off pixels,
+  which is a change to every inline style in `App.jsx`. Not a rejection
+  criterion, but it is the app's largest remaining accessibility gap.
+
 - **The web build has no service worker.** The native app bundles its assets,
   so it opens with no connection; the web app caches the *plan* offline but
   not the app shell, and a cold load with no connection still fails. The

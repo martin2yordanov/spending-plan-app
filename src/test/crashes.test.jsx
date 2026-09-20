@@ -143,3 +143,19 @@ describe("rows that behave like buttons", () => {
     }
   });
 });
+
+describe("document structure", () => {
+  // Every section title was a styled div, so VoiceOver's rotor had no headings
+  // to jump between — on a screen this dense that is the difference between
+  // navigating and reading every line in order.
+  it("gives the screen a heading outline", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    expect(screen.getByRole("heading", { level: 1, name: /Spending Plan/ })).toBeInTheDocument();
+    for (const name of ["Spending by Category", "Category Breakdown", /Emergency Fund/, /Financial Health Score/]) {
+      expect(screen.getByRole("heading", { level: 2, name })).toBeInTheDocument();
+    }
+    await user.click(screen.getByRole("button", { name: "Savings" }));
+    expect(screen.getByRole("heading", { level: 2, name: /Savings/ })).toBeInTheDocument();
+  });
+});
