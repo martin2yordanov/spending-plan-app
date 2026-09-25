@@ -140,17 +140,15 @@ argue against that:
 |---|---|
 | Works offline | Plan is cached on device; edits sync when the connection returns |
 | Face ID lock | Biometric hardware, re-locks on backgrounding, re-prompts on resume |
+| Bill reminders | Local notifications scheduled from due dates, on the Bills tab |
 | Native share sheet | Report goes through Files / Print / Messages |
+| Dynamic Type | Text follows the system size, re-measured on every resume |
 
-> **Bill reminders are not currently reachable.** The scheduling is all
-> there — `syncBillReminders` in `src/native.js`, the `bills` field in the
-> stored plan, the report section, the translated notification text — but the
-> card that created a bill was removed, and nothing replaced it. A plan can
-> only hold bills if it already had them. So the feature cannot be
-> demonstrated to a reviewer, and it should not be argued in a 4.2 response
-> until there is a way to add one. Either restore an editor for it or drop the
-> claim; leaving it as is means the app schedules nothing and the code path is
-> dead.
+**Showing bill reminders to a reviewer.** Bills tab → Add Bill → name, amount,
+due day. iOS asks for notification permission on the first bill, not before.
+The tab then says how many reminders are scheduled, and says plainly if
+notifications have been refused. Set a bill's due day to tomorrow to have
+something land during a review.
 
 If it is still rejected under 4.2, the strongest next additions are a **home
 screen widget** (WidgetKit, shows safe-to-spend without opening the app) and

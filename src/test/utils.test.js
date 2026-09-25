@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { freqToMonthly, fmt, computeHealthScore, computeEmergencyFundCoverage, scoreColor, scoreLabelKey, parseAmount, parseNumeric, barPercent } from "../utils.js";
+import { freqToMonthly, fmt, computeHealthScore, computeEmergencyFundCoverage, scoreColor, scoreLabelKey, parseAmount, parseNumeric, barPercent, daysUntilDue } from "../utils.js";
 
 describe("freqToMonthly", () => {
   it("returns amount unchanged for Monthly", () => {
@@ -268,5 +268,44 @@ describe("barPercent", () => {
     expect(barPercent("25", 100)).toBe(25);
     expect(barPercent("12,5", 100)).toBe(12.5);
     expect(barPercent("abc", 100)).toBe(0);
+  });
+});
+
+describe("daysUntilDue", () => {
+  const on = (y, m, d) => new Date(y, m - 1, d);
+
+  it("is zero on the day itself", () => {
+    expect(daysUntilDue(10, on(2026, 3, 10))).toBe(0);
+  });
+
+  it("counts forward inside the month", () => {
+    expect(daysUntilDue(20, on(2026, 3, 10))).toBe(10);
+  });
+
+  it("rolls into next month once the day has passed", () => {
+    expect(daysUntilDue(5, on(2026, 3, 10))).toBe(26); // 31-day March
+  });
+
+  // Not a choice: an iOS day-of-month trigger does not fire in a month that
+  // has no such day, so the figure on screen has to agree with the reminder.
+  it("skips a month too short to contain the day", () => {
+    // 30 Feb does not exist, so the next one is 30 March.
+    expect(daysUntilDue(30, on(2026, 2, 5))).toBe(53);
+    // 31 April does not exist either, so it jumps from March to May.
+    expect(daysUntilDue(31, on(2026, 4, 1))).toBe(60);
+  });
+
+  it("crosses a year end", () => {
+    expect(daysUntilDue(2, on(2026, 12, 20))).toBe(13);
+  });
+
+  it("rejects a day that is not a day of the month", () => {
+    for (const bad of [0, 32, -1, 1.5, NaN, null, undefined, "", "abc"]) {
+      expect(daysUntilDue(bad, on(2026, 3, 10)), String(bad)).toBeNull();
+    }
+  });
+
+  it("takes a numeric string, as a stored plan may hold one", () => {
+    expect(daysUntilDue("20", on(2026, 3, 10))).toBe(10);
   });
 });

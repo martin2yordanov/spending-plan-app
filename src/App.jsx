@@ -3,7 +3,7 @@ import { useUser, useAuth, SignInButton, UserButton } from "@clerk/clerk-react";
 import { LANGUAGES, LANG_KEY, makeT } from "./i18n";
 import { readCache, writeCache, clearCache, setPendingSync, getPendingSync, clearPendingSync } from "./storage";
 import { shareReport, syncBillReminders, biometricAvailable, biometricUnlock, readBiometricLock, setBiometricLock, openExternal, isNative } from "./native";
-import { FREQUENCIES, freqToMonthly, parseNumeric, barPercent, computeHealthScore, computeEmergencyFundCoverage, scoreColor, scoreLabelKey, parseAmount, CURRENCIES, CURRENCY_KEY, DEFAULT_CURRENCY, currencyMeta, makeMoney, conversionRate, convertAmount } from "./utils.js";
+import { FREQUENCIES, freqToMonthly, parseNumeric, barPercent, daysUntilDue, computeHealthScore, computeEmergencyFundCoverage, scoreColor, scoreLabelKey, parseAmount, CURRENCIES, CURRENCY_KEY, DEFAULT_CURRENCY, currencyMeta, makeMoney, conversionRate, convertAmount } from "./utils.js";
 
 export const CLERK_ENABLED = !!import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
 
@@ -105,6 +105,10 @@ const EXAMPLE_INCOME = [
 
 const EXAMPLE_INVEST = 250;
 const EXAMPLE_INVEST_LABEL = "S&P 500 ETF";
+
+// 1..31. A bill due on the 29th, 30th or 31st simply has no reminder in a
+// month that short — see daysUntilDue, and the note shown beside the field.
+const DUE_DAYS = Array.from({ length: 31 }, (_, i) => i + 1);
 
 const INVEST_TYPES = [
   "S&P 500 ETF",
@@ -1108,6 +1112,12 @@ export default function App() {
   const [editingLimitCat, setEditingLimitCat] = useState(null);
   const [limitInput, setLimitInput] = useState("");
   const [bills, setBills] = useState([]);
+  const [addingBill, setAddingBill] = useState(false);
+  const [editingBill, setEditingBill] = useState(null);
+  const [newBill, setNewBill] = useState({ name: "", amount: "", dueDay: 1 });
+  // What syncBillReminders last reported, so the tab can say whether the
+  // reminders it is promising will actually arrive.
+  const [reminderState, setReminderState] = useState(null);
 
   const changeCurrency = useCallback((code) => {
     setShowCurMenu(false);
@@ -1555,9 +1565,9 @@ export default function App() {
   useEffect(() => {
     isEditingRef.current =
       editingExpense != null || editingIncome != null || editingSavings != null ||
-      editingLimitCat != null || renamingCategory != null ||
-      addingExpense || addingIncome || addingSavings;
-  }, [editingExpense, editingIncome, editingSavings, editingLimitCat, renamingCategory, addingExpense, addingIncome, addingSavings]);
+      editingBill != null || editingLimitCat != null || renamingCategory != null ||
+      addingExpense || addingIncome || addingSavings || addingBill;
+  }, [editingExpense, editingIncome, editingSavings, editingBill, editingLimitCat, renamingCategory, addingExpense, addingIncome, addingSavings, addingBill]);
 
   // Pick up an edit made on another device when this one comes back to the
   // foreground.
@@ -1780,7 +1790,12 @@ export default function App() {
         title: t("notif_billTitle", { name: b.name }),
         body: t("notif_billBody", { amount: money(Number(b.amount) || 0) }),
       })),
-    ).catch((err) => console.warn("[reminders]", err?.message ?? err));
+    )
+      .then(setReminderState)
+      .catch((err) => {
+        console.warn("[reminders]", err?.message ?? err);
+        setReminderState(null);
+      });
   }, [loaded, bills, auth?.userId, t, money]);
 
   // Warn before leaving with unsaved (or failed-to-save) changes.
@@ -1873,6 +1888,7 @@ export default function App() {
     [expenses],
   );
   const totalSavingsBalance = savingsAccounts.reduce((sum, a) => sum + (Number(a.amount) || 0), 0);
+  const billsTotal = bills.reduce((sum, b) => sum + parseAmount(b.amount, 0), 0);
   const investMonthly = freqToMonthly(invest, "Monthly");
   const savings = totalIncome - totalExpenses - investMonthly;
   // Let the slider grow past its default 1000 ceiling so it never misrepresents
@@ -2316,6 +2332,35 @@ export default function App() {
     setAddingIncome(false);
   };
 
+  const addBill = () => {
+    const name = newBill.name.trim();
+    if (!name) return;
+    setBills((current) => [...current, {
+      id: nextId(current),
+      name,
+      amount: parseAmount(newBill.amount, 0),
+      dueDay: Number(newBill.dueDay) || 1,
+    }]);
+    setNewBill({ name: "", amount: "", dueDay: 1 });
+    setAddingBill(false);
+  };
+
+  const deleteBill = (id) => {
+    const removed = bills.find((b) => b.id === id);
+    const idx = bills.findIndex((b) => b.id === id);
+    if (!removed) return;
+    setEditingBill(null);
+    deleteWithUndo(
+      removed.name,
+      () => setBills((current) => current.filter((b) => b.id !== id)),
+      () => setBills((current) => {
+        const next = current.slice();
+        next.splice(Math.min(idx, next.length), 0, removed);
+        return next;
+      }),
+    );
+  };
+
   const deleteSavings = (id) => {
     const removed = savingsAccounts.find((a) => a.id === id);
     const idx = savingsAccounts.findIndex((a) => a.id === id);
@@ -2516,7 +2561,7 @@ export default function App() {
                 display: "flex", gap: 4, overflowX: "auto", paddingBottom: 8, paddingRight: 24,
                 scrollbarWidth: "none", msOverflowStyle: "none",
               }} className="no-scrollbar">
-                {["overview", "expenses", "income", "savings", "suggestions"].map(tab => (
+                {["overview", "expenses", "income", "bills", "savings", "suggestions"].map(tab => (
                   <button
                     key={tab}
                     ref={el => { tabRefs.current[tab] = el; }}
@@ -2574,7 +2619,7 @@ export default function App() {
               </h1>
             </div>
             <div style={{ display: "flex", gap: 6 }}>
-              {["overview", "expenses", "income", "savings", "suggestions"].map((tab) => (
+              {["overview", "expenses", "income", "bills", "savings", "suggestions"].map((tab) => (
                 <button
                   key={tab}
                   ref={(el) => { tabRefs.current[tab] = el; }}
@@ -2880,7 +2925,10 @@ export default function App() {
                           onMouseLeave={() => setActiveCategory(null)}
                           {...tappable(
                             () => setActiveCategory(isActive ? null : item.name),
-                            getCategoryLabel(item.name, customCategories, t),
+                            // Amount included: a legend entry announced as just
+                            // "Bills" says nothing a screen reader user can use,
+                            // and collides with the tab of the same name.
+                            `${getCategoryLabel(item.name, customCategories, t)} ${money(item.value)}`,
                           )}
                         >
                           <div style={{
@@ -4247,6 +4295,237 @@ export default function App() {
                 {t("perWorkDayNote", { n: workDaysInMonth })}
               </div>
             </div>
+          </div>
+        )}
+
+        {activeTab === "bills" && (
+          <div>
+            <h2 style={{ fontSize: 15, fontWeight: 700, color: "#1C1C1E", margin: "0 0 2px" }}>
+              🔔 {t("bills_title")}
+            </h2>
+            <div style={{ fontSize: 12, color: "#6C6C70", marginBottom: 12 }}>{t("bills_sub")}</div>
+
+            {/* What the scheduler last reported. A list of reminders that are
+                never going to arrive is worse than no list at all, so a
+                refused permission is said plainly rather than left to be
+                discovered on the day a bill goes unpaid. */}
+            {isNative && reminderState?.denied && (
+              <div style={{
+                background: "#FFF0EF", border: "1.5px solid #FFD2CF", borderRadius: 12,
+                padding: "10px 12px", marginBottom: 12, fontSize: 12.5, color: "#C0261C", lineHeight: 1.5,
+              }}>
+                ⚠️ {t("remindersBlocked")}
+              </div>
+            )}
+            {!isNative && bills.length > 0 && (
+              <div style={{
+                background: "#F7F7FA", border: "1.5px solid #E5E5EA", borderRadius: 12,
+                padding: "10px 12px", marginBottom: 12, fontSize: 12.5, color: "#3C3C43", lineHeight: 1.5,
+              }}>
+                📱 {t("remindersWebOnly")}
+              </div>
+            )}
+
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              {bills.length === 0 && !addingBill && (
+                <div style={{
+                  textAlign: "center", padding: "32px 20px", color: "#6C6C70",
+                  fontSize: 13.5, lineHeight: 1.55, background: "#fff", borderRadius: 16,
+                  boxShadow: "0 2px 8px rgba(0,0,0,0.06)",
+                }}>
+                  {t("bills_empty")}
+                </div>
+              )}
+
+              {bills.map((bill) => {
+                const isEditing = editingBill === bill.id;
+                const due = daysUntilDue(bill.dueDay, now);
+                const dueLabel = due === 0 ? t("bill_dueToday")
+                  : due === 1 ? t("bill_dueTomorrow")
+                  : due != null ? t("bill_dueInDays", { n: due })
+                  : null;
+                return (
+                  <div
+                    key={bill.id}
+                    style={{
+                      borderRadius: 16, padding: "14px 16px",
+                      background: isEditing ? "#FFF8F0" : "#fff",
+                      border: `1.5px solid ${isEditing ? "#FF9500" : "transparent"}`,
+                      boxShadow: "0 2px 8px rgba(0,0,0,0.06)",
+                      transition: "all 0.2s ease",
+                    }}
+                  >
+                    {isEditing ? (
+                      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                        <input
+                          autoFocus
+                          value={bill.name}
+                          onChange={(e) => setBills((rows) => rows.map((b) => b.id === bill.id ? { ...b, name: e.target.value } : b))}
+                          style={{
+                            fontSize: 15, fontWeight: 600, color: "#1C1C1E", border: "none",
+                            borderBottom: "2px solid #FF9500", background: "transparent",
+                            outline: "none", width: "100%", paddingBottom: 2,
+                          }}
+                        />
+                        <div style={{ display: "flex", gap: 10 }}>
+                          <div style={{ flex: 1 }}>
+                            <div style={{ fontSize: 11, color: "#6C6C70", marginBottom: 4 }}>{t("col_amount")} ({curSymbol})</div>
+                            <input
+                              type="text" inputMode="decimal"
+                              value={bill.amount}
+                              onChange={(e) => setBills((rows) => rows.map((b) => b.id === bill.id ? { ...b, amount: e.target.value } : b))}
+                              onBlur={(e) => setBills((rows) => rows.map((b) => b.id === bill.id ? { ...b, amount: parseAmount(e.target.value, 0) } : b))}
+                              style={{
+                                fontSize: 16, fontWeight: 700, color: "#FF9500", width: "100%",
+                                border: "none", borderBottom: "2px solid #FF9500",
+                                background: "transparent", outline: "none", paddingBottom: 2,
+                              }}
+                            />
+                          </div>
+                          <div style={{ flex: 1 }}>
+                            <div style={{ fontSize: 11, color: "#6C6C70", marginBottom: 4 }}>{t("bill_dueDay")}</div>
+                            {/* A list rather than a free number field: there is
+                                no such thing as day 0 or day 45, and a typo
+                                here silently costs the reminder. */}
+                            <select
+                              value={Number(bill.dueDay) || 1}
+                              onChange={(e) => setBills((rows) => rows.map((b) => b.id === bill.id ? { ...b, dueDay: Number(e.target.value) } : b))}
+                              style={{
+                                fontSize: 13, width: "100%", border: "none",
+                                borderBottom: "2px solid #FF9500", background: "transparent",
+                                outline: "none", paddingBottom: 2, color: "#1C1C1E",
+                              }}
+                            >
+                              {DUE_DAYS.map((d) => <option key={d} value={d}>{d}</option>)}
+                            </select>
+                          </div>
+                        </div>
+                        {Number(bill.dueDay) > 28 && (
+                          <div style={{ fontSize: 11, color: "#6C6C70" }}>ℹ️ {t("bill_shortMonthNote")}</div>
+                        )}
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 4 }}>
+                          <button
+                            onClick={() => deleteBill(bill.id)}
+                            style={{ padding: "7px 14px", borderRadius: 10, border: "none", background: "#FF3B3015", color: "#FF3B30", fontSize: 13, fontWeight: 600, cursor: "pointer" }}
+                          >
+                            🗑 {t("btn_delete")}
+                          </button>
+                          <button
+                            onClick={() => {
+                              setBills((rows) => rows.map((b) => b.id === bill.id ? { ...b, amount: parseAmount(b.amount, 0) } : b));
+                              setEditingBill(null);
+                            }}
+                            style={{ padding: "7px 18px", borderRadius: 10, border: "none", background: "#FF9500", color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer" }}
+                          >
+                            {t("btn_done")}
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div
+                        style={{ display: "flex", alignItems: "center", gap: 12, cursor: "pointer" }}
+                        {...tappable(() => setEditingBill(bill.id), `${bill.name} — ${t("editBill")}`)}
+                      >
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontSize: 14, fontWeight: 600, color: "#1C1C1E", marginBottom: 2 }}>{bill.name}</div>
+                          <div style={{ fontSize: 12, color: "#6C6C70" }}>
+                            {t("bill_dayOfMonth", { d: Number(bill.dueDay) || 1 })}
+                            {dueLabel ? ` · ${dueLabel}` : ""}
+                          </div>
+                        </div>
+                        <div style={{ textAlign: "right", flexShrink: 0 }}>
+                          <div style={{ fontSize: 15, fontWeight: 700, color: "#FF9500" }}>{money(parseAmount(bill.amount, 0))}</div>
+                        </div>
+                        <div style={{ color: "#C7C7CC", fontSize: 13 }}>›</div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+
+              {addingBill ? (
+                <div style={{
+                  background: "#fff", borderRadius: 16, padding: 16, boxShadow: "0 2px 8px rgba(0,0,0,0.06)",
+                  display: "flex", flexDirection: "column", gap: 12, border: "2px solid #FF9500",
+                }}>
+                  <input
+                    autoFocus
+                    placeholder={t("ph_billName")}
+                    value={newBill.name}
+                    onChange={(e) => setNewBill((c) => ({ ...c, name: e.target.value }))}
+                    style={{ fontSize: 15, fontWeight: 600, border: "none", borderBottom: "2px solid #FF9500", background: "transparent", outline: "none", paddingBottom: 2 }}
+                  />
+                  <div style={{ display: "flex", gap: 10 }}>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: 11, color: "#6C6C70", marginBottom: 4 }}>{t("col_amount")} ({curSymbol})</div>
+                      <input
+                        type="text" inputMode="decimal" placeholder="0"
+                        value={newBill.amount}
+                        onChange={(e) => setNewBill((c) => ({ ...c, amount: e.target.value }))}
+                        style={{ fontSize: 16, fontWeight: 700, color: "#FF9500", width: "100%", border: "none", borderBottom: "2px solid #FF9500", background: "transparent", outline: "none", paddingBottom: 2 }}
+                      />
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: 11, color: "#6C6C70", marginBottom: 4 }}>{t("bill_dueDay")}</div>
+                      <select
+                        value={newBill.dueDay}
+                        onChange={(e) => setNewBill((c) => ({ ...c, dueDay: Number(e.target.value) }))}
+                        style={{ fontSize: 13, width: "100%", border: "none", borderBottom: "2px solid #FF9500", background: "transparent", outline: "none", paddingBottom: 2, color: "#1C1C1E" }}
+                      >
+                        {DUE_DAYS.map((d) => <option key={d} value={d}>{d}</option>)}
+                      </select>
+                    </div>
+                  </div>
+                  {newBill.dueDay > 28 && (
+                    <div style={{ fontSize: 11, color: "#6C6C70" }}>ℹ️ {t("bill_shortMonthNote")}</div>
+                  )}
+                  <div style={{ display: "flex", justifyContent: "space-between" }}>
+                    <button
+                      onClick={() => { setAddingBill(false); setNewBill({ name: "", amount: "", dueDay: 1 }); }}
+                      style={{ padding: "7px 14px", borderRadius: 10, border: "none", background: "#F2F2F7", color: "#3C3C43", fontSize: 13, fontWeight: 600, cursor: "pointer" }}
+                    >
+                      {t("btn_cancel")}
+                    </button>
+                    <button
+                      onClick={addBill}
+                      style={{ padding: "7px 18px", borderRadius: 10, border: "none", background: "#FF9500", color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer" }}
+                    >
+                      + {t("addBill")}
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <button
+                  onClick={() => setAddingBill(true)}
+                  style={{
+                    width: "100%", padding: 14, borderRadius: 16, border: "2px dashed #C7C7CC",
+                    background: "transparent", color: "#FF9500", fontSize: 14, fontWeight: 600,
+                    cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+                  }}
+                >
+                  <span style={{ fontSize: 18, lineHeight: 1 }}>+</span> {t("addBill")}
+                </button>
+              )}
+            </div>
+
+            {bills.length > 0 && (
+              <>
+                <div style={{
+                  marginTop: 12, background: "#fff", borderRadius: 14, padding: "14px 20px",
+                  boxShadow: "0 2px 8px rgba(0,0,0,0.06)", display: "flex",
+                  justifyContent: "space-between", alignItems: "center", gap: 12,
+                }}>
+                  <span style={{ fontSize: 14, fontWeight: 600, color: "#3C3C43" }}>{t("bills_total")}</span>
+                  <span style={{ fontSize: 20, fontWeight: 700, color: "#FF9500" }}>{money(billsTotal)}</span>
+                </div>
+                <div style={{ marginTop: 10, fontSize: 11.5, color: "#8E8E93", textAlign: "center", lineHeight: 1.5 }}>
+                  🔔 {t("remindersNote")}
+                  {isNative && reminderState?.scheduled > 0 && (
+                    <> · {t("remindersScheduled", { n: reminderState.scheduled })}</>
+                  )}
+                </div>
+              </>
+            )}
           </div>
         )}
 

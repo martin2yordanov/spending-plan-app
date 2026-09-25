@@ -163,6 +163,31 @@ export function barPercent(value, total) {
   return Math.max(0, Math.min(100, pct));
 }
 
+/**
+ * Whole days from `from` until the next time `dueDay` comes round, or null if
+ * the day is not a usable day of the month.
+ *
+ * A month shorter than the due day is skipped rather than clamped to its last
+ * day. That is not a choice — it is what an iOS day-of-month notification
+ * trigger does, and the figure on screen has to agree with when the reminder
+ * will actually arrive.
+ */
+export function daysUntilDue(dueDay, from = new Date()) {
+  const day = Number(dueDay);
+  if (!Number.isInteger(day) || day < 1 || day > 31) return null;
+
+  const start = new Date(from.getFullYear(), from.getMonth(), from.getDate());
+  for (let monthsAhead = 0; monthsAhead <= 12; monthsAhead++) {
+    const probe = new Date(start.getFullYear(), start.getMonth() + monthsAhead, 1);
+    const daysInMonth = new Date(probe.getFullYear(), probe.getMonth() + 1, 0).getDate();
+    if (day > daysInMonth) continue;
+    const due = new Date(probe.getFullYear(), probe.getMonth(), day);
+    // Rounded, because a clock change inside the span makes it 23 or 25 hours.
+    if (due >= start) return Math.round((due - start) / 86400000);
+  }
+  return null;
+}
+
 export function scoreColor(score) {
   if (score >= 80) return "#34C759";
   if (score >= 60) return "#FF9500";

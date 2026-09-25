@@ -12,9 +12,12 @@ describe("App smoke test", () => {
     expect(screen.getByText("Category Breakdown")).toBeInTheDocument();
   });
 
-  it("no longer shows the removed Recurring Bills card", () => {
+  // Bills used to sit in a card on this screen. They have their own tab now;
+  // what this still guards is that Overview stays uncluttered by them.
+  it("keeps bills off the Overview screen", () => {
     render(<App />);
     expect(screen.queryByText(/Recurring Bills/)).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Bills" })).toBeInTheDocument();
   });
 
   it("navigates to the Savings tab when the Net Savings card is clicked", async () => {

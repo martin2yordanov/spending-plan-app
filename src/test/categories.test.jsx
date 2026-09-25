@@ -9,7 +9,9 @@ async function openExpenses(user) {
 }
 
 async function renameCategory(user, from, to) {
-  const chip = screen.getByRole("button", { name: new RegExp(`${from}$`) });
+  // The last match, not the only one: a category can share its name with a
+  // tab in the header, and the header comes first in the document.
+  const chip = screen.getAllByRole("button", { name: new RegExp(`${from}$`) }).at(-1);
   await user.dblClick(chip);
   const input = screen.getByDisplayValue(from);
   await user.clear(input);
@@ -59,7 +61,7 @@ describe("categories", () => {
 
     // Both survive, under their own names.
     expect(screen.getByRole("button", { name: /Utilities$/ })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Bills$/ })).toBeInTheDocument();
+    expect(screen.getAllByRole("button", { name: /Bills$/ }).length).toBeGreaterThan(1); // the tab, and the chip
     // And the renamed one still carries the expenses that were filed under it.
     await user.click(screen.getByRole("button", { name: /Utilities$/ }));
     expect(screen.getByText("Electricity Bill")).toBeInTheDocument();
