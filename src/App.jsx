@@ -218,7 +218,7 @@ function renderMarkdown(text) {
   const flushPara = (key) => {
     if (buffer.length === 0) return;
     nodes.push(
-      <p key={`p-${key}`} style={{ margin: "0 0 12px", fontSize: 14, lineHeight: 1.55, color: "#1C1C1E" }}>
+      <p key={`p-${key}`} style={{ margin: "0 0 12px", fontSize: "0.875rem", lineHeight: 1.55, color: "#1C1C1E" }}>
         {renderInline(buffer.join(" "))}
       </p>,
     );
@@ -231,21 +231,21 @@ function renderMarkdown(text) {
     if (trimmed.startsWith("### ")) {
       flushPara(i);
       nodes.push(
-        <h3 key={`h-${i}`} style={{ margin: "20px 0 10px", fontSize: 17, fontWeight: 700, color: "#1C1C1E" }}>
+        <h3 key={`h-${i}`} style={{ margin: "20px 0 10px", fontSize: "1.0625rem", fontWeight: 700, color: "#1C1C1E" }}>
           {trimmed.slice(4)}
         </h3>,
       );
     } else if (trimmed.startsWith("## ")) {
       flushPara(i);
       nodes.push(
-        <h2 key={`h-${i}`} style={{ margin: "22px 0 12px", fontSize: 19, fontWeight: 700, color: "#1C1C1E" }}>
+        <h2 key={`h-${i}`} style={{ margin: "22px 0 12px", fontSize: "1.1875rem", fontWeight: 700, color: "#1C1C1E" }}>
           {trimmed.slice(3)}
         </h2>,
       );
     } else if (/^[-*]\s/.test(trimmed)) {
       flushPara(i);
       nodes.push(
-        <div key={`li-${i}`} style={{ display: "flex", gap: 8, margin: "0 0 6px", fontSize: 14, lineHeight: 1.55, color: "#1C1C1E" }}>
+        <div key={`li-${i}`} style={{ display: "flex", gap: 8, margin: "0 0 6px", fontSize: "0.875rem", lineHeight: 1.55, color: "#1C1C1E" }}>
           <span style={{ color: "#007AFF", fontWeight: 700 }}>•</span>
           <span style={{ flex: 1 }}>{renderInline(trimmed.replace(/^[-*]\s/, ""))}</span>
         </div>,
@@ -254,7 +254,7 @@ function renderMarkdown(text) {
       flushPara(i);
       const num = trimmed.match(/^(\d+)\./)[1];
       nodes.push(
-        <div key={`ol-${i}`} style={{ display: "flex", gap: 8, margin: "0 0 6px", fontSize: 14, lineHeight: 1.55, color: "#1C1C1E" }}>
+        <div key={`ol-${i}`} style={{ display: "flex", gap: 8, margin: "0 0 6px", fontSize: "0.875rem", lineHeight: 1.55, color: "#1C1C1E" }}>
           <span style={{ color: "#007AFF", fontWeight: 700, minWidth: 18 }}>{num}.</span>
           <span style={{ flex: 1 }}>{renderInline(trimmed.replace(/^\d+\.\s/, ""))}</span>
         </div>,
@@ -417,7 +417,7 @@ function AuthBridge({ onAuthChange, isMobile, signInLabel }) {
               borderRadius: 20,
               border: "none",
               cursor: "pointer",
-              fontSize: 13,
+              fontSize: "0.8125rem",
               fontWeight: 600,
               background: "#1C1C1E",
               color: "#fff",
@@ -521,24 +521,24 @@ function Walkthrough({ steps, onFinish, labels }) {
             }}
           />
         )}
-        <div style={{ fontSize: 16, fontWeight: 700, color: "#1C1C1E", marginBottom: 6 }}>{step.title}</div>
-        <div style={{ fontSize: 13.5, lineHeight: 1.5, color: "#3C3C43", marginBottom: 16 }}>{step.text}</div>
+        <div style={{ fontSize: "1rem", fontWeight: 700, color: "#1C1C1E", marginBottom: 6 }}>{step.title}</div>
+        <div style={{ fontSize: "0.84375rem", lineHeight: 1.5, color: "#3C3C43", marginBottom: 16 }}>{step.text}</div>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <button
             onClick={onFinish}
-            style={{ border: "none", background: "transparent", color: "#6C6C70", fontSize: 13, fontWeight: 500, cursor: "pointer", padding: 0 }}
+            style={{ border: "none", background: "transparent", color: "#6C6C70", fontSize: "0.8125rem", fontWeight: 500, cursor: "pointer", padding: 0 }}
           >
             {labels.skip}
           </button>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <span style={{ fontSize: 12, color: "#C7C7CC" }}>{index + 1} / {steps.length}</span>
+            <span style={{ fontSize: "0.75rem", color: "#C7C7CC" }}>{index + 1} / {steps.length}</span>
             <button
               onClick={() => (isLast ? onFinish() : setIndex((i) => i + 1))}
               style={{
                 border: "none",
                 background: "#007AFF",
                 color: "#fff",
-                fontSize: 13,
+                fontSize: "0.8125rem",
                 fontWeight: 600,
                 cursor: "pointer",
                 padding: "8px 18px",
@@ -618,13 +618,13 @@ function CategoryModal({ cat, label, color, icon, catExpenses, closing, onClose,
             flexShrink: 0,
           }}>
             <div>
-              <div style={{ fontSize: 11, color: "#6C6C70", textTransform: "uppercase", letterSpacing: 0.6, marginBottom: 3 }}>
+              <div style={{ fontSize: "0.6875rem", color: "#6C6C70", textTransform: "uppercase", letterSpacing: 0.6, marginBottom: 3 }}>
                 {t("categoryBreakdown")}
               </div>
-              <h2 style={{ fontSize: 22, fontWeight: 800, color: "#1C1C1E", letterSpacing: "-0.5px", margin: 0 }}>
+              <h2 style={{ fontSize: "1.375rem", fontWeight: 800, color: "#1C1C1E", letterSpacing: "-0.5px", margin: 0 }}>
                 {icon} {label}
               </h2>
-              <div style={{ fontSize: 13, color: color, fontWeight: 600, marginTop: 2 }}>
+              <div style={{ fontSize: "0.8125rem", color: color, fontWeight: 600, marginTop: 2 }}>
                 {money(catTotal)} / {t.freq("Monthly").toLowerCase()}
               </div>
             </div>
@@ -632,10 +632,10 @@ function CategoryModal({ cat, label, color, icon, catExpenses, closing, onClose,
               onClick={onClose}
               aria-label={t("close")}
               style={{
-                width: 34, height: 34, borderRadius: "50%", border: "none",
+                width: "2.125rem", height: "2.125rem", borderRadius: "50%", border: "none",
                 background: "#F2F2F7", cursor: "pointer",
                 display: "flex", alignItems: "center", justifyContent: "center",
-                fontSize: 15, color: "#3C3C43", fontWeight: 700, flexShrink: 0,
+                fontSize: "0.9375rem", color: "#3C3C43", fontWeight: 700, flexShrink: 0,
                 transition: "background 0.15s",
               }}
               onMouseEnter={e => e.currentTarget.style.background = "#E5E5EA"}
@@ -646,7 +646,7 @@ function CategoryModal({ cat, label, color, icon, catExpenses, closing, onClose,
           {/* Expense list */}
           <div style={{ overflowY: "auto", padding: "14px 16px calc(32px + env(safe-area-inset-bottom))", display: "flex", flexDirection: "column", gap: 10 }}>
             {catExpenses.length === 0 && (
-              <div style={{ textAlign: "center", padding: "40px 0", color: "#6C6C70", fontSize: 14 }}>
+              <div style={{ textAlign: "center", padding: "40px 0", color: "#6C6C70", fontSize: "0.875rem" }}>
                 {t("no_expenses_in_cat")}
               </div>
             )}
@@ -670,14 +670,14 @@ function CategoryModal({ cat, label, color, icon, catExpenses, closing, onClose,
                         value={expense.name}
                         onChange={e => onUpdate(expense.id, "name", e.target.value)}
                         style={{
-                          fontSize: 15, fontWeight: 600, color: "#1C1C1E",
+                          fontSize: "0.9375rem", fontWeight: 600, color: "#1C1C1E",
                           border: "none", borderBottom: `2px solid ${color}`,
                           background: "transparent", outline: "none", width: "100%", paddingBottom: 2,
                         }}
                       />
                       <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
                         <div style={{ flex: 1 }}>
-                          <div style={{ fontSize: 11, color: "#6C6C70", marginBottom: 4 }}>{t("col_amount")} ({curSymbol})</div>
+                          <div style={{ fontSize: "0.6875rem", color: "#6C6C70", marginBottom: 4 }}>{t("col_amount")} ({curSymbol})</div>
                           <input
                             type="text"
                             inputMode="decimal"
@@ -685,19 +685,19 @@ function CategoryModal({ cat, label, color, icon, catExpenses, closing, onClose,
                             onChange={e => setAmountStr(e.target.value)}
                             onBlur={() => commitAmount(expense.id, expense.amount)}
                             style={{
-                              fontSize: 16, fontWeight: 700, color: color, width: "100%",
+                              fontSize: "1rem", fontWeight: 700, color: color, width: "100%",
                               border: "none", borderBottom: `2px solid ${color}`,
                               background: "transparent", outline: "none", paddingBottom: 2,
                             }}
                           />
                         </div>
                         <div style={{ flex: 1 }}>
-                          <div style={{ fontSize: 11, color: "#6C6C70", marginBottom: 4 }}>{t("col_frequency")}</div>
+                          <div style={{ fontSize: "0.6875rem", color: "#6C6C70", marginBottom: 4 }}>{t("col_frequency")}</div>
                           <select
                             value={expense.frequency}
                             onChange={e => onUpdate(expense.id, "frequency", e.target.value)}
                             style={{
-                              fontSize: 13, width: "100%", border: "none",
+                              fontSize: "0.8125rem", width: "100%", border: "none",
                               borderBottom: `2px solid ${color}`, background: "transparent",
                               outline: "none", paddingBottom: 2, color: "#1C1C1E",
                             }}
@@ -711,7 +711,7 @@ function CategoryModal({ cat, label, color, icon, catExpenses, closing, onClose,
                           onClick={() => { onDelete(expense.id); setEditingId(null); }}
                           style={{
                             padding: "7px 14px", borderRadius: 10, border: "none",
-                            background: "#FF3B3015", color: "#FF3B30", fontSize: 13,
+                            background: "#FF3B3015", color: "#FF3B30", fontSize: "0.8125rem",
                             fontWeight: 600, cursor: "pointer",
                           }}
                         >
@@ -721,7 +721,7 @@ function CategoryModal({ cat, label, color, icon, catExpenses, closing, onClose,
                           onClick={() => { commitAmount(expense.id, expense.amount); setEditingId(null); }}
                           style={{
                             padding: "7px 18px", borderRadius: 10, border: "none",
-                            background: color, color: "#fff", fontSize: 13,
+                            background: color, color: "#fff", fontSize: "0.8125rem",
                             fontWeight: 600, cursor: "pointer",
                           }}
                         >
@@ -734,16 +734,16 @@ function CategoryModal({ cat, label, color, icon, catExpenses, closing, onClose,
                       style={{ display: "flex", alignItems: "center", gap: 12, cursor: "pointer" }}
                       onClick={() => startEditing(expense)}
                     >
-                      <div style={{ flex: 1 }}>
-                        <div style={{ fontSize: 14, fontWeight: 600, color: "#1C1C1E", marginBottom: 2 }}>{expense.name}</div>
-                        <div style={{ fontSize: 12, color: "#6C6C70" }}>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: "0.875rem", fontWeight: 600, color: "#1C1C1E", marginBottom: 2 }}>{expense.name}</div>
+                        <div style={{ fontSize: "0.75rem", color: "#6C6C70" }}>
                           {money(expense.amount)} · {t.freq(expense.frequency)}
                         </div>
                       </div>
                       <div style={{ textAlign: "right", flexShrink: 0 }}>
-                        <div style={{ fontSize: 15, fontWeight: 700, color: color }}>{money(monthly)}<span style={{ fontSize: 11, fontWeight: 400, color: "#6C6C70" }}>/mo</span></div>
+                        <div style={{ fontSize: "0.9375rem", fontWeight: 700, color: color }}>{money(monthly)}<span style={{ fontSize: "0.6875rem", fontWeight: 400, color: "#6C6C70" }}>/mo</span></div>
                       </div>
-                      <div style={{ color: "#C7C7CC", fontSize: 13 }}>›</div>
+                      <div style={{ color: "#C7C7CC", fontSize: "0.8125rem" }}>›</div>
                     </div>
                   )}
                 </div>
@@ -820,13 +820,13 @@ function NewCategoryModal({ closing, onClose, onCreate, existingLabels, t }) {
           }}
         >
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 18 }}>
-            <div style={{ fontSize: 18, fontWeight: 800, color: "#1C1C1E" }}>{t("createCategoryTitle")}</div>
+            <div style={{ fontSize: "1.125rem", fontWeight: 800, color: "#1C1C1E" }}>{t("createCategoryTitle")}</div>
             <button
               onClick={onClose}
               aria-label={t("close")}
               style={{
-                width: 32, height: 32, borderRadius: "50%", border: "none",
-                background: "#F2F2F7", cursor: "pointer", fontSize: 14, color: "#3C3C43", fontWeight: 700,
+                width: "2rem", height: "2rem", borderRadius: "50%", border: "none",
+                background: "#F2F2F7", cursor: "pointer", fontSize: "0.875rem", color: "#3C3C43", fontWeight: 700,
                 display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
               }}
             >✕</button>
@@ -839,16 +839,16 @@ function NewCategoryModal({ closing, onClose, onCreate, existingLabels, t }) {
             onChange={(e) => { setName(e.target.value); setError(null); }}
             onKeyDown={(e) => { if (e.key === "Enter") handleCreate(); }}
             style={{
-              fontSize: 16, fontWeight: 600, color: "#1C1C1E",
+              fontSize: "1rem", fontWeight: 600, color: "#1C1C1E",
               border: "none", borderBottom: "2px solid #007AFF",
               background: "transparent", outline: "none", padding: "6px 0",
             }}
           />
           {error && (
-            <div style={{ fontSize: 12, color: "#FF3B30", marginTop: 6 }}>{error}</div>
+            <div style={{ fontSize: "0.75rem", color: "#FF3B30", marginTop: 6 }}>{error}</div>
           )}
 
-          <div style={{ fontSize: 11, color: "#6C6C70", textTransform: "uppercase", letterSpacing: 0.5, margin: "20px 0 10px" }}>
+          <div style={{ fontSize: "0.6875rem", color: "#6C6C70", textTransform: "uppercase", letterSpacing: 0.5, margin: "20px 0 10px" }}>
             {t("pickEmoji")}
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(42px, 1fr))", gap: 8 }}>
@@ -865,7 +865,7 @@ function NewCategoryModal({ closing, onClose, onCreate, existingLabels, t }) {
                     width: 42, height: 42, borderRadius: 12,
                     border: selected ? "2px solid #007AFF" : "1.5px solid transparent",
                     background: selected ? "#E3F0FF" : "#F9F9FB",
-                    fontSize: 20, cursor: "pointer",
+                    fontSize: "1.25rem", cursor: "pointer",
                     display: "flex", alignItems: "center", justifyContent: "center",
                     transition: "all 0.15s ease",
                   }}
@@ -879,7 +879,7 @@ function NewCategoryModal({ closing, onClose, onCreate, existingLabels, t }) {
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 22 }}>
             <button
               onClick={onClose}
-              style={{ padding: "9px 18px", borderRadius: 12, border: "1.5px solid #E5E5EA", background: "#fff", color: "#3C3C43", fontSize: 14, fontWeight: 600, cursor: "pointer" }}
+              style={{ padding: "9px 18px", borderRadius: 12, border: "1.5px solid #E5E5EA", background: "#fff", color: "#3C3C43", fontSize: "0.875rem", fontWeight: 600, cursor: "pointer" }}
             >
               {t("btn_cancel")}
             </button>
@@ -889,7 +889,7 @@ function NewCategoryModal({ closing, onClose, onCreate, existingLabels, t }) {
               style={{
                 padding: "9px 18px", borderRadius: 12, border: "none",
                 background: name.trim() && icon ? "#007AFF" : "#A0C4FF",
-                color: "#fff", fontSize: 14, fontWeight: 600,
+                color: "#fff", fontSize: "0.875rem", fontWeight: 600,
                 cursor: name.trim() && icon ? "pointer" : "default",
               }}
             >
@@ -991,25 +991,41 @@ const DonutChart = memo(function DonutChart({ data, total, activeCategory, onCat
   );
 });
 
-function useIsMobile() {
-  const [isMobile, setIsMobile] = useState(() =>
-    typeof window !== "undefined" ? window.innerWidth < 768 : false,
-  );
+// Measured in text, not pixels: the question the layout is really asking is
+// how many words fit across, and at twice the type an 820px iPad has the same
+// answer as a 410px phone — so it should get the phone's layout. The root font
+// size carries the Dynamic Type scale, so dividing by it says that directly.
+// (A rem media query cannot express this: in a media query rem resolves
+// against the browser's initial root size, not the one the page sets.)
+const NARROW_REM = 48; // 768px at the default root
+
+function isNarrowViewport() {
+  if (typeof window === "undefined") return false;
+  const root = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
+  return window.innerWidth < NARROW_REM * root;
+}
+
+function useIsMobile(recheckToken) {
+  const [isMobile, setIsMobile] = useState(isNarrowViewport);
 
   useEffect(() => {
     // Returning the same value makes React bail out of the re-render. iOS
     // fires resize every time the keyboard opens or closes, and this tree is
     // large enough that re-rendering it on each one is felt while typing.
-    const onResize = () => setIsMobile((prev) => (window.innerWidth < 768) === prev ? prev : !prev);
+    const onResize = () => setIsMobile((prev) => (isNarrowViewport() === prev ? prev : !prev));
+    onResize(); // the text size may have moved while we were away
     window.addEventListener("resize", onResize);
     return () => window.removeEventListener("resize", onResize);
-  }, []);
+  }, [recheckToken]);
 
   return isMobile;
 }
 
 export default function App() {
-  const isMobile = useIsMobile();
+  // Declared before the hook that consumes it: the tick fires on resume, which
+  // is the only moment the system text size can have changed under us.
+  const [foregroundTick, setForegroundTick] = useState(0);
+  const isMobile = useIsMobile(foregroundTick);
   const [syncId] = useState(() => getSyncId());
   const [income, setIncome] = useState(EXAMPLE_INCOME);
   const [expenses, setExpenses] = useState(EXAMPLE_EXPENSES);
@@ -1199,10 +1215,6 @@ export default function App() {
   const [deleteConfirmText, setDeleteConfirmText] = useState("");
   const [deleteBusy, setDeleteBusy] = useState(false);
   const [deleteError, setDeleteError] = useState(null);
-
-  // Bumped whenever the app comes back to the foreground, to re-run everything
-  // derived from today's date.
-  const [foregroundTick, setForegroundTick] = useState(0);
 
   const [savedFlag, setSavedFlag] = useState(false);
   // True when the last sync attempt failed for what looks like a connectivity
@@ -2395,7 +2407,7 @@ export default function App() {
         title={t("sessionExpiredHint")}
         style={{
           padding: "6px 12px", borderRadius: 20, border: "1.5px solid #FFE0B2",
-          background: "#FFF6E5", color: "#9A6200", fontSize: 12, fontWeight: 600,
+          background: "#FFF6E5", color: "#9A6200", fontSize: "0.75rem", fontWeight: 600,
           display: "flex", alignItems: "center", gap: 5, whiteSpace: "nowrap",
         }}
       >
@@ -2406,7 +2418,7 @@ export default function App() {
         onClick={retrySave}
         style={{
           padding: "6px 12px", borderRadius: 20, border: "1.5px solid #FFD2CF",
-          background: "#FFF0EF", color: "#FF3B30", fontSize: 12, fontWeight: 600,
+          background: "#FFF0EF", color: "#FF3B30", fontSize: "0.75rem", fontWeight: 600,
           cursor: "pointer", display: "flex", alignItems: "center", gap: 5, whiteSpace: "nowrap",
         }}
       >
@@ -2416,18 +2428,18 @@ export default function App() {
       // Not an error: the change is on the device and will sync itself.
       <span style={{
         padding: "6px 12px", borderRadius: 20, border: "1.5px solid #E5E5EA",
-        background: "#F7F7FA", color: "#6C6C70", fontSize: 12, fontWeight: 600,
+        background: "#F7F7FA", color: "#6C6C70", fontSize: "0.75rem", fontWeight: 600,
         display: "flex", alignItems: "center", gap: 5, whiteSpace: "nowrap",
       }}>
         ⇅ {t("offlineSaved")}
       </span>
     ) : isDirty ? (
-      <span style={{ fontSize: 12, fontWeight: 500, color: "#6C6C70", display: "flex", alignItems: "center", gap: 5, whiteSpace: "nowrap" }}>
+      <span style={{ fontSize: "0.75rem", fontWeight: 500, color: "#6C6C70", display: "flex", alignItems: "center", gap: 5, whiteSpace: "nowrap" }}>
         <span style={{ width: 7, height: 7, borderRadius: "50%", background: "#FF9500", display: "inline-block" }} />
         {t("saving")}
       </span>
     ) : savedFlag ? (
-      <span style={{ fontSize: 12, fontWeight: 500, color: "#34C759", display: "flex", alignItems: "center", gap: 4, whiteSpace: "nowrap" }}>
+      <span style={{ fontSize: "0.75rem", fontWeight: 500, color: "#34C759", display: "flex", alignItems: "center", gap: 4, whiteSpace: "nowrap" }}>
         ✓ {t("saved")}
       </span>
     ) : null
@@ -2470,9 +2482,16 @@ export default function App() {
                   src="/money-bag.png"
                   alt=""
                   aria-hidden="true"
-                  style={{ height: 26, width: "auto", display: "block", flexShrink: 0 }}
+                  style={{ height: "1.625rem", width: "auto", display: "block", flexShrink: 0 }}
                 />
-                <h1 style={{ fontSize: 19, fontWeight: 800, letterSpacing: "-0.6px", color: "#1C1C1E", whiteSpace: "nowrap", margin: 0 }}>
+                <h1 style={{
+                  fontSize: "1.1875rem", fontWeight: 800, letterSpacing: "-0.6px", color: "#1C1C1E",
+                  // Gives way to the controls beside it rather than running
+                  // under them once the text size is turned up. The tab row
+                  // underneath says which screen this is anyway.
+                  whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
+                  margin: 0, minWidth: 0,
+                }}>
                   {t("appTitle")}
                 </h1>
               </div>
@@ -2484,9 +2503,9 @@ export default function App() {
                     onClick={() => setShowCurMenu(v => !v)}
                     aria-label={t("currency")}
                     style={{
-                      width: 34, height: 34, borderRadius: "50%", border: "1.5px solid #E5E5EA",
+                      width: "2.125rem", height: "2.125rem", borderRadius: "50%", border: "1.5px solid #E5E5EA",
                       background: showCurMenu ? "#F2F2F7" : "#fff", cursor: "pointer",
-                      fontSize: 15, fontWeight: 700, color: "#3C3C43",
+                      fontSize: "0.9375rem", fontWeight: 700, color: "#3C3C43",
                       display: "flex", alignItems: "center", justifyContent: "center",
                     }}
                   >
@@ -2502,11 +2521,11 @@ export default function App() {
                         <button key={c.code} onClick={() => changeCurrency(c.code)} style={{
                           display: "flex", alignItems: "center", gap: 8, width: "100%",
                           padding: "8px 10px", borderRadius: 8, border: "none", cursor: "pointer",
-                          fontSize: 14, fontWeight: currency === c.code ? 700 : 500,
+                          fontSize: "0.875rem", fontWeight: currency === c.code ? 700 : 500,
                           background: currency === c.code ? "#F2F2F7" : "transparent", color: "#1C1C1E", textAlign: "left",
                         }}>
-                          <span style={{ fontSize: 16 }}>{c.flag}</span>
-                          <span style={{ width: 22, fontWeight: 700 }}>{c.symbol}</span>
+                          <span style={{ fontSize: "1rem" }}>{c.flag}</span>
+                          <span style={{ width: "1.375rem", fontWeight: 700 }}>{c.symbol}</span>
                           {c.code}
                           {currency === c.code && <span style={{ marginLeft: "auto", color: "#007AFF" }}>✓</span>}
                         </button>
@@ -2520,9 +2539,9 @@ export default function App() {
                     onClick={() => setShowLangMenu(v => !v)}
                     aria-label={t("language")}
                     style={{
-                      width: 34, height: 34, borderRadius: "50%", border: "1.5px solid #E5E5EA",
+                      width: "2.125rem", height: "2.125rem", borderRadius: "50%", border: "1.5px solid #E5E5EA",
                       background: showLangMenu ? "#F2F2F7" : "#fff", cursor: "pointer",
-                      fontSize: 18, display: "flex", alignItems: "center", justifyContent: "center",
+                      fontSize: "1.125rem", display: "flex", alignItems: "center", justifyContent: "center",
                     }}
                   >
                     {LANGUAGES.find(l => l.code === lang)?.flag}
@@ -2537,10 +2556,10 @@ export default function App() {
                         <button key={l.code} onClick={() => changeLang(l.code)} style={{
                           display: "flex", alignItems: "center", gap: 8, width: "100%",
                           padding: "8px 10px", borderRadius: 8, border: "none", cursor: "pointer",
-                          fontSize: 14, fontWeight: lang === l.code ? 700 : 500,
+                          fontSize: "0.875rem", fontWeight: lang === l.code ? 700 : 500,
                           background: lang === l.code ? "#F2F2F7" : "transparent", color: "#1C1C1E", textAlign: "left",
                         }}>
-                          <span style={{ fontSize: 16 }}>{l.flag}</span>
+                          <span style={{ fontSize: "1rem" }}>{l.flag}</span>
                           {l.label}
                           {lang === l.code && <span style={{ marginLeft: "auto", color: "#007AFF" }}>✓</span>}
                         </button>
@@ -2573,7 +2592,7 @@ export default function App() {
                       // Outlined pills, same treatment as the desktop tabs.
                       border: `1.5px solid ${activeTab === tab ? "#007AFF" : "#E5E5EA"}`,
                       cursor: "pointer",
-                      fontSize: 13,
+                      fontSize: "0.8125rem",
                       fontWeight: 600,
                       background: activeTab === tab ? "#007AFF" : "#fff",
                       color: activeTab === tab ? "#fff" : "#3C3C43",
@@ -2612,9 +2631,9 @@ export default function App() {
                 src="/money-bag.png"
                 alt=""
                 aria-hidden="true"
-                style={{ height: 30, width: "auto", display: "block", flexShrink: 0 }}
+                style={{ height: "1.875rem", width: "auto", display: "block", flexShrink: 0 }}
               />
-              <h1 style={{ fontSize: 22, fontWeight: 800, letterSpacing: "-0.7px", color: "#1C1C1E", margin: 0 }}>
+              <h1 style={{ fontSize: "1.375rem", fontWeight: 800, letterSpacing: "-0.7px", color: "#1C1C1E", margin: 0 }}>
                 {t("appTitle")}
               </h1>
             </div>
@@ -2626,7 +2645,7 @@ export default function App() {
                   onClick={() => setActiveTab(tab)}
                   style={{
                     padding: "6px 14px", borderRadius: 20, cursor: "pointer",
-                    fontSize: 13, fontWeight: 600,
+                    fontSize: "0.8125rem", fontWeight: 600,
                     // Outlined pills, matching the currency/language controls to
                     // the right so the whole header reads as one control set.
                     border: `1.5px solid ${activeTab === tab ? "#007AFF" : "#E5E5EA"}`,
@@ -2648,7 +2667,7 @@ export default function App() {
                 aria-label={t("currency")}
                 style={{
                   padding: "7px 12px", borderRadius: 20, border: "1.5px solid #E5E5EA",
-                  cursor: "pointer", fontSize: 13, fontWeight: 600,
+                  cursor: "pointer", fontSize: "0.8125rem", fontWeight: 600,
                   background: showCurMenu ? "#F2F2F7" : "#fff", color: "#3C3C43",
                   display: "flex", alignItems: "center", gap: 6,
                 }}
@@ -2665,12 +2684,12 @@ export default function App() {
                     <button key={c.code} onClick={() => changeCurrency(c.code)} style={{
                       display: "flex", alignItems: "center", gap: 8, width: "100%",
                       padding: "8px 10px", borderRadius: 8, border: "none", cursor: "pointer",
-                      fontSize: 14, fontWeight: currency === c.code ? 700 : 500,
+                      fontSize: "0.875rem", fontWeight: currency === c.code ? 700 : 500,
                       background: currency === c.code ? "#F2F2F7" : "transparent",
                       color: "#1C1C1E", textAlign: "left",
                     }}>
-                      <span style={{ fontSize: 16 }}>{c.flag}</span>
-                      <span style={{ width: 22, fontWeight: 700 }}>{c.symbol}</span>
+                      <span style={{ fontSize: "1rem" }}>{c.flag}</span>
+                      <span style={{ width: "1.375rem", fontWeight: 700 }}>{c.symbol}</span>
                       {c.code}
                       {currency === c.code && <span style={{ marginLeft: "auto", color: "#007AFF" }}>✓</span>}
                     </button>
@@ -2685,7 +2704,7 @@ export default function App() {
                 aria-label={t("language")}
                 style={{
                   padding: "7px 12px", borderRadius: 20, border: "1.5px solid #E5E5EA",
-                  cursor: "pointer", fontSize: 13, fontWeight: 600,
+                  cursor: "pointer", fontSize: "0.8125rem", fontWeight: 600,
                   background: showLangMenu ? "#F2F2F7" : "#fff", color: "#3C3C43",
                   display: "flex", alignItems: "center", gap: 6,
                 }}
@@ -2702,11 +2721,11 @@ export default function App() {
                     <button key={l.code} onClick={() => changeLang(l.code)} style={{
                       display: "flex", alignItems: "center", gap: 8, width: "100%",
                       padding: "8px 10px", borderRadius: 8, border: "none", cursor: "pointer",
-                      fontSize: 14, fontWeight: lang === l.code ? 700 : 500,
+                      fontSize: "0.875rem", fontWeight: lang === l.code ? 700 : 500,
                       background: lang === l.code ? "#F2F2F7" : "transparent",
                       color: "#1C1C1E", textAlign: "left",
                     }}>
-                      <span style={{ fontSize: 16 }}>{l.flag}</span>
+                      <span style={{ fontSize: "1rem" }}>{l.flag}</span>
                       {l.label}
                       {lang === l.code && <span style={{ marginLeft: "auto", color: "#007AFF" }}>✓</span>}
                     </button>
@@ -2731,7 +2750,7 @@ export default function App() {
             style={{
               maxWidth: contentWidth,
               margin: "0 auto",
-              fontSize: 13,
+              fontSize: "0.8125rem",
               color: "#8A6D00",
               display: "flex",
               alignItems: "center",
@@ -2746,7 +2765,7 @@ export default function App() {
 
       {loadError && loaded && isSignedIn && (
         <div style={{ background: "#FFF0EF", borderBottom: "1px solid #FFD2CF", padding: isMobile ? "10px 16px" : "10px 24px" }}>
-          <div style={{ maxWidth: contentWidth, margin: "0 auto", fontSize: 13, color: "#C0261C", display: "flex", alignItems: "center", gap: 8 }}>
+          <div style={{ maxWidth: contentWidth, margin: "0 auto", fontSize: "0.8125rem", color: "#C0261C", display: "flex", alignItems: "center", gap: 8 }}>
             <span>⚠️ {t("loadFailed")}</span>
           </div>
         </div>
@@ -2784,15 +2803,15 @@ export default function App() {
               }}
             >
               <div>
-                <div style={{ fontSize: 12, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.6px", opacity: 0.85, marginBottom: 4 }}>
+                <div style={{ fontSize: "0.75rem", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.6px", opacity: 0.85, marginBottom: 4 }}>
                   {savings >= 0 ? `☀️ ${t("sts_title")}` : `⚠️ ${t("sts_overTitle")}`}
                 </div>
-                <div style={{ fontSize: 34, fontWeight: 800, letterSpacing: "-1px", lineHeight: 1.1 }}>
+                <div style={{ fontSize: "2.125rem", fontWeight: 800, letterSpacing: "-1px", lineHeight: 1.1 }}>
                   {money(Math.abs(safeToSpendDaily))}
-                  <span style={{ fontSize: 15, fontWeight: 500, opacity: 0.85 }}>{t("sts_perDay")}</span>
+                  <span style={{ fontSize: "0.9375rem", fontWeight: 500, opacity: 0.85 }}>{t("sts_perDay")}</span>
                 </div>
               </div>
-              <div style={{ textAlign: isMobile ? "left" : "right", fontSize: 13, fontWeight: 500, opacity: 0.95, lineHeight: 1.5 }}>
+              <div style={{ textAlign: isMobile ? "left" : "right", fontSize: "0.8125rem", fontWeight: 500, opacity: 0.95, lineHeight: 1.5 }}>
                 {savings >= 0
                   ? t("sts_leftThisMonth", { x: money(savings) })
                   : t("sts_overThisMonth", { x: money(Math.abs(savings)) })}
@@ -2841,7 +2860,7 @@ export default function App() {
                   <div>
                     <div
                       style={{
-                        fontSize: 12,
+                        fontSize: "0.75rem",
                         color: "#6C6C70",
                         fontWeight: 500,
                         textTransform: "uppercase",
@@ -2851,20 +2870,20 @@ export default function App() {
                     >
                       {card.label}
                     </div>
-                    <div style={{ fontSize: 28, fontWeight: 700, color: card.color, letterSpacing: "-1px" }}>
+                    <div style={{ fontSize: "1.75rem", fontWeight: 700, color: card.color, letterSpacing: "-1px" }}>
                       {money(card.value)}
                     </div>
-                    <div style={{ fontSize: 12, color: "#6C6C70", marginTop: 4 }}>{card.sub}</div>
+                    <div style={{ fontSize: "0.75rem", color: "#6C6C70", marginTop: 4 }}>{card.sub}</div>
                   </div>
                   {card.pct !== null && (
                     <div style={{ textAlign: "right", flexShrink: 0 }}>
                       <div style={{
-                        fontSize: 22, fontWeight: 700, color: card.color, opacity: 0.8,
+                        fontSize: "1.375rem", fontWeight: 700, color: card.color, opacity: 0.8,
                         letterSpacing: "-0.5px",
                       }}>
                         {card.pct >= 0 ? "" : "−"}{Math.abs(card.pct).toFixed(0)}%
                       </div>
-                      <div style={{ fontSize: 10, color: "#6C6C70", marginTop: 2 }}>{t("ofIncome")}</div>
+                      <div style={{ fontSize: "0.625rem", color: "#6C6C70", marginTop: 2 }}>{t("ofIncome")}</div>
                     </div>
                   )}
                 </div>
@@ -2880,7 +2899,7 @@ export default function App() {
               }}
             >
               <div style={{ background: "#fff", borderRadius: 18, padding: 22, boxShadow: "0 2px 12px rgba(0,0,0,0.06)", display: "flex", flexDirection: "column" }}>
-                <h2 style={{ fontSize: 15, fontWeight: 600, margin: "0 0 16px" }}>{t("spendingByCategory")}</h2>
+                <h2 style={{ fontSize: "0.9375rem", fontWeight: 600, margin: "0 0 16px" }}>{t("spendingByCategory")}</h2>
                 <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 20, flexDirection: isMobile ? "column" : "row" }}>
                   <div style={{ position: "relative", flexShrink: 0 }}>
                     <DonutChart data={donutData} total={totalExpenses} activeCategory={activeCategory} onCategoryChange={setActiveCategory} />
@@ -2898,14 +2917,14 @@ export default function App() {
                         const ac = donutData.find(d => d.name === activeCategory);
                         return ac ? (
                           <>
-                            <div style={{ fontSize: 15, fontWeight: 700, color: ac.color }}>{money(ac.value)}</div>
-                            <div style={{ fontSize: 10, color: "#6C6C70", maxWidth: 60, lineHeight: 1.2 }}>{getCategoryLabel(ac.name, customCategories, t)}</div>
+                            <div style={{ fontSize: "0.9375rem", fontWeight: 700, color: ac.color }}>{money(ac.value)}</div>
+                            <div style={{ fontSize: "0.625rem", color: "#6C6C70", maxWidth: 60, lineHeight: 1.2 }}>{getCategoryLabel(ac.name, customCategories, t)}</div>
                           </>
                         ) : null;
                       })() : (
                         <>
-                          <div style={{ fontSize: 18, fontWeight: 700, color: "#1C1C1E" }}>{money(totalExpenses)}</div>
-                          <div style={{ fontSize: 11, color: "#6C6C70" }}>{t("total")}</div>
+                          <div style={{ fontSize: "1.125rem", fontWeight: 700, color: "#1C1C1E" }}>{money(totalExpenses)}</div>
+                          <div style={{ fontSize: "0.6875rem", color: "#6C6C70" }}>{t("total")}</div>
                         </>
                       )}
                     </div>
@@ -2936,8 +2955,8 @@ export default function App() {
                             transform: isActive ? "scale(1.6)" : "scale(1)",
                             transition: "transform 0.22s ease",
                           }} />
-                          <div style={{ flex: 1, fontSize: 12, color: "#3C3C43", fontWeight: isActive ? 700 : 500 }}>{getCategoryLabel(item.name, customCategories, t)}</div>
-                          <div style={{ fontSize: 12, fontWeight: 600, color: "#1C1C1E" }}>{money(item.value)}</div>
+                          <div style={{ flex: 1, fontSize: "0.75rem", color: "#3C3C43", fontWeight: isActive ? 700 : 500 }}>{getCategoryLabel(item.name, customCategories, t)}</div>
+                          <div style={{ fontSize: "0.75rem", fontWeight: 600, color: "#1C1C1E" }}>{money(item.value)}</div>
                         </div>
                       );
                     })}
@@ -2946,7 +2965,7 @@ export default function App() {
               </div>
 
               <div style={{ background: "#fff", borderRadius: 18, padding: 22, boxShadow: "0 2px 12px rgba(0,0,0,0.06)" }}>
-                <h2 style={{ fontSize: 15, fontWeight: 600, margin: "0 0 16px" }}>{t("categoryBreakdown")}</h2>
+                <h2 style={{ fontSize: "0.9375rem", fontWeight: 600, margin: "0 0 16px" }}>{t("categoryBreakdown")}</h2>
                 <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                   {categoryTotals.map((item) => {
                     const pct = totalIncome > 0 ? (item.value / totalIncome) * 100 : 0;
@@ -2985,20 +3004,20 @@ export default function App() {
                         onClick={() => openCatModal(item.name)}
                       >
                         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4, gap: 10 }}>
-                          <span style={{ fontSize: 12, fontWeight: isActive ? 700 : 500, color: isActive ? "#1C1C1E" : "#3C3C43", display: "flex", alignItems: "center", gap: 6 }}>
+                          <span style={{ fontSize: "0.75rem", fontWeight: isActive ? 700 : 500, color: isActive ? "#1C1C1E" : "#3C3C43", display: "flex", alignItems: "center", gap: 6 }}>
                             {getCategoryMeta(item.name, customCategories).icon} {getCategoryLabel(item.name, customCategories, t)}
                             {overLimit && (
-                              <span style={{ fontSize: 10, fontWeight: 700, color: "#fff", background: "#FF3B30", padding: "1px 6px", borderRadius: 6, whiteSpace: "nowrap" }}>
+                              <span style={{ fontSize: "0.625rem", fontWeight: 700, color: "#fff", background: "#FF3B30", padding: "1px 6px", borderRadius: 6, whiteSpace: "nowrap" }}>
                                 {t("overLimit")}
                               </span>
                             )}
                             {nearLimit && (
-                              <span style={{ fontSize: 10, fontWeight: 700, color: "#fff", background: "#FF9500", padding: "1px 6px", borderRadius: 6, whiteSpace: "nowrap" }}>
+                              <span style={{ fontSize: "0.625rem", fontWeight: 700, color: "#fff", background: "#FF9500", padding: "1px 6px", borderRadius: 6, whiteSpace: "nowrap" }}>
                                 {t("nearLimit")}
                               </span>
                             )}
                           </span>
-                          <span style={{ fontSize: 12, fontWeight: 600, textAlign: "right" }}>
+                          <span style={{ fontSize: "0.75rem", fontWeight: 600, textAlign: "right" }}>
                             {money(item.value)}{" "}
                             <span style={{ color: overLimit ? "#FF3B30" : nearLimit ? "#FF9500" : "#6C6C70", fontWeight: limit > 0 ? 600 : 400 }}>
                               {limit > 0 ? `/ ${money(limit)} (${limitPct.toFixed(0)}%)` : `(${pct.toFixed(0)}%)`}
@@ -3028,14 +3047,14 @@ export default function App() {
                                 onKeyDown={(e) => { if (e.key === "Enter") commitLimit(); if (e.key === "Escape") { setEditingLimitCat(null); setLimitInput(""); } }}
                                 placeholder={t("ph_limit", { c: curSymbol })}
                                 style={{
-                                  width: 90, fontSize: 12, fontWeight: 600, color: item.color,
+                                  width: 90, fontSize: "0.75rem", fontWeight: 600, color: item.color,
                                   border: "none", borderBottom: `2px solid ${item.color}`,
                                   background: "transparent", outline: "none", padding: "1px 0",
                                 }}
                               />
                               <button
                                 onClick={commitLimit}
-                                style={{ border: "none", background: item.color, color: "#fff", fontSize: 11, fontWeight: 600, padding: "3px 10px", borderRadius: 8, cursor: "pointer" }}
+                                style={{ border: "none", background: item.color, color: "#fff", fontSize: "0.6875rem", fontWeight: 600, padding: "3px 10px", borderRadius: 8, cursor: "pointer" }}
                               >
                                 {t("btn_save_limit")}
                               </button>
@@ -3050,7 +3069,7 @@ export default function App() {
                                     setEditingLimitCat(null);
                                     setLimitInput("");
                                   }}
-                                  style={{ border: "none", background: "transparent", color: "#FF3B30", fontSize: 11, fontWeight: 600, padding: "3px 4px", cursor: "pointer" }}
+                                  style={{ border: "none", background: "transparent", color: "#FF3B30", fontSize: "0.6875rem", fontWeight: 600, padding: "3px 4px", cursor: "pointer" }}
                                 >
                                   {t("removeLimit")}
                                 </button>
@@ -3060,7 +3079,7 @@ export default function App() {
                             <button
                               onClick={() => { setEditingLimitCat(item.name); setLimitInput(limit > 0 ? String(limit) : ""); }}
                               className="tap-target"
-                              style={{ border: "none", background: "transparent", color: limit > 0 ? "#6C6C70" : "#007AFF", fontSize: 11, fontWeight: 500, padding: 0, cursor: "pointer" }}
+                              style={{ border: "none", background: "transparent", color: limit > 0 ? "#6C6C70" : "#007AFF", fontSize: "0.6875rem", fontWeight: 500, padding: 0, cursor: "pointer" }}
                             >
                               {limit > 0 ? `✎ ${t("editLimit")}` : `+ ${t("setLimit")}`}
                             </button>
@@ -3075,13 +3094,13 @@ export default function App() {
 
             <div style={{ display: "grid", gridTemplateColumns: twoColGrid, gap: 14 }}>
               <div style={{ background: "#fff", borderRadius: 18, padding: 22, boxShadow: "0 2px 12px rgba(0,0,0,0.06)" }}>
-                <h2 style={{ fontSize: 15, fontWeight: 600, margin: "0 0 4px" }}>💹 {t("monthlyInvestment")}</h2>
+                <h2 style={{ fontSize: "0.9375rem", fontWeight: 600, margin: "0 0 4px" }}>💹 {t("monthlyInvestment")}</h2>
                 <div style={{ position: "relative", marginBottom: 14 }} ref={investMenuRef}>
                   <button
                     onClick={() => setShowInvestMenu(v => !v)}
                     style={{
                       background: "none", border: "none", padding: 0, cursor: "pointer",
-                      fontSize: 12, color: "#007AFF", fontWeight: 500, display: "flex",
+                      fontSize: "0.75rem", color: "#007AFF", fontWeight: 500, display: "flex",
                       alignItems: "center", gap: 4,
                     }}
                   >
@@ -3102,7 +3121,7 @@ export default function App() {
                             display: "block", width: "100%", textAlign: "left",
                             padding: "8px 12px", borderRadius: 8, border: "none",
                             background: investLabel === opt ? "#F2F2F7" : "transparent",
-                            color: "#1C1C1E", fontSize: 13,
+                            color: "#1C1C1E", fontSize: "0.8125rem",
                             fontWeight: investLabel === opt ? 700 : 400, cursor: "pointer",
                           }}
                         >
@@ -3144,7 +3163,7 @@ export default function App() {
                         border: "none",
                         background: "transparent",
                         textAlign: "center",
-                        fontSize: 15,
+                        fontSize: "0.9375rem",
                         fontWeight: 700,
                         color: "#007AFF",
                         outline: "none",
@@ -3152,14 +3171,14 @@ export default function App() {
                     />
                   </div>
                 </div>
-                <div style={{ marginTop: 10, fontSize: 12, color: "#6C6C70" }}>
+                <div style={{ marginTop: 10, fontSize: "0.75rem", color: "#6C6C70" }}>
                   {t("annual")}: <strong style={{ color: "#007AFF" }}>{money(invest * 12)}</strong>
                 </div>
               </div>
 
               <div style={{ background: "#fff", borderRadius: 18, padding: 18, boxShadow: "0 2px 12px rgba(0,0,0,0.06)" }}>
-                <h2 style={{ fontSize: 15, fontWeight: 600, margin: "0 0 2px" }}>🛡️ {t("emergencyFund")}</h2>
-                <div style={{ fontSize: 11, color: "#6C6C70", marginBottom: 10 }}>{t("emergencySub")}</div>
+                <h2 style={{ fontSize: "0.9375rem", fontWeight: 600, margin: "0 0 2px" }}>🛡️ {t("emergencyFund")}</h2>
+                <div style={{ fontSize: "0.6875rem", color: "#6C6C70", marginBottom: 10 }}>{t("emergencySub")}</div>
                 <div style={{ display: "flex", gap: 6, marginBottom: 10 }}>
                   {[0, 3, 6, 12].map((months) => (
                     <button
@@ -3174,7 +3193,7 @@ export default function App() {
                         background: emergencyMonths === months ? (months === 0 ? "#FF3B30" : "#007AFF") : "#F2F2F7",
                         color: emergencyMonths === months ? "#fff" : "#3C3C43",
                         fontWeight: 600,
-                        fontSize: 12,
+                        fontSize: "0.75rem",
                       }}
                     >
                       {months === 0 ? t("noFund") : `${months}m`}
@@ -3189,8 +3208,8 @@ export default function App() {
                     (rather than a separate boxed section) to keep this card's
                     height in line with Monthly Investment alongside it. */}
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 3 }}>
-                  <span style={{ fontSize: 12, color: "#3C3C43", fontWeight: 500 }}>{t("currentCoverage")}</span>
-                  <span style={{ fontSize: 17, fontWeight: 800, color: "#007AFF" }}>{money(emergencyCoverage.total)}</span>
+                  <span style={{ fontSize: "0.75rem", color: "#3C3C43", fontWeight: 500 }}>{t("currentCoverage")}</span>
+                  <span style={{ fontSize: "1.0625rem", fontWeight: 800, color: "#007AFF" }}>{money(emergencyCoverage.total)}</span>
                 </div>
                 {(() => {
                   const breakdown = [
@@ -3198,13 +3217,13 @@ export default function App() {
                     emergencyCoverage.fromSavings > 0 ? t("coverageFromSavings", { x: money(emergencyCoverage.fromSavings) }) : null,
                   ].filter(Boolean).join(" · ");
                   return breakdown ? (
-                    <div style={{ fontSize: 10.5, color: "#6C6C70", marginBottom: emergencyMonths > 0 ? 6 : 0 }}>{breakdown}</div>
+                    <div style={{ fontSize: "0.65625rem", color: "#6C6C70", marginBottom: emergencyMonths > 0 ? 6 : 0 }}>{breakdown}</div>
                   ) : null;
                 })()}
 
                 {emergencyMonths === 0 ? (
                   emergencyCoverage.total === 0 && (
-                    <div style={{ fontSize: 12, color: "#FF3B30", fontWeight: 500 }}>{t("noFundNote")}</div>
+                    <div style={{ fontSize: "0.75rem", color: "#FF3B30", fontWeight: 500 }}>{t("noFundNote")}</div>
                   )
                 ) : (
                   <>
@@ -3220,8 +3239,8 @@ export default function App() {
                       />
                     </div>
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginTop: 4 }}>
-                      <span style={{ fontSize: 10.5, color: "#6C6C70" }}>{t("target")}: {money(emergencyTarget)}</span>
-                      <span style={{ fontSize: 11, fontWeight: 700, color: emergencyCoveragePct >= 100 ? "#34C759" : "#3C3C43" }}>
+                      <span style={{ fontSize: "0.65625rem", color: "#6C6C70" }}>{t("target")}: {money(emergencyTarget)}</span>
+                      <span style={{ fontSize: "0.6875rem", fontWeight: 700, color: emergencyCoveragePct >= 100 ? "#34C759" : "#3C3C43" }}>
                         {emergencyCoveragePct >= 100 ? t("goal_reached") : `${emergencyCoveragePct.toFixed(0)}%`}
                       </span>
                     </div>
@@ -3239,14 +3258,14 @@ export default function App() {
                 <div style={{ background: "#fff", borderRadius: 18, padding: 22, boxShadow: "0 2px 12px rgba(0,0,0,0.06)", marginTop: 14 }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 20, flexWrap: "wrap", gap: 12 }}>
                     <div>
-                      <h2 style={{ fontSize: 15, fontWeight: 600, margin: "0 0 2px" }}>{t("healthScore")}</h2>
-                      <div style={{ fontSize: 12, color: "#6C6C70" }}>{t("healthSub")}</div>
+                      <h2 style={{ fontSize: "0.9375rem", fontWeight: 600, margin: "0 0 2px" }}>{t("healthScore")}</h2>
+                      <div style={{ fontSize: "0.75rem", color: "#6C6C70" }}>{t("healthSub")}</div>
                     </div>
                     <button
                       onClick={handleExportPDF}
                       style={{
                         padding: "7px 14px", borderRadius: 20, border: "1.5px solid #E5E5EA",
-                        cursor: "pointer", fontSize: 13, fontWeight: 600, background: "#fff",
+                        cursor: "pointer", fontSize: "0.8125rem", fontWeight: 600, background: "#fff",
                         color: "#3C3C43", display: "flex", alignItems: "center", gap: 5,
                       }}
                     >
@@ -3255,16 +3274,16 @@ export default function App() {
                   </div>
                   <div style={{ display: "flex", gap: 24, alignItems: "center", flexDirection: isMobile ? "column" : "row" }}>
                     <div style={{ textAlign: "center", flexShrink: 0 }}>
-                      <div style={{ fontSize: 64, fontWeight: 800, color, lineHeight: 1, letterSpacing: "-3px" }}>{score.total}</div>
-                      <div style={{ fontSize: 14, fontWeight: 600, color, marginTop: 4 }}>{t(scoreLabelKey(score.total))}</div>
-                      <div style={{ fontSize: 11, color: "#6C6C70", marginTop: 2 }}>{t("outOf100")}</div>
+                      <div style={{ fontSize: "4rem", fontWeight: 800, color, lineHeight: 1, letterSpacing: "-3px" }}>{score.total}</div>
+                      <div style={{ fontSize: "0.875rem", fontWeight: 600, color, marginTop: 4 }}>{t(scoreLabelKey(score.total))}</div>
+                      <div style={{ fontSize: "0.6875rem", color: "#6C6C70", marginTop: 2 }}>{t("outOf100")}</div>
                     </div>
                     <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 12, width: "100%" }}>
                       {score.breakdown.map((item) => (
                         <div key={item.labelKey}>
                           <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
-                            <span style={{ fontSize: 12, fontWeight: 500, color: "#3C3C43" }}>{t(item.labelKey)}</span>
-                            <span style={{ fontSize: 12, color: "#6C6C70" }}>
+                            <span style={{ fontSize: "0.75rem", fontWeight: 500, color: "#3C3C43" }}>{t(item.labelKey)}</span>
+                            <span style={{ fontSize: "0.75rem", color: "#6C6C70" }}>
                               {item.value} <span style={{ color: "#C7C7CC" }}>/ {item.target}</span>
                               <span style={{ marginLeft: 8, fontWeight: 700, color: scoreColor(item.score * 4) }}>{item.score}/25</span>
                             </span>
@@ -3277,7 +3296,7 @@ export default function App() {
                     </div>
                   </div>
                   {weakest && (
-                    <div style={{ marginTop: 16, padding: "10px 14px", background: "#FFF8F0", borderRadius: 10, fontSize: 13, color: "#3C3C43" }}>
+                    <div style={{ marginTop: 16, padding: "10px 14px", background: "#FFF8F0", borderRadius: 10, fontSize: "0.8125rem", color: "#3C3C43" }}>
                       <span style={{ color: "#FF9500", fontWeight: 700 }}>↑ {t("biggestOpportunity")}: </span>{t(weakest.noteKey, weakest.noteVars)}
                     </div>
                   )}
@@ -3309,7 +3328,7 @@ export default function App() {
                         padding: "5px 13px",
                         borderRadius: 20,
                         border: `1.5px solid ${meta.accent}`,
-                        fontSize: 13,
+                        fontSize: "0.8125rem",
                         fontWeight: 600,
                         color: "#1C1C1E",
                         outline: "none",
@@ -3332,7 +3351,7 @@ export default function App() {
                       borderRadius: 20,
                       border: "none",
                       cursor: "pointer",
-                      fontSize: 13,
+                      fontSize: "0.8125rem",
                       fontWeight: 500,
                       background: filterCat === category ? meta?.accent || "#007AFF" : "#fff",
                       color: filterCat === category ? "#fff" : "#3C3C43",
@@ -3351,7 +3370,7 @@ export default function App() {
                   borderRadius: 20,
                   border: "1.5px dashed #C7C7CC",
                   cursor: "pointer",
-                  fontSize: 13,
+                  fontSize: "0.8125rem",
                   fontWeight: 600,
                   background: "transparent",
                   color: "#007AFF",
@@ -3390,19 +3409,19 @@ export default function App() {
                             value={item.name}
                             onChange={e => updateExpense(item.id, "name", e.target.value)}
                             style={{
-                              fontSize: 15, fontWeight: 600, color: "#1C1C1E",
+                              fontSize: "0.9375rem", fontWeight: 600, color: "#1C1C1E",
                               border: "none", borderBottom: `2px solid ${color}`,
                               background: "transparent", outline: "none", width: "100%", paddingBottom: 2,
                             }}
                           />
                           <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
                             <div style={{ flex: 1 }}>
-                              <div style={{ fontSize: 11, color: "#6C6C70", marginBottom: 4 }}>{t("col_category")}</div>
+                              <div style={{ fontSize: "0.6875rem", color: "#6C6C70", marginBottom: 4 }}>{t("col_category")}</div>
                               <select
                                 value={item.category}
                                 onChange={e => updateExpense(item.id, "category", e.target.value)}
                                 style={{
-                                  fontSize: 13, width: "100%", border: "none",
+                                  fontSize: "0.8125rem", width: "100%", border: "none",
                                   borderBottom: `2px solid ${color}`, background: "transparent",
                                   outline: "none", paddingBottom: 2, color: "#1C1C1E",
                                 }}
@@ -3415,7 +3434,7 @@ export default function App() {
                           </div>
                           <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
                             <div style={{ flex: 1 }}>
-                              <div style={{ fontSize: 11, color: "#6C6C70", marginBottom: 4 }}>{t("col_amount")} ({curSymbol})</div>
+                              <div style={{ fontSize: "0.6875rem", color: "#6C6C70", marginBottom: 4 }}>{t("col_amount")} ({curSymbol})</div>
                               <input
                                 type="text"
                                 inputMode="decimal"
@@ -3426,19 +3445,19 @@ export default function App() {
                                   updateExpense(item.id, "amount", isNaN(n) ? item.amount : n);
                                 }}
                                 style={{
-                                  fontSize: 16, fontWeight: 700, color, width: "100%",
+                                  fontSize: "1rem", fontWeight: 700, color, width: "100%",
                                   border: "none", borderBottom: `2px solid ${color}`,
                                   background: "transparent", outline: "none", paddingBottom: 2,
                                 }}
                               />
                             </div>
                             <div style={{ flex: 1 }}>
-                              <div style={{ fontSize: 11, color: "#6C6C70", marginBottom: 4 }}>{t("col_frequency")}</div>
+                              <div style={{ fontSize: "0.6875rem", color: "#6C6C70", marginBottom: 4 }}>{t("col_frequency")}</div>
                               <select
                                 value={item.frequency}
                                 onChange={e => updateExpense(item.id, "frequency", e.target.value)}
                                 style={{
-                                  fontSize: 13, width: "100%", border: "none",
+                                  fontSize: "0.8125rem", width: "100%", border: "none",
                                   borderBottom: `2px solid ${color}`, background: "transparent",
                                   outline: "none", paddingBottom: 2, color: "#1C1C1E",
                                 }}
@@ -3452,7 +3471,7 @@ export default function App() {
                               onClick={() => { deleteExpense(item.id); setEditingExpense(null); }}
                               style={{
                                 padding: "7px 14px", borderRadius: 10, border: "none",
-                                background: "#FF3B3015", color: "#FF3B30", fontSize: 13,
+                                background: "#FF3B3015", color: "#FF3B30", fontSize: "0.8125rem",
                                 fontWeight: 600, cursor: "pointer",
                               }}
                             >
@@ -3466,7 +3485,7 @@ export default function App() {
                               }}
                               style={{
                                 padding: "7px 18px", borderRadius: 10, border: "none",
-                                background: color, color: "#fff", fontSize: 13,
+                                background: color, color: "#fff", fontSize: "0.8125rem",
                                 fontWeight: 600, cursor: "pointer",
                               }}
                             >
@@ -3482,23 +3501,23 @@ export default function App() {
                             setEditingExpenseAmountStr(String(item.amount));
                           }, item.name)}
                         >
-                          <div style={{ flex: 1 }}>
-                            <div style={{ fontSize: 14, fontWeight: 600, color: "#1C1C1E", marginBottom: 3 }}>{item.name}</div>
-                            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontSize: "0.875rem", fontWeight: 600, color: "#1C1C1E", marginBottom: 3 }}>{item.name}</div>
+                            <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
                               <span style={{
-                                fontSize: 11, color: colorSet.accent, fontWeight: 600,
+                                fontSize: "0.6875rem", color: colorSet.accent, fontWeight: 600,
                                 background: colorSet.bg, padding: "2px 7px", borderRadius: 5,
                               }}>
                                 {colorSet.icon} {getCategoryLabel(item.category, customCategories, t)}
                               </span>
-                              <span style={{ fontSize: 12, color: "#6C6C70" }}>· {t.freq(item.frequency)}</span>
+                              <span style={{ fontSize: "0.75rem", color: "#6C6C70" }}>· {t.freq(item.frequency)}</span>
                             </div>
                           </div>
                           <div style={{ textAlign: "right", flexShrink: 0 }}>
-                            <div style={{ fontSize: 15, fontWeight: 700, color }}>{money(item.amount)}</div>
-                            <div style={{ fontSize: 11, color: "#6C6C70" }}>{money(monthly)}{t("perMo")}</div>
+                            <div style={{ fontSize: "0.9375rem", fontWeight: 700, color }}>{money(item.amount)}</div>
+                            <div style={{ fontSize: "0.6875rem", color: "#6C6C70" }}>{money(monthly)}{t("perMo")}</div>
                           </div>
-                          <div style={{ color: "#C7C7CC", fontSize: 13 }}>›</div>
+                          <div style={{ color: "#C7C7CC", fontSize: "0.8125rem" }}>›</div>
                         </div>
                       )}
                     </div>
@@ -3516,7 +3535,7 @@ export default function App() {
                     display: "grid",
                     gridTemplateColumns: "2fr 1fr 1fr 1fr 72px",
                     gap: 8,
-                    fontSize: 11,
+                    fontSize: "0.6875rem",
                     fontWeight: 600,
                     color: "#6C6C70",
                     textTransform: "uppercase",
@@ -3565,12 +3584,12 @@ export default function App() {
                             style={{
                               width: "100%", border: "none",
                               borderBottom: `2px solid ${colorSet.accent}`,
-                              background: "transparent", fontSize: 14, fontWeight: 500,
+                              background: "transparent", fontSize: "0.875rem", fontWeight: 500,
                               outline: "none", padding: "2px 0",
                             }}
                           />
                         ) : (
-                          <span style={{ fontSize: 14, fontWeight: 500 }}>{item.name}</span>
+                          <span style={{ fontSize: "0.875rem", fontWeight: 500 }}>{item.name}</span>
                         )}
                       </div>
                       <div
@@ -3590,7 +3609,7 @@ export default function App() {
                             onChange={(event) => updateExpense(item.id, "category", event.target.value)}
                             style={{
                               border: "none", borderBottom: `2px solid ${colorSet.accent}`,
-                              background: "transparent", fontSize: 12, outline: "none",
+                              background: "transparent", fontSize: "0.75rem", outline: "none",
                               padding: "2px 0", width: "100%",
                             }}
                           >
@@ -3600,7 +3619,7 @@ export default function App() {
                           </select>
                         ) : (
                           <span style={{
-                            fontSize: 12, color: colorSet.accent, fontWeight: 600,
+                            fontSize: "0.75rem", color: colorSet.accent, fontWeight: 600,
                             background: colorSet.bg, padding: "3px 8px", borderRadius: 6,
                           }}>
                             {colorSet.icon} {getCategoryLabel(item.category, customCategories, t)}
@@ -3639,14 +3658,14 @@ export default function App() {
                             style={{
                               width: "100%", border: "none",
                               borderBottom: `2px solid ${colorSet.accent}`,
-                              background: "transparent", fontSize: 14, fontWeight: 600,
+                              background: "transparent", fontSize: "0.875rem", fontWeight: 600,
                               outline: "none", textAlign: "right", padding: "2px 0",
                             }}
                           />
                         ) : (
                           <div>
-                            <div style={{ fontSize: 14, fontWeight: 600 }}>{money(item.amount)}</div>
-                            <div style={{ fontSize: 11, color: "#6C6C70" }}>{money(monthly)}{t("perMo")}</div>
+                            <div style={{ fontSize: "0.875rem", fontWeight: 600 }}>{money(item.amount)}</div>
+                            <div style={{ fontSize: "0.6875rem", color: "#6C6C70" }}>{money(monthly)}{t("perMo")}</div>
                           </div>
                         )}
                       </div>
@@ -3657,7 +3676,7 @@ export default function App() {
                             onChange={(event) => updateExpense(item.id, "frequency", event.target.value)}
                             style={{
                               border: "none", borderBottom: `2px solid ${colorSet.accent}`,
-                              background: "transparent", fontSize: 12, outline: "none",
+                              background: "transparent", fontSize: "0.75rem", outline: "none",
                               padding: "2px 0", width: "100%",
                             }}
                           >
@@ -3666,7 +3685,7 @@ export default function App() {
                             ))}
                           </select>
                         ) : (
-                          <span style={{ fontSize: 12, color: "#6C6C70" }}>{t.freq(item.frequency)}</span>
+                          <span style={{ fontSize: "0.75rem", color: "#6C6C70" }}>{t.freq(item.frequency)}</span>
                         )}
                       </div>
                       <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
@@ -3679,9 +3698,9 @@ export default function App() {
                             }}
                             aria-label={t("btn_done")}
                             style={{
-                              width: 28, height: 28, borderRadius: "50%", border: "none",
+                              width: "1.75rem", height: "1.75rem", borderRadius: "50%", border: "none",
                               background: "#E8FFF0", color: "#34C759", cursor: "pointer",
-                              fontSize: 16, display: "flex", alignItems: "center", justifyContent: "center",
+                              fontSize: "1rem", display: "flex", alignItems: "center", justifyContent: "center",
                             }}
                           >
                             ✓
@@ -3692,9 +3711,9 @@ export default function App() {
                           aria-label={t("btn_delete")}
                           className="tap-target"
                           style={{
-                            width: 28, height: 28, borderRadius: "50%", border: "none",
+                            width: "1.75rem", height: "1.75rem", borderRadius: "50%", border: "none",
                             background: "#FFE5E5", color: "#FF3B30", cursor: "pointer",
-                            fontSize: 14, display: "flex", alignItems: "center", justifyContent: "center",
+                            fontSize: "0.875rem", display: "flex", alignItems: "center", justifyContent: "center",
                           }}
                         >
                           ×
@@ -3724,7 +3743,7 @@ export default function App() {
                         border: "none",
                         borderBottom: "2px solid #007AFF",
                         background: "transparent",
-                        fontSize: 14,
+                        fontSize: "0.875rem",
                         fontWeight: 500,
                         outline: "none",
                         padding: "4px 0",
@@ -3733,7 +3752,7 @@ export default function App() {
                     <select
                       value={newExpense.category}
                       onChange={(event) => setNewExpense((current) => ({ ...current, category: event.target.value }))}
-                      style={{ border: "none", borderBottom: "2px solid #007AFF", background: "transparent", fontSize: 12, outline: "none" }}
+                      style={{ border: "none", borderBottom: "2px solid #007AFF", background: "transparent", fontSize: "0.75rem", outline: "none" }}
                     >
                       {allCategoryKeys.map((category) => (
                         <option key={category} value={category}>{getCategoryLabel(category, customCategories, t)}</option>
@@ -3750,7 +3769,7 @@ export default function App() {
                         border: "none",
                         borderBottom: "2px solid #007AFF",
                         background: "transparent",
-                        fontSize: 14,
+                        fontSize: "0.875rem",
                         fontWeight: 600,
                         outline: "none",
                         textAlign: "right",
@@ -3759,7 +3778,7 @@ export default function App() {
                     <select
                       value={newExpense.frequency}
                       onChange={(event) => setNewExpense((current) => ({ ...current, frequency: event.target.value }))}
-                      style={{ border: "none", borderBottom: "2px solid #007AFF", background: "transparent", fontSize: 12, outline: "none" }}
+                      style={{ border: "none", borderBottom: "2px solid #007AFF", background: "transparent", fontSize: "0.75rem", outline: "none" }}
                     >
                       {FREQUENCIES.map((frequency) => (
                         <option key={frequency} value={frequency}>{t.freq(frequency)}</option>
@@ -3776,7 +3795,7 @@ export default function App() {
                         background: "#007AFF",
                         color: "#fff",
                         cursor: "pointer",
-                        fontSize: 16,
+                        fontSize: "1rem",
                         display: "flex",
                         alignItems: "center",
                         justifyContent: "center",
@@ -3796,7 +3815,7 @@ export default function App() {
                         border: "none",
                         background: "transparent",
                         color: "#007AFF",
-                        fontSize: 14,
+                        fontSize: "0.875rem",
                         fontWeight: 500,
                         cursor: "pointer",
                         padding: 0,
@@ -3811,7 +3830,7 @@ export default function App() {
                           display: "flex",
                           alignItems: "center",
                           justifyContent: "center",
-                          fontSize: 16,
+                          fontSize: "1rem",
                         }}
                       >
                         +
@@ -3839,18 +3858,18 @@ export default function App() {
                     value={newExpense.name}
                     onChange={e => setNewExpense(c => ({ ...c, name: e.target.value }))}
                     style={{
-                      fontSize: 15, fontWeight: 600, border: "none",
+                      fontSize: "0.9375rem", fontWeight: 600, border: "none",
                       borderBottom: "2px solid #007AFF", background: "transparent",
                       outline: "none", paddingBottom: 2,
                     }}
                   />
                   <div style={{ display: "flex", gap: 10 }}>
                     <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: 11, color: "#6C6C70", marginBottom: 4 }}>{t("col_category")}</div>
+                      <div style={{ fontSize: "0.6875rem", color: "#6C6C70", marginBottom: 4 }}>{t("col_category")}</div>
                       <select
                         value={newExpense.category}
                         onChange={e => setNewExpense(c => ({ ...c, category: e.target.value }))}
-                        style={{ fontSize: 13, width: "100%", border: "none", borderBottom: "2px solid #007AFF", background: "transparent", outline: "none" }}
+                        style={{ fontSize: "0.8125rem", width: "100%", border: "none", borderBottom: "2px solid #007AFF", background: "transparent", outline: "none" }}
                       >
                         {allCategoryKeys.map(cat => (
                           <option key={cat} value={cat}>{getCategoryLabel(cat, customCategories, t)}</option>
@@ -3860,7 +3879,7 @@ export default function App() {
                   </div>
                   <div style={{ display: "flex", gap: 10 }}>
                     <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: 11, color: "#6C6C70", marginBottom: 4 }}>{t("col_amount")} ({curSymbol})</div>
+                      <div style={{ fontSize: "0.6875rem", color: "#6C6C70", marginBottom: 4 }}>{t("col_amount")} ({curSymbol})</div>
                       <input
                         type="text"
                         inputMode="decimal"
@@ -3869,18 +3888,18 @@ export default function App() {
                         onChange={e => setNewExpense(c => ({ ...c, amount: e.target.value }))}
                         onBlur={e => setNewExpense(c => ({ ...c, amount: parseNumeric(e.target.value) || 0 }))}
                         style={{
-                          fontSize: 16, fontWeight: 700, color: "#007AFF", width: "100%",
+                          fontSize: "1rem", fontWeight: 700, color: "#007AFF", width: "100%",
                           border: "none", borderBottom: "2px solid #007AFF",
                           background: "transparent", outline: "none", paddingBottom: 2,
                         }}
                       />
                     </div>
                     <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: 11, color: "#6C6C70", marginBottom: 4 }}>{t("col_frequency")}</div>
+                      <div style={{ fontSize: "0.6875rem", color: "#6C6C70", marginBottom: 4 }}>{t("col_frequency")}</div>
                       <select
                         value={newExpense.frequency}
                         onChange={e => setNewExpense(c => ({ ...c, frequency: e.target.value }))}
-                        style={{ fontSize: 13, width: "100%", border: "none", borderBottom: "2px solid #007AFF", background: "transparent", outline: "none" }}
+                        style={{ fontSize: "0.8125rem", width: "100%", border: "none", borderBottom: "2px solid #007AFF", background: "transparent", outline: "none" }}
                       >
                         {FREQUENCIES.map(f => <option key={f} value={f}>{t.freq(f)}</option>)}
                       </select>
@@ -3889,13 +3908,13 @@ export default function App() {
                   <div style={{ display: "flex", justifyContent: "space-between" }}>
                     <button
                       onClick={() => setAddingExpense(false)}
-                      style={{ padding: "7px 14px", borderRadius: 10, border: "none", background: "#F2F2F7", color: "#3C3C43", fontSize: 13, fontWeight: 600, cursor: "pointer" }}
+                      style={{ padding: "7px 14px", borderRadius: 10, border: "none", background: "#F2F2F7", color: "#3C3C43", fontSize: "0.8125rem", fontWeight: 600, cursor: "pointer" }}
                     >
                       {t("btn_cancel")}
                     </button>
                     <button
                       onClick={addExpense}
-                      style={{ padding: "7px 18px", borderRadius: 10, border: "none", background: "#007AFF", color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer" }}
+                      style={{ padding: "7px 18px", borderRadius: 10, border: "none", background: "#007AFF", color: "#fff", fontSize: "0.8125rem", fontWeight: 600, cursor: "pointer" }}
                     >
                       + {t("addExpense")}
                     </button>
@@ -3907,11 +3926,11 @@ export default function App() {
                   style={{
                     marginTop: 10, width: "100%", padding: "14px", borderRadius: 16,
                     border: "2px dashed #C7C7CC", background: "transparent",
-                    color: "#007AFF", fontSize: 14, fontWeight: 600, cursor: "pointer",
+                    color: "#007AFF", fontSize: "0.875rem", fontWeight: 600, cursor: "pointer",
                     display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
                   }}
                 >
-                  <span style={{ fontSize: 18, lineHeight: 1 }}>+</span> {t("addExpense")}
+                  <span style={{ fontSize: "1.125rem", lineHeight: 1 }}>+</span> {t("addExpense")}
                 </button>
               )
             )}
@@ -3929,10 +3948,10 @@ export default function App() {
                 gap: 12,
               }}
             >
-              <span style={{ fontSize: 14, fontWeight: 600, color: "#3C3C43" }}>{t("totalExpenses")}</span>
-              <span style={{ fontSize: 20, fontWeight: 700, color: "#FF3B30", textAlign: "right" }}>
+              <span style={{ fontSize: "0.875rem", fontWeight: 600, color: "#3C3C43" }}>{t("totalExpenses")}</span>
+              <span style={{ fontSize: "1.25rem", fontWeight: 700, color: "#FF3B30", textAlign: "right" }}>
                 {money(totalExpenses)}
-                <span style={{ fontSize: 12, color: "#6C6C70", fontWeight: 400 }}>{t("perMo")}</span>
+                <span style={{ fontSize: "0.75rem", color: "#6C6C70", fontWeight: 400 }}>{t("perMo")}</span>
               </span>
             </div>
           </div>
@@ -3964,14 +3983,14 @@ export default function App() {
                             value={item.name}
                             onChange={e => updateIncome(item.id, "name", e.target.value)}
                             style={{
-                              fontSize: 15, fontWeight: 600, color: "#1C1C1E",
+                              fontSize: "0.9375rem", fontWeight: 600, color: "#1C1C1E",
                               border: "none", borderBottom: "2px solid #34C759",
                               background: "transparent", outline: "none", width: "100%", paddingBottom: 2,
                             }}
                           />
                           <div style={{ display: "flex", gap: 10 }}>
                             <div style={{ flex: 1 }}>
-                              <div style={{ fontSize: 11, color: "#6C6C70", marginBottom: 4 }}>{t("col_amount")} ({curSymbol})</div>
+                              <div style={{ fontSize: "0.6875rem", color: "#6C6C70", marginBottom: 4 }}>{t("col_amount")} ({curSymbol})</div>
                               <input
                                 type="text"
                                 inputMode="decimal"
@@ -3979,19 +3998,19 @@ export default function App() {
                                 onChange={e => setEditingIncomeAmountStr(e.target.value)}
                                 onBlur={() => commitIncomeAmount(item.id)}
                                 style={{
-                                  fontSize: 16, fontWeight: 700, color: "#34C759", width: "100%",
+                                  fontSize: "1rem", fontWeight: 700, color: "#34C759", width: "100%",
                                   border: "none", borderBottom: "2px solid #34C759",
                                   background: "transparent", outline: "none", paddingBottom: 2,
                                 }}
                               />
                             </div>
                             <div style={{ flex: 1 }}>
-                              <div style={{ fontSize: 11, color: "#6C6C70", marginBottom: 4 }}>{t("col_frequency")}</div>
+                              <div style={{ fontSize: "0.6875rem", color: "#6C6C70", marginBottom: 4 }}>{t("col_frequency")}</div>
                               <select
                                 value={item.frequency}
                                 onChange={e => updateIncome(item.id, "frequency", e.target.value)}
                                 style={{
-                                  fontSize: 13, width: "100%", border: "none",
+                                  fontSize: "0.8125rem", width: "100%", border: "none",
                                   borderBottom: "2px solid #34C759", background: "transparent",
                                   outline: "none", paddingBottom: 2, color: "#1C1C1E",
                                 }}
@@ -4003,13 +4022,13 @@ export default function App() {
                           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 4 }}>
                             <button
                               onClick={() => deleteIncome(item.id)}
-                              style={{ padding: "7px 14px", borderRadius: 10, border: "none", background: "#FF3B3015", color: "#FF3B30", fontSize: 13, fontWeight: 600, cursor: "pointer" }}
+                              style={{ padding: "7px 14px", borderRadius: 10, border: "none", background: "#FF3B3015", color: "#FF3B30", fontSize: "0.8125rem", fontWeight: 600, cursor: "pointer" }}
                             >
                               🗑 {t("btn_delete")}
                             </button>
                             <button
                               onClick={() => { commitIncomeAmount(item.id); setEditingIncome(null); }}
-                              style={{ padding: "7px 18px", borderRadius: 10, border: "none", background: "#34C759", color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer" }}
+                              style={{ padding: "7px 18px", borderRadius: 10, border: "none", background: "#34C759", color: "#fff", fontSize: "0.8125rem", fontWeight: 600, cursor: "pointer" }}
                             >
                               {t("btn_done")}
                             </button>
@@ -4020,15 +4039,15 @@ export default function App() {
                           style={{ display: "flex", alignItems: "center", gap: 12, cursor: "pointer" }}
                           {...tappable(() => startEditingIncome(item), item.name)}
                         >
-                          <div style={{ flex: 1 }}>
-                            <div style={{ fontSize: 14, fontWeight: 600, color: "#1C1C1E", marginBottom: 2 }}>{item.name}</div>
-                            <div style={{ fontSize: 12, color: "#6C6C70" }}>{t.freq(item.frequency)}</div>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontSize: "0.875rem", fontWeight: 600, color: "#1C1C1E", marginBottom: 2 }}>{item.name}</div>
+                            <div style={{ fontSize: "0.75rem", color: "#6C6C70" }}>{t.freq(item.frequency)}</div>
                           </div>
                           <div style={{ textAlign: "right", flexShrink: 0 }}>
-                            <div style={{ fontSize: 15, fontWeight: 700, color: "#34C759" }}>{money(item.amount)}</div>
-                            <div style={{ fontSize: 11, color: "#6C6C70" }}>{money(monthly)}{t("perMo")}</div>
+                            <div style={{ fontSize: "0.9375rem", fontWeight: 700, color: "#34C759" }}>{money(item.amount)}</div>
+                            <div style={{ fontSize: "0.6875rem", color: "#6C6C70" }}>{money(monthly)}{t("perMo")}</div>
                           </div>
-                          <div style={{ color: "#C7C7CC", fontSize: 13 }}>›</div>
+                          <div style={{ color: "#C7C7CC", fontSize: "0.8125rem" }}>›</div>
                         </div>
                       )}
                     </div>
@@ -4044,35 +4063,35 @@ export default function App() {
                       placeholder={t("ph_incomeSource")}
                       value={newIncome.name}
                       onChange={e => setNewIncome(c => ({ ...c, name: e.target.value }))}
-                      style={{ fontSize: 15, fontWeight: 600, border: "none", borderBottom: "2px solid #34C759", background: "transparent", outline: "none", paddingBottom: 2 }}
+                      style={{ fontSize: "0.9375rem", fontWeight: 600, border: "none", borderBottom: "2px solid #34C759", background: "transparent", outline: "none", paddingBottom: 2 }}
                     />
                     <div style={{ display: "flex", gap: 10 }}>
                       <div style={{ flex: 1 }}>
-                        <div style={{ fontSize: 11, color: "#6C6C70", marginBottom: 4 }}>{t("col_amount")} ({curSymbol})</div>
+                        <div style={{ fontSize: "0.6875rem", color: "#6C6C70", marginBottom: 4 }}>{t("col_amount")} ({curSymbol})</div>
                         <input
                           type="text" inputMode="decimal" placeholder="0"
                           value={newIncome.amount || ""}
                           onChange={e => setNewIncome(c => ({ ...c, amount: e.target.value }))}
                           onBlur={e => setNewIncome(c => ({ ...c, amount: parseNumeric(e.target.value) || 0 }))}
-                          style={{ fontSize: 16, fontWeight: 700, color: "#34C759", width: "100%", border: "none", borderBottom: "2px solid #34C759", background: "transparent", outline: "none", paddingBottom: 2 }}
+                          style={{ fontSize: "1rem", fontWeight: 700, color: "#34C759", width: "100%", border: "none", borderBottom: "2px solid #34C759", background: "transparent", outline: "none", paddingBottom: 2 }}
                         />
                       </div>
                       <div style={{ flex: 1 }}>
-                        <div style={{ fontSize: 11, color: "#6C6C70", marginBottom: 4 }}>{t("col_frequency")}</div>
+                        <div style={{ fontSize: "0.6875rem", color: "#6C6C70", marginBottom: 4 }}>{t("col_frequency")}</div>
                         <select
                           value={newIncome.frequency}
                           onChange={e => setNewIncome(c => ({ ...c, frequency: e.target.value }))}
-                          style={{ fontSize: 13, width: "100%", border: "none", borderBottom: "2px solid #34C759", background: "transparent", outline: "none" }}
+                          style={{ fontSize: "0.8125rem", width: "100%", border: "none", borderBottom: "2px solid #34C759", background: "transparent", outline: "none" }}
                         >
                           {FREQUENCIES.map(f => <option key={f} value={f}>{t.freq(f)}</option>)}
                         </select>
                       </div>
                     </div>
                     <div style={{ display: "flex", justifyContent: "space-between" }}>
-                      <button onClick={() => setAddingIncome(false)} style={{ padding: "7px 14px", borderRadius: 10, border: "none", background: "#F2F2F7", color: "#3C3C43", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
+                      <button onClick={() => setAddingIncome(false)} style={{ padding: "7px 14px", borderRadius: 10, border: "none", background: "#F2F2F7", color: "#3C3C43", fontSize: "0.8125rem", fontWeight: 600, cursor: "pointer" }}>
                         {t("btn_cancel")}
                       </button>
-                      <button onClick={addIncome} style={{ padding: "7px 18px", borderRadius: 10, border: "none", background: "#34C759", color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
+                      <button onClick={addIncome} style={{ padding: "7px 18px", borderRadius: 10, border: "none", background: "#34C759", color: "#fff", fontSize: "0.8125rem", fontWeight: 600, cursor: "pointer" }}>
                         + {t("addIncome")}
                       </button>
                     </div>
@@ -4083,11 +4102,11 @@ export default function App() {
                     style={{
                       width: "100%", padding: "14px", borderRadius: 16,
                       border: "2px dashed #C7C7CC", background: "transparent",
-                      color: "#34C759", fontSize: 14, fontWeight: 600, cursor: "pointer",
+                      color: "#34C759", fontSize: "0.875rem", fontWeight: 600, cursor: "pointer",
                       display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
                     }}
                   >
-                    <span style={{ fontSize: 18, lineHeight: 1 }}>+</span> {t("addIncome")}
+                    <span style={{ fontSize: "1.125rem", lineHeight: 1 }}>+</span> {t("addIncome")}
                   </button>
                 )}
               </div>
@@ -4102,7 +4121,7 @@ export default function App() {
                     display: "grid",
                     gridTemplateColumns: "2fr 1fr 1fr 72px",
                     gap: 8,
-                    fontSize: 11,
+                    fontSize: "0.6875rem",
                     fontWeight: 600,
                     color: "#6C6C70",
                     textTransform: "uppercase",
@@ -4137,10 +4156,10 @@ export default function App() {
                             value={item.name}
                             onChange={(event) => updateIncome(item.id, "name", event.target.value)}
                             onKeyDown={(e) => { if (e.key === "Enter") { commitIncomeAmount(item.id); setEditingIncome(null); } if (e.key === "Escape") setEditingIncome(null); }}
-                            style={{ width: "100%", border: "none", borderBottom: "2px solid #34C759", background: "transparent", fontSize: 15, fontWeight: 600, outline: "none" }}
+                            style={{ width: "100%", border: "none", borderBottom: "2px solid #34C759", background: "transparent", fontSize: "0.9375rem", fontWeight: 600, outline: "none" }}
                           />
                         ) : (
-                          <span style={{ fontSize: 15, fontWeight: 600 }}>{item.name}</span>
+                          <span style={{ fontSize: "0.9375rem", fontWeight: 600 }}>{item.name}</span>
                         )}
                       </div>
                       <div
@@ -4156,12 +4175,12 @@ export default function App() {
                             onChange={(event) => setEditingIncomeAmountStr(event.target.value)}
                             onBlur={() => commitIncomeAmount(item.id)}
                             onKeyDown={(e) => { if (e.key === "Enter") { commitIncomeAmount(item.id); setEditingIncome(null); } if (e.key === "Escape") setEditingIncome(null); }}
-                            style={{ width: "100%", border: "none", borderBottom: "2px solid #34C759", background: "transparent", fontSize: 16, fontWeight: 700, outline: "none", textAlign: "right" }}
+                            style={{ width: "100%", border: "none", borderBottom: "2px solid #34C759", background: "transparent", fontSize: "1rem", fontWeight: 700, outline: "none", textAlign: "right" }}
                           />
                         ) : (
                           <div>
-                            <div style={{ fontSize: 16, fontWeight: 700, color: "#34C759" }}>{money(item.amount)}</div>
-                            <div style={{ fontSize: 11, color: "#6C6C70" }}>{money(monthly)}{t("perMo")}</div>
+                            <div style={{ fontSize: "1rem", fontWeight: 700, color: "#34C759" }}>{money(item.amount)}</div>
+                            <div style={{ fontSize: "0.6875rem", color: "#6C6C70" }}>{money(monthly)}{t("perMo")}</div>
                           </div>
                         )}
                       </div>
@@ -4170,14 +4189,14 @@ export default function App() {
                           <select
                             value={item.frequency}
                             onChange={(event) => updateIncome(item.id, "frequency", event.target.value)}
-                            style={{ border: "none", borderBottom: "2px solid #34C759", background: "transparent", fontSize: 13, outline: "none" }}
+                            style={{ border: "none", borderBottom: "2px solid #34C759", background: "transparent", fontSize: "0.8125rem", outline: "none" }}
                           >
                             {FREQUENCIES.map((frequency) => (
                               <option key={frequency} value={frequency}>{t.freq(frequency)}</option>
                             ))}
                           </select>
                         ) : (
-                          <span style={{ fontSize: 13, color: "#6C6C70" }}>{t.freq(item.frequency)}</span>
+                          <span style={{ fontSize: "0.8125rem", color: "#6C6C70" }}>{t.freq(item.frequency)}</span>
                         )}
                       </div>
                       <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
@@ -4185,7 +4204,7 @@ export default function App() {
                           <button
                             onClick={() => { commitIncomeAmount(item.id); setEditingIncome(null); }}
                             aria-label={t("btn_done")}
-                            style={{ width: 28, height: 28, borderRadius: "50%", border: "none", background: "#E8FFF0", color: "#34C759", cursor: "pointer", fontSize: 16, display: "flex", alignItems: "center", justifyContent: "center" }}
+                            style={{ width: "1.75rem", height: "1.75rem", borderRadius: "50%", border: "none", background: "#E8FFF0", color: "#34C759", cursor: "pointer", fontSize: "1rem", display: "flex", alignItems: "center", justifyContent: "center" }}
                           >
                             ✓
                           </button>
@@ -4194,7 +4213,7 @@ export default function App() {
                           onClick={() => deleteIncome(item.id)}
                           aria-label={t("btn_delete")}
                           className="tap-target"
-                          style={{ width: 28, height: 28, borderRadius: "50%", border: "none", background: "#FFE5E5", color: "#FF3B30", cursor: "pointer", fontSize: 14, display: "flex", alignItems: "center", justifyContent: "center" }}
+                          style={{ width: "1.75rem", height: "1.75rem", borderRadius: "50%", border: "none", background: "#FFE5E5", color: "#FF3B30", cursor: "pointer", fontSize: "0.875rem", display: "flex", alignItems: "center", justifyContent: "center" }}
                         >
                           ×
                         </button>
@@ -4208,25 +4227,25 @@ export default function App() {
                       placeholder={t("ph_incomeSource")}
                       value={newIncome.name}
                       onChange={(event) => setNewIncome((current) => ({ ...current, name: event.target.value }))}
-                      style={{ border: "none", borderBottom: "2px solid #34C759", background: "transparent", fontSize: 15, fontWeight: 600, outline: "none" }}
+                      style={{ border: "none", borderBottom: "2px solid #34C759", background: "transparent", fontSize: "0.9375rem", fontWeight: 600, outline: "none" }}
                     />
                     <input
                       type="text" inputMode="decimal" placeholder="0"
                       value={newIncome.amount || ""}
                       onChange={(event) => setNewIncome((current) => ({ ...current, amount: event.target.value }))}
                       onBlur={(event) => setNewIncome((current) => ({ ...current, amount: parseAmount(event.target.value, 0) }))}
-                      style={{ border: "none", borderBottom: "2px solid #34C759", background: "transparent", fontSize: 16, fontWeight: 700, outline: "none", textAlign: "right" }}
+                      style={{ border: "none", borderBottom: "2px solid #34C759", background: "transparent", fontSize: "1rem", fontWeight: 700, outline: "none", textAlign: "right" }}
                     />
                     <select
                       value={newIncome.frequency}
                       onChange={(event) => setNewIncome((current) => ({ ...current, frequency: event.target.value }))}
-                      style={{ border: "none", borderBottom: "2px solid #34C759", background: "transparent", fontSize: 13, outline: "none" }}
+                      style={{ border: "none", borderBottom: "2px solid #34C759", background: "transparent", fontSize: "0.8125rem", outline: "none" }}
                     >
                       {FREQUENCIES.map((frequency) => (
                         <option key={frequency} value={frequency}>{t.freq(frequency)}</option>
                       ))}
                     </select>
-                    <button onClick={addIncome} aria-label={t("addIncome")} style={{ width: 28, height: 28, borderRadius: "50%", border: "none", background: "#34C759", color: "#fff", cursor: "pointer", fontSize: 16, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                    <button onClick={addIncome} aria-label={t("addIncome")} style={{ width: "1.75rem", height: "1.75rem", borderRadius: "50%", border: "none", background: "#34C759", color: "#fff", cursor: "pointer", fontSize: "1rem", display: "flex", alignItems: "center", justifyContent: "center" }}>
                       +
                     </button>
                   </div>
@@ -4234,9 +4253,9 @@ export default function App() {
                   <div style={{ padding: "12px 20px", borderTop: "1px solid #F2F2F7" }}>
                     <button
                       onClick={() => setAddingIncome(true)}
-                      style={{ display: "flex", alignItems: "center", gap: 8, border: "none", background: "transparent", color: "#34C759", fontSize: 14, fontWeight: 500, cursor: "pointer", padding: 0 }}
+                      style={{ display: "flex", alignItems: "center", gap: 8, border: "none", background: "transparent", color: "#34C759", fontSize: "0.875rem", fontWeight: 500, cursor: "pointer", padding: 0 }}
                     >
-                      <span style={{ width: 24, height: 24, borderRadius: "50%", background: "#E6FFF0", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16 }}>+</span>
+                      <span style={{ width: "1.5rem", height: "1.5rem", borderRadius: "50%", background: "#E6FFF0", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1rem" }}>+</span>
                       {t("addIncome")}
                     </button>
                   </div>
@@ -4255,10 +4274,10 @@ export default function App() {
                   key={card.label}
                   style={{ background: "#fff", borderRadius: 14, padding: "16px 18px", boxShadow: "0 2px 8px rgba(0,0,0,0.06)", textAlign: "center" }}
                 >
-                  <div style={{ fontSize: 11, color: "#6C6C70", fontWeight: 500, marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                  <div style={{ fontSize: "0.6875rem", color: "#6C6C70", fontWeight: 500, marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.5px" }}>
                     {card.label}
                   </div>
-                  <div style={{ fontSize: 24, fontWeight: 700, color: card.color }}>{money(card.value)}</div>
+                  <div style={{ fontSize: "1.5rem", fontWeight: 700, color: card.color }}>{money(card.value)}</div>
                 </div>
               ))}
             </div>
@@ -4283,15 +4302,15 @@ export default function App() {
               }}
             >
               <div>
-                <div style={{ fontSize: 12, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.6px", opacity: 0.85, marginBottom: 4 }}>
+                <div style={{ fontSize: "0.75rem", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.6px", opacity: 0.85, marginBottom: 4 }}>
                   💼 {t("perWorkDayTitle")}
                 </div>
-                <div style={{ fontSize: 34, fontWeight: 800, letterSpacing: "-1px", lineHeight: 1.1 }}>
+                <div style={{ fontSize: "2.125rem", fontWeight: 800, letterSpacing: "-1px", lineHeight: 1.1 }}>
                   {money(incomePerWorkDay)}
-                  <span style={{ fontSize: 15, fontWeight: 500, opacity: 0.85 }}>{t("perWorkDaySuffix")}</span>
+                  <span style={{ fontSize: "0.9375rem", fontWeight: 500, opacity: 0.85 }}>{t("perWorkDaySuffix")}</span>
                 </div>
               </div>
-              <div style={{ textAlign: isMobile ? "left" : "right", fontSize: 13, fontWeight: 500, opacity: 0.95, lineHeight: 1.5 }}>
+              <div style={{ textAlign: isMobile ? "left" : "right", fontSize: "0.8125rem", fontWeight: 500, opacity: 0.95, lineHeight: 1.5 }}>
                 {t("perWorkDayNote", { n: workDaysInMonth })}
               </div>
             </div>
@@ -4300,10 +4319,10 @@ export default function App() {
 
         {activeTab === "bills" && (
           <div>
-            <h2 style={{ fontSize: 15, fontWeight: 700, color: "#1C1C1E", margin: "0 0 2px" }}>
+            <h2 style={{ fontSize: "0.9375rem", fontWeight: 700, color: "#1C1C1E", margin: "0 0 2px" }}>
               🔔 {t("bills_title")}
             </h2>
-            <div style={{ fontSize: 12, color: "#6C6C70", marginBottom: 12 }}>{t("bills_sub")}</div>
+            <div style={{ fontSize: "0.75rem", color: "#6C6C70", marginBottom: 12 }}>{t("bills_sub")}</div>
 
             {/* What the scheduler last reported. A list of reminders that are
                 never going to arrive is worse than no list at all, so a
@@ -4312,7 +4331,7 @@ export default function App() {
             {isNative && reminderState?.denied && (
               <div style={{
                 background: "#FFF0EF", border: "1.5px solid #FFD2CF", borderRadius: 12,
-                padding: "10px 12px", marginBottom: 12, fontSize: 12.5, color: "#C0261C", lineHeight: 1.5,
+                padding: "10px 12px", marginBottom: 12, fontSize: "0.78125rem", color: "#C0261C", lineHeight: 1.5,
               }}>
                 ⚠️ {t("remindersBlocked")}
               </div>
@@ -4320,7 +4339,7 @@ export default function App() {
             {!isNative && bills.length > 0 && (
               <div style={{
                 background: "#F7F7FA", border: "1.5px solid #E5E5EA", borderRadius: 12,
-                padding: "10px 12px", marginBottom: 12, fontSize: 12.5, color: "#3C3C43", lineHeight: 1.5,
+                padding: "10px 12px", marginBottom: 12, fontSize: "0.78125rem", color: "#3C3C43", lineHeight: 1.5,
               }}>
                 📱 {t("remindersWebOnly")}
               </div>
@@ -4330,7 +4349,7 @@ export default function App() {
               {bills.length === 0 && !addingBill && (
                 <div style={{
                   textAlign: "center", padding: "32px 20px", color: "#6C6C70",
-                  fontSize: 13.5, lineHeight: 1.55, background: "#fff", borderRadius: 16,
+                  fontSize: "0.84375rem", lineHeight: 1.55, background: "#fff", borderRadius: 16,
                   boxShadow: "0 2px 8px rgba(0,0,0,0.06)",
                 }}>
                   {t("bills_empty")}
@@ -4362,28 +4381,28 @@ export default function App() {
                           value={bill.name}
                           onChange={(e) => setBills((rows) => rows.map((b) => b.id === bill.id ? { ...b, name: e.target.value } : b))}
                           style={{
-                            fontSize: 15, fontWeight: 600, color: "#1C1C1E", border: "none",
+                            fontSize: "0.9375rem", fontWeight: 600, color: "#1C1C1E", border: "none",
                             borderBottom: "2px solid #FF9500", background: "transparent",
                             outline: "none", width: "100%", paddingBottom: 2,
                           }}
                         />
                         <div style={{ display: "flex", gap: 10 }}>
                           <div style={{ flex: 1 }}>
-                            <div style={{ fontSize: 11, color: "#6C6C70", marginBottom: 4 }}>{t("col_amount")} ({curSymbol})</div>
+                            <div style={{ fontSize: "0.6875rem", color: "#6C6C70", marginBottom: 4 }}>{t("col_amount")} ({curSymbol})</div>
                             <input
                               type="text" inputMode="decimal"
                               value={bill.amount}
                               onChange={(e) => setBills((rows) => rows.map((b) => b.id === bill.id ? { ...b, amount: e.target.value } : b))}
                               onBlur={(e) => setBills((rows) => rows.map((b) => b.id === bill.id ? { ...b, amount: parseAmount(e.target.value, 0) } : b))}
                               style={{
-                                fontSize: 16, fontWeight: 700, color: "#FF9500", width: "100%",
+                                fontSize: "1rem", fontWeight: 700, color: "#FF9500", width: "100%",
                                 border: "none", borderBottom: "2px solid #FF9500",
                                 background: "transparent", outline: "none", paddingBottom: 2,
                               }}
                             />
                           </div>
                           <div style={{ flex: 1 }}>
-                            <div style={{ fontSize: 11, color: "#6C6C70", marginBottom: 4 }}>{t("bill_dueDay")}</div>
+                            <div style={{ fontSize: "0.6875rem", color: "#6C6C70", marginBottom: 4 }}>{t("bill_dueDay")}</div>
                             {/* A list rather than a free number field: there is
                                 no such thing as day 0 or day 45, and a typo
                                 here silently costs the reminder. */}
@@ -4391,7 +4410,7 @@ export default function App() {
                               value={Number(bill.dueDay) || 1}
                               onChange={(e) => setBills((rows) => rows.map((b) => b.id === bill.id ? { ...b, dueDay: Number(e.target.value) } : b))}
                               style={{
-                                fontSize: 13, width: "100%", border: "none",
+                                fontSize: "0.8125rem", width: "100%", border: "none",
                                 borderBottom: "2px solid #FF9500", background: "transparent",
                                 outline: "none", paddingBottom: 2, color: "#1C1C1E",
                               }}
@@ -4401,12 +4420,12 @@ export default function App() {
                           </div>
                         </div>
                         {Number(bill.dueDay) > 28 && (
-                          <div style={{ fontSize: 11, color: "#6C6C70" }}>ℹ️ {t("bill_shortMonthNote")}</div>
+                          <div style={{ fontSize: "0.6875rem", color: "#6C6C70" }}>ℹ️ {t("bill_shortMonthNote")}</div>
                         )}
                         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 4 }}>
                           <button
                             onClick={() => deleteBill(bill.id)}
-                            style={{ padding: "7px 14px", borderRadius: 10, border: "none", background: "#FF3B3015", color: "#FF3B30", fontSize: 13, fontWeight: 600, cursor: "pointer" }}
+                            style={{ padding: "7px 14px", borderRadius: 10, border: "none", background: "#FF3B3015", color: "#FF3B30", fontSize: "0.8125rem", fontWeight: 600, cursor: "pointer" }}
                           >
                             🗑 {t("btn_delete")}
                           </button>
@@ -4415,7 +4434,7 @@ export default function App() {
                               setBills((rows) => rows.map((b) => b.id === bill.id ? { ...b, amount: parseAmount(b.amount, 0) } : b));
                               setEditingBill(null);
                             }}
-                            style={{ padding: "7px 18px", borderRadius: 10, border: "none", background: "#FF9500", color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer" }}
+                            style={{ padding: "7px 18px", borderRadius: 10, border: "none", background: "#FF9500", color: "#fff", fontSize: "0.8125rem", fontWeight: 600, cursor: "pointer" }}
                           >
                             {t("btn_done")}
                           </button>
@@ -4427,16 +4446,16 @@ export default function App() {
                         {...tappable(() => setEditingBill(bill.id), `${bill.name} — ${t("editBill")}`)}
                       >
                         <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ fontSize: 14, fontWeight: 600, color: "#1C1C1E", marginBottom: 2 }}>{bill.name}</div>
-                          <div style={{ fontSize: 12, color: "#6C6C70" }}>
+                          <div style={{ fontSize: "0.875rem", fontWeight: 600, color: "#1C1C1E", marginBottom: 2 }}>{bill.name}</div>
+                          <div style={{ fontSize: "0.75rem", color: "#6C6C70" }}>
                             {t("bill_dayOfMonth", { d: Number(bill.dueDay) || 1 })}
                             {dueLabel ? ` · ${dueLabel}` : ""}
                           </div>
                         </div>
                         <div style={{ textAlign: "right", flexShrink: 0 }}>
-                          <div style={{ fontSize: 15, fontWeight: 700, color: "#FF9500" }}>{money(parseAmount(bill.amount, 0))}</div>
+                          <div style={{ fontSize: "0.9375rem", fontWeight: 700, color: "#FF9500" }}>{money(parseAmount(bill.amount, 0))}</div>
                         </div>
-                        <div style={{ color: "#C7C7CC", fontSize: 13 }}>›</div>
+                        <div style={{ color: "#C7C7CC", fontSize: "0.8125rem" }}>›</div>
                       </div>
                     )}
                   </div>
@@ -4453,42 +4472,42 @@ export default function App() {
                     placeholder={t("ph_billName")}
                     value={newBill.name}
                     onChange={(e) => setNewBill((c) => ({ ...c, name: e.target.value }))}
-                    style={{ fontSize: 15, fontWeight: 600, border: "none", borderBottom: "2px solid #FF9500", background: "transparent", outline: "none", paddingBottom: 2 }}
+                    style={{ fontSize: "0.9375rem", fontWeight: 600, border: "none", borderBottom: "2px solid #FF9500", background: "transparent", outline: "none", paddingBottom: 2 }}
                   />
                   <div style={{ display: "flex", gap: 10 }}>
                     <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: 11, color: "#6C6C70", marginBottom: 4 }}>{t("col_amount")} ({curSymbol})</div>
+                      <div style={{ fontSize: "0.6875rem", color: "#6C6C70", marginBottom: 4 }}>{t("col_amount")} ({curSymbol})</div>
                       <input
                         type="text" inputMode="decimal" placeholder="0"
                         value={newBill.amount}
                         onChange={(e) => setNewBill((c) => ({ ...c, amount: e.target.value }))}
-                        style={{ fontSize: 16, fontWeight: 700, color: "#FF9500", width: "100%", border: "none", borderBottom: "2px solid #FF9500", background: "transparent", outline: "none", paddingBottom: 2 }}
+                        style={{ fontSize: "1rem", fontWeight: 700, color: "#FF9500", width: "100%", border: "none", borderBottom: "2px solid #FF9500", background: "transparent", outline: "none", paddingBottom: 2 }}
                       />
                     </div>
                     <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: 11, color: "#6C6C70", marginBottom: 4 }}>{t("bill_dueDay")}</div>
+                      <div style={{ fontSize: "0.6875rem", color: "#6C6C70", marginBottom: 4 }}>{t("bill_dueDay")}</div>
                       <select
                         value={newBill.dueDay}
                         onChange={(e) => setNewBill((c) => ({ ...c, dueDay: Number(e.target.value) }))}
-                        style={{ fontSize: 13, width: "100%", border: "none", borderBottom: "2px solid #FF9500", background: "transparent", outline: "none", paddingBottom: 2, color: "#1C1C1E" }}
+                        style={{ fontSize: "0.8125rem", width: "100%", border: "none", borderBottom: "2px solid #FF9500", background: "transparent", outline: "none", paddingBottom: 2, color: "#1C1C1E" }}
                       >
                         {DUE_DAYS.map((d) => <option key={d} value={d}>{d}</option>)}
                       </select>
                     </div>
                   </div>
                   {newBill.dueDay > 28 && (
-                    <div style={{ fontSize: 11, color: "#6C6C70" }}>ℹ️ {t("bill_shortMonthNote")}</div>
+                    <div style={{ fontSize: "0.6875rem", color: "#6C6C70" }}>ℹ️ {t("bill_shortMonthNote")}</div>
                   )}
                   <div style={{ display: "flex", justifyContent: "space-between" }}>
                     <button
                       onClick={() => { setAddingBill(false); setNewBill({ name: "", amount: "", dueDay: 1 }); }}
-                      style={{ padding: "7px 14px", borderRadius: 10, border: "none", background: "#F2F2F7", color: "#3C3C43", fontSize: 13, fontWeight: 600, cursor: "pointer" }}
+                      style={{ padding: "7px 14px", borderRadius: 10, border: "none", background: "#F2F2F7", color: "#3C3C43", fontSize: "0.8125rem", fontWeight: 600, cursor: "pointer" }}
                     >
                       {t("btn_cancel")}
                     </button>
                     <button
                       onClick={addBill}
-                      style={{ padding: "7px 18px", borderRadius: 10, border: "none", background: "#FF9500", color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer" }}
+                      style={{ padding: "7px 18px", borderRadius: 10, border: "none", background: "#FF9500", color: "#fff", fontSize: "0.8125rem", fontWeight: 600, cursor: "pointer" }}
                     >
                       + {t("addBill")}
                     </button>
@@ -4499,11 +4518,11 @@ export default function App() {
                   onClick={() => setAddingBill(true)}
                   style={{
                     width: "100%", padding: 14, borderRadius: 16, border: "2px dashed #C7C7CC",
-                    background: "transparent", color: "#FF9500", fontSize: 14, fontWeight: 600,
+                    background: "transparent", color: "#FF9500", fontSize: "0.875rem", fontWeight: 600,
                     cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
                   }}
                 >
-                  <span style={{ fontSize: 18, lineHeight: 1 }}>+</span> {t("addBill")}
+                  <span style={{ fontSize: "1.125rem", lineHeight: 1 }}>+</span> {t("addBill")}
                 </button>
               )}
             </div>
@@ -4515,10 +4534,10 @@ export default function App() {
                   boxShadow: "0 2px 8px rgba(0,0,0,0.06)", display: "flex",
                   justifyContent: "space-between", alignItems: "center", gap: 12,
                 }}>
-                  <span style={{ fontSize: 14, fontWeight: 600, color: "#3C3C43" }}>{t("bills_total")}</span>
-                  <span style={{ fontSize: 20, fontWeight: 700, color: "#FF9500" }}>{money(billsTotal)}</span>
+                  <span style={{ fontSize: "0.875rem", fontWeight: 600, color: "#3C3C43" }}>{t("bills_total")}</span>
+                  <span style={{ fontSize: "1.25rem", fontWeight: 700, color: "#FF9500" }}>{money(billsTotal)}</span>
                 </div>
-                <div style={{ marginTop: 10, fontSize: 11.5, color: "#8E8E93", textAlign: "center", lineHeight: 1.5 }}>
+                <div style={{ marginTop: 10, fontSize: "0.71875rem", color: "#8E8E93", textAlign: "center", lineHeight: 1.5 }}>
                   🔔 {t("remindersNote")}
                   {isNative && reminderState?.scheduled > 0 && (
                     <> · {t("remindersScheduled", { n: reminderState.scheduled })}</>
@@ -4533,7 +4552,7 @@ export default function App() {
           <div>
             {/* Savings accounts list */}
             <div style={{ marginBottom: 14 }}>
-              <h2 style={{ fontSize: 15, fontWeight: 700, color: "#1C1C1E", margin: "0 0 10px" }}>
+              <h2 style={{ fontSize: "0.9375rem", fontWeight: 700, color: "#1C1C1E", margin: "0 0 10px" }}>
                 💰 {t("savings_title")}
               </h2>
               <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
@@ -4556,10 +4575,10 @@ export default function App() {
                             autoFocus
                             value={account.name}
                             onChange={e => setSavingsAccounts(s => s.map(a => a.id === account.id ? { ...a, name: e.target.value } : a))}
-                            style={{ fontSize: 15, fontWeight: 600, color: "#1C1C1E", border: "none", borderBottom: "2px solid #30D158", background: "transparent", outline: "none", width: "100%", paddingBottom: 2 }}
+                            style={{ fontSize: "0.9375rem", fontWeight: 600, color: "#1C1C1E", border: "none", borderBottom: "2px solid #30D158", background: "transparent", outline: "none", width: "100%", paddingBottom: 2 }}
                           />
                           <div style={{ flex: 1 }}>
-                            <div style={{ fontSize: 11, color: "#6C6C70", marginBottom: 4 }}>{t("col_balance")} ({curSymbol})</div>
+                            <div style={{ fontSize: "0.6875rem", color: "#6C6C70", marginBottom: 4 }}>{t("col_balance")} ({curSymbol})</div>
                             <input
                               type="text" inputMode="decimal"
                               value={account.amount}
@@ -4568,11 +4587,11 @@ export default function App() {
                                 const n = parseNumeric(e.target.value);
                                 setSavingsAccounts(s => s.map(a => a.id === account.id ? { ...a, amount: isNaN(n) ? 0 : n } : a));
                               }}
-                              style={{ fontSize: 16, fontWeight: 700, color: "#30D158", width: "100%", border: "none", borderBottom: "2px solid #30D158", background: "transparent", outline: "none", paddingBottom: 2 }}
+                              style={{ fontSize: "1rem", fontWeight: 700, color: "#30D158", width: "100%", border: "none", borderBottom: "2px solid #30D158", background: "transparent", outline: "none", paddingBottom: 2 }}
                             />
                           </div>
                           <div>
-                            <div style={{ fontSize: 11, color: "#6C6C70", marginBottom: 4 }}>{t("accountType")}</div>
+                            <div style={{ fontSize: "0.6875rem", color: "#6C6C70", marginBottom: 4 }}>{t("accountType")}</div>
                             <div style={{ display: "flex", gap: 6 }}>
                               {["cash", "emergency", "investment"].map((type) => (
                                 <button
@@ -4581,7 +4600,7 @@ export default function App() {
                                   onClick={() => setSavingsAccounts(s => s.map(a => a.id === account.id ? { ...a, type } : a))}
                                   style={{
                                     flex: 1, padding: "6px 4px", borderRadius: 8, border: "none", cursor: "pointer",
-                                    fontSize: 11, fontWeight: 600,
+                                    fontSize: "0.6875rem", fontWeight: 600,
                                     background: (account.type || "cash") === type ? "#30D158" : "#F2F2F7",
                                     color: (account.type || "cash") === type ? "#fff" : "#3C3C43",
                                   }}
@@ -4593,7 +4612,7 @@ export default function App() {
                           </div>
                           <div style={{ display: "flex", gap: 10 }}>
                             <div style={{ flex: 1 }}>
-                              <div style={{ fontSize: 11, color: "#6C6C70", marginBottom: 4 }}>{t("goal_targetAmount", { c: curSymbol })}</div>
+                              <div style={{ fontSize: "0.6875rem", color: "#6C6C70", marginBottom: 4 }}>{t("goal_targetAmount", { c: curSymbol })}</div>
                               <input
                                 type="text" inputMode="decimal" placeholder={t("goal_optional")}
                                 value={account.target ?? ""}
@@ -4602,23 +4621,23 @@ export default function App() {
                                   const n = parseNumeric(e.target.value);
                                   setSavingsAccounts(s => s.map(a => a.id === account.id ? { ...a, target: isNaN(n) || n <= 0 ? "" : n } : a));
                                 }}
-                                style={{ fontSize: 14, fontWeight: 600, color: "#30D158", width: "100%", border: "none", borderBottom: "2px solid #30D158", background: "transparent", outline: "none", paddingBottom: 2 }}
+                                style={{ fontSize: "0.875rem", fontWeight: 600, color: "#30D158", width: "100%", border: "none", borderBottom: "2px solid #30D158", background: "transparent", outline: "none", paddingBottom: 2 }}
                               />
                             </div>
                             <div style={{ flex: 1 }}>
-                              <div style={{ fontSize: 11, color: "#6C6C70", marginBottom: 4 }}>{t("goal_targetMonth")}</div>
+                              <div style={{ fontSize: "0.6875rem", color: "#6C6C70", marginBottom: 4 }}>{t("goal_targetMonth")}</div>
                               <input
                                 type="month"
                                 value={account.targetMonth ?? ""}
                                 onChange={e => setSavingsAccounts(s => s.map(a => a.id === account.id ? { ...a, targetMonth: e.target.value } : a))}
-                                style={{ fontSize: 13, width: "100%", border: "none", borderBottom: "2px solid #30D158", background: "transparent", outline: "none", paddingBottom: 2, color: "#1C1C1E" }}
+                                style={{ fontSize: "0.8125rem", width: "100%", border: "none", borderBottom: "2px solid #30D158", background: "transparent", outline: "none", paddingBottom: 2, color: "#1C1C1E" }}
                               />
                             </div>
                           </div>
                           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 4 }}>
                             <button
                               onClick={() => deleteSavings(account.id)}
-                              style={{ padding: "7px 14px", borderRadius: 10, border: "none", background: "#FF3B3015", color: "#FF3B30", fontSize: 13, fontWeight: 600, cursor: "pointer" }}
+                              style={{ padding: "7px 14px", borderRadius: 10, border: "none", background: "#FF3B3015", color: "#FF3B30", fontSize: "0.8125rem", fontWeight: 600, cursor: "pointer" }}
                             >
                               🗑 {t("btn_delete")}
                             </button>
@@ -4627,7 +4646,7 @@ export default function App() {
                                 setSavingsAccounts(s => s.map(a => a.id === account.id ? { ...a, amount: parseNumeric(a.amount) || 0 } : a));
                                 setEditingSavings(null);
                               }}
-                              style={{ padding: "7px 18px", borderRadius: 10, border: "none", background: "#30D158", color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer" }}
+                              style={{ padding: "7px 18px", borderRadius: 10, border: "none", background: "#30D158", color: "#fff", fontSize: "0.8125rem", fontWeight: 600, cursor: "pointer" }}
                             >
                               {t("btn_done")}
                             </button>
@@ -4636,26 +4655,26 @@ export default function App() {
                       ) : (
                         <div style={{ cursor: "pointer" }} {...tappable(() => setEditingSavings(account.id), account.name)}>
                           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                            <div style={{ flex: 1 }}>
-                              <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 2 }}>
-                                <div style={{ fontSize: 14, fontWeight: 600, color: "#1C1C1E" }}>{account.name}</div>
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 2, flexWrap: "wrap" }}>
+                                <div style={{ fontSize: "0.875rem", fontWeight: 600, color: "#1C1C1E" }}>{account.name}</div>
                                 {account.type === "emergency" && (
-                                  <span style={{ fontSize: 10, fontWeight: 700, color: "#007AFF", background: "#007AFF15", padding: "1px 6px", borderRadius: 6 }}>
+                                  <span style={{ fontSize: "0.625rem", fontWeight: 700, color: "#007AFF", background: "#007AFF15", padding: "1px 6px", borderRadius: 6 }}>
                                     🛡️ {t("type_emergency")}
                                   </span>
                                 )}
                                 {account.type === "investment" && (
-                                  <span style={{ fontSize: 10, fontWeight: 700, color: "#AF52DE", background: "#AF52DE15", padding: "1px 6px", borderRadius: 6 }}>
+                                  <span style={{ fontSize: "0.625rem", fontWeight: 700, color: "#AF52DE", background: "#AF52DE15", padding: "1px 6px", borderRadius: 6 }}>
                                     📈 {t("type_investment")}
                                   </span>
                                 )}
                               </div>
-                              <div style={{ fontSize: 12, color: "#6C6C70" }}>{t("col_balance")}</div>
+                              <div style={{ fontSize: "0.75rem", color: "#6C6C70" }}>{t("col_balance")}</div>
                             </div>
                             <div style={{ textAlign: "right", flexShrink: 0 }}>
-                              <div style={{ fontSize: 15, fontWeight: 700, color: "#30D158" }}>{money(account.amount || 0)}</div>
+                              <div style={{ fontSize: "0.9375rem", fontWeight: 700, color: "#30D158" }}>{money(account.amount || 0)}</div>
                             </div>
-                            <div style={{ color: "#C7C7CC", fontSize: 13 }}>›</div>
+                            <div style={{ color: "#C7C7CC", fontSize: "0.8125rem" }}>›</div>
                           </div>
                           {(() => {
                             const target = parseNumeric(account.target) || 0;
@@ -4676,11 +4695,11 @@ export default function App() {
                             return (
                               <div style={{ marginTop: 10 }}>
                                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4, gap: 8 }}>
-                                  <span style={{ fontSize: 11, color: "#6C6C70" }}>
+                                  <span style={{ fontSize: "0.6875rem", color: "#6C6C70" }}>
                                     🎯 {t("goal_label")}: {money(target)}
                                     {account.targetMonth && /^\d{4}-\d{2}$/.test(account.targetMonth) ? ` · ${account.targetMonth}` : ""}
                                   </span>
-                                  <span style={{ fontSize: 11, fontWeight: 700, color: reached ? "#30D158" : "#3C3C43" }}>
+                                  <span style={{ fontSize: "0.6875rem", fontWeight: 700, color: reached ? "#30D158" : "#3C3C43" }}>
                                     {reached ? t("goal_reached") : `${goalPct.toFixed(0)}%`}
                                   </span>
                                 </div>
@@ -4688,7 +4707,7 @@ export default function App() {
                                   <div style={{ width: `${goalPct}%`, height: "100%", background: "#30D158", borderRadius: 4, transition: "width 0.6s ease" }} />
                                 </div>
                                 {neededLine && (
-                                  <div style={{ fontSize: 11, color: "#6C6C70", marginTop: 4 }}>{neededLine}</div>
+                                  <div style={{ fontSize: "0.6875rem", color: "#6C6C70", marginTop: 4 }}>{neededLine}</div>
                                 )}
                               </div>
                             );
@@ -4705,20 +4724,20 @@ export default function App() {
                       placeholder={t("ph_accountName")}
                       value={newSavings.name}
                       onChange={e => setNewSavings(c => ({ ...c, name: e.target.value }))}
-                      style={{ fontSize: 15, fontWeight: 600, border: "none", borderBottom: "2px solid #30D158", background: "transparent", outline: "none", paddingBottom: 2 }}
+                      style={{ fontSize: "0.9375rem", fontWeight: 600, border: "none", borderBottom: "2px solid #30D158", background: "transparent", outline: "none", paddingBottom: 2 }}
                     />
                     <div>
-                      <div style={{ fontSize: 11, color: "#6C6C70", marginBottom: 4 }}>{t("col_balance")} ({curSymbol})</div>
+                      <div style={{ fontSize: "0.6875rem", color: "#6C6C70", marginBottom: 4 }}>{t("col_balance")} ({curSymbol})</div>
                       <input
                         type="text" inputMode="decimal" placeholder="0"
                         value={newSavings.amount || ""}
                         onChange={e => setNewSavings(c => ({ ...c, amount: e.target.value }))}
                         onBlur={e => setNewSavings(c => ({ ...c, amount: parseNumeric(e.target.value) || 0 }))}
-                        style={{ fontSize: 16, fontWeight: 700, color: "#30D158", width: "100%", border: "none", borderBottom: "2px solid #30D158", background: "transparent", outline: "none", paddingBottom: 2 }}
+                        style={{ fontSize: "1rem", fontWeight: 700, color: "#30D158", width: "100%", border: "none", borderBottom: "2px solid #30D158", background: "transparent", outline: "none", paddingBottom: 2 }}
                       />
                     </div>
                     <div>
-                      <div style={{ fontSize: 11, color: "#6C6C70", marginBottom: 4 }}>{t("accountType")}</div>
+                      <div style={{ fontSize: "0.6875rem", color: "#6C6C70", marginBottom: 4 }}>{t("accountType")}</div>
                       <div style={{ display: "flex", gap: 6 }}>
                         {["cash", "emergency", "investment"].map((type) => (
                           <button
@@ -4727,7 +4746,7 @@ export default function App() {
                             onClick={() => setNewSavings(c => ({ ...c, type }))}
                             style={{
                               flex: 1, padding: "6px 4px", borderRadius: 8, border: "none", cursor: "pointer",
-                              fontSize: 11, fontWeight: 600,
+                              fontSize: "0.6875rem", fontWeight: 600,
                               background: (newSavings.type || "cash") === type ? "#30D158" : "#F2F2F7",
                               color: (newSavings.type || "cash") === type ? "#fff" : "#3C3C43",
                             }}
@@ -4742,16 +4761,16 @@ export default function App() {
                           here — a goal date rarely matters until an amount and
                           target are in place, so it only adds friction on the
                           initial add. */}
-                      <div style={{ fontSize: 11, color: "#6C6C70", marginBottom: 4 }}>{t("goal_targetAmount", { c: curSymbol })}</div>
+                      <div style={{ fontSize: "0.6875rem", color: "#6C6C70", marginBottom: 4 }}>{t("goal_targetAmount", { c: curSymbol })}</div>
                       <input
                         type="text" inputMode="decimal" placeholder={t("goal_optional")}
                         value={newSavings.target || ""}
                         onChange={e => setNewSavings(c => ({ ...c, target: e.target.value }))}
-                        style={{ fontSize: 14, fontWeight: 600, color: "#30D158", width: "100%", border: "none", borderBottom: "2px solid #30D158", background: "transparent", outline: "none", paddingBottom: 2 }}
+                        style={{ fontSize: "0.875rem", fontWeight: 600, color: "#30D158", width: "100%", border: "none", borderBottom: "2px solid #30D158", background: "transparent", outline: "none", paddingBottom: 2 }}
                       />
                     </div>
                     <div style={{ display: "flex", justifyContent: "space-between" }}>
-                      <button onClick={() => { setAddingSavings(false); setNewSavings({ name: "", amount: 0, target: "", targetMonth: "", type: "cash" }); }} style={{ padding: "7px 14px", borderRadius: 10, border: "none", background: "#F2F2F7", color: "#3C3C43", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
+                      <button onClick={() => { setAddingSavings(false); setNewSavings({ name: "", amount: 0, target: "", targetMonth: "", type: "cash" }); }} style={{ padding: "7px 14px", borderRadius: 10, border: "none", background: "#F2F2F7", color: "#3C3C43", fontSize: "0.8125rem", fontWeight: 600, cursor: "pointer" }}>
                         {t("btn_cancel")}
                       </button>
                       <button
@@ -4768,7 +4787,7 @@ export default function App() {
                           setNewSavings({ name: "", amount: 0, target: "", targetMonth: "", type: "cash" });
                           setAddingSavings(false);
                         }}
-                        style={{ padding: "7px 18px", borderRadius: 10, border: "none", background: "#30D158", color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer" }}
+                        style={{ padding: "7px 18px", borderRadius: 10, border: "none", background: "#30D158", color: "#fff", fontSize: "0.8125rem", fontWeight: 600, cursor: "pointer" }}
                       >
                         + {t("addSavings")}
                       </button>
@@ -4777,29 +4796,29 @@ export default function App() {
                 ) : (
                   <button
                     onClick={() => setAddingSavings(true)}
-                    style={{ width: "100%", padding: "14px", borderRadius: 16, border: "2px dashed #C7C7CC", background: "transparent", color: "#30D158", fontSize: 14, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}
+                    style={{ width: "100%", padding: "14px", borderRadius: 16, border: "2px dashed #C7C7CC", background: "transparent", color: "#30D158", fontSize: "0.875rem", fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}
                   >
-                    <span style={{ fontSize: 18, lineHeight: 1 }}>+</span> {t("addSavings")}
+                    <span style={{ fontSize: "1.125rem", lineHeight: 1 }}>+</span> {t("addSavings")}
                   </button>
                 )}
               </div>
 
               {savingsAccounts.length > 0 && (
                 <div style={{ marginTop: 12, background: "#fff", borderRadius: 14, padding: "14px 20px", boxShadow: "0 2px 8px rgba(0,0,0,0.06)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <span style={{ fontSize: 14, fontWeight: 600, color: "#3C3C43" }}>{t("totalSavings")}</span>
-                  <span style={{ fontSize: 20, fontWeight: 700, color: "#30D158" }}>{money(totalSavingsBalance)}</span>
+                  <span style={{ fontSize: "0.875rem", fontWeight: 600, color: "#3C3C43" }}>{t("totalSavings")}</span>
+                  <span style={{ fontSize: "1.25rem", fontWeight: 700, color: "#30D158" }}>{money(totalSavingsBalance)}</span>
                 </div>
               )}
             </div>
 
             {/* Monthly investment section */}
             <div style={{ background: "#fff", borderRadius: 18, padding: 22, boxShadow: "0 2px 12px rgba(0,0,0,0.06)" }}>
-              <h2 style={{ fontSize: 15, fontWeight: 600, margin: "0 0 4px" }}>💹 {t("monthlyInvestment")}</h2>
-              <div style={{ fontSize: 12, color: "#6C6C70", marginBottom: 14 }}>{t("savings_sub")}</div>
+              <h2 style={{ fontSize: "0.9375rem", fontWeight: 600, margin: "0 0 4px" }}>💹 {t("monthlyInvestment")}</h2>
+              <div style={{ fontSize: "0.75rem", color: "#6C6C70", marginBottom: 14 }}>{t("savings_sub")}</div>
               <div style={{ position: "relative", marginBottom: 14 }} ref={investMenuRef}>
                 <button
                   onClick={() => setShowInvestMenu(v => !v)}
-                  style={{ background: "none", border: "none", padding: 0, cursor: "pointer", fontSize: 12, color: "#007AFF", fontWeight: 500, display: "flex", alignItems: "center", gap: 4 }}
+                  style={{ background: "none", border: "none", padding: 0, cursor: "pointer", fontSize: "0.75rem", color: "#007AFF", fontWeight: 500, display: "flex", alignItems: "center", gap: 4 }}
                 >
                   {investLabel} ▾
                 </button>
@@ -4807,7 +4826,7 @@ export default function App() {
                   <div style={{ position: "absolute", top: "calc(100% + 6px)", left: 0, background: "#fff", border: "1.5px solid #E5E5EA", borderRadius: 14, padding: 6, minWidth: 220, boxShadow: "0 8px 32px rgba(0,0,0,0.12)", zIndex: 200 }}>
                     {INVEST_TYPES.map((opt) => (
                       <button key={opt} onClick={() => { setInvestLabel(opt); setShowInvestMenu(false); }}
-                        style={{ display: "block", width: "100%", textAlign: "left", padding: "8px 12px", borderRadius: 8, border: "none", background: investLabel === opt ? "#F2F2F7" : "transparent", color: "#1C1C1E", fontSize: 13, fontWeight: investLabel === opt ? 700 : 400, cursor: "pointer" }}
+                        style={{ display: "block", width: "100%", textAlign: "left", padding: "8px 12px", borderRadius: 8, border: "none", background: investLabel === opt ? "#F2F2F7" : "transparent", color: "#1C1C1E", fontSize: "0.8125rem", fontWeight: investLabel === opt ? 700 : 400, cursor: "pointer" }}
                       >
                         {investLabel === opt && <span style={{ color: "#007AFF", marginRight: 6 }}>✓</span>}
                         {opt}
@@ -4828,11 +4847,11 @@ export default function App() {
                     value={investStr}
                     onChange={(event) => onInvestInput(event.target.value)}
                     onBlur={onInvestBlur}
-                    style={{ width: "100%", border: "none", background: "transparent", textAlign: "center", fontSize: 15, fontWeight: 700, color: "#007AFF", outline: "none" }}
+                    style={{ width: "100%", border: "none", background: "transparent", textAlign: "center", fontSize: "0.9375rem", fontWeight: 700, color: "#007AFF", outline: "none" }}
                   />
                 </div>
               </div>
-              <div style={{ marginTop: 10, fontSize: 12, color: "#6C6C70" }}>
+              <div style={{ marginTop: 10, fontSize: "0.75rem", color: "#6C6C70" }}>
                 {t("annual")}: <strong style={{ color: "#007AFF" }}>{money(invest * 12)}</strong>
               </div>
             </div>
@@ -4843,8 +4862,8 @@ export default function App() {
           <div style={{ background: "#fff", borderRadius: 16, padding: 24, boxShadow: "0 1px 3px rgba(0,0,0,0.06)" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12, marginBottom: 8 }}>
               <div>
-                <h2 style={{ margin: 0, fontSize: 22, fontWeight: 700, color: "#1C1C1E" }}>{t("advisorTitle")}</h2>
-                <p style={{ margin: "4px 0 0", fontSize: 13, color: "#6C6C70" }}>
+                <h2 style={{ margin: 0, fontSize: "1.375rem", fontWeight: 700, color: "#1C1C1E" }}>{t("advisorTitle")}</h2>
+                <p style={{ margin: "4px 0 0", fontSize: "0.8125rem", color: "#6C6C70" }}>
                   {t("advisorSub")}
                 </p>
               </div>
@@ -4856,7 +4875,7 @@ export default function App() {
                   borderRadius: 22,
                   border: "none",
                   cursor: suggestionsLoading || !loaded ? "default" : "pointer",
-                  fontSize: 14,
+                  fontSize: "0.875rem",
                   fontWeight: 600,
                   background: suggestionsLoading ? "#A0C4FF" : "#007AFF",
                   color: "#fff",
@@ -4871,21 +4890,21 @@ export default function App() {
             </div>
 
             {suggestionsError && (
-              <div style={{ marginTop: 16, padding: 14, borderRadius: 10, background: "#FFE5E5", color: "#C00", fontSize: 13 }}>
+              <div style={{ marginTop: 16, padding: 14, borderRadius: 10, background: "#FFE5E5", color: "#C00", fontSize: "0.8125rem" }}>
                 {suggestionsError}
               </div>
             )}
 
             {suggestionsLoading && !suggestions && (
-              <div style={{ marginTop: 24, padding: 32, textAlign: "center", color: "#6C6C70", fontSize: 14 }}>
-                <div style={{ fontSize: 32, marginBottom: 12 }}>💭</div>
+              <div style={{ marginTop: 24, padding: 32, textAlign: "center", color: "#6C6C70", fontSize: "0.875rem" }}>
+                <div style={{ fontSize: "2rem", marginBottom: 12 }}>💭</div>
                 {t("advisorLoading")}
               </div>
             )}
 
             {!suggestionsLoading && !suggestions && !suggestionsError && (
-              <div style={{ marginTop: 24, padding: 32, textAlign: "center", color: "#6C6C70", fontSize: 14, lineHeight: 1.6 }}>
-                <div style={{ fontSize: 32, marginBottom: 12 }}>🤔</div>
+              <div style={{ marginTop: 24, padding: 32, textAlign: "center", color: "#6C6C70", fontSize: "0.875rem", lineHeight: 1.6 }}>
+                <div style={{ fontSize: "2rem", marginBottom: 12 }}>🤔</div>
                 {t("advisorEmpty")}
               </div>
             )}
@@ -4893,7 +4912,7 @@ export default function App() {
             {suggestions && (
               <div className="selectable" style={{ marginTop: 20, paddingTop: 20, borderTop: "1px solid #F2F2F7" }}>
                 {renderMarkdown(suggestions)}
-                <p style={{ marginTop: 24, fontSize: 11, color: "#6C6C70", fontStyle: "italic" }}>
+                <p style={{ marginTop: 24, fontSize: "0.6875rem", color: "#6C6C70", fontStyle: "italic" }}>
                   ⚠️ {t("disclaimer")}
                 </p>
               </div>
@@ -4911,12 +4930,12 @@ export default function App() {
                 display: "flex", alignItems: "center", gap: 10,
                 padding: "10px 14px", borderRadius: 12,
                 border: "1.5px solid #E5E5EA", background: "#fff",
-                fontSize: 13, fontWeight: 600, color: "#3C3C43", cursor: "pointer",
+                fontSize: "0.8125rem", fontWeight: 600, color: "#3C3C43", cursor: "pointer",
               }}
             >
               <span>🔒 {t("faceIdLock")}</span>
               <span style={{
-                fontSize: 11, fontWeight: 700, padding: "3px 9px", borderRadius: 20,
+                fontSize: "0.6875rem", fontWeight: 700, padding: "3px 9px", borderRadius: 20,
                 background: bioEnabled ? "#E8F8EC" : "#F2F2F7",
                 color: bioEnabled ? "#1E8E3E" : "#8E8E93",
               }}>
@@ -4933,7 +4952,7 @@ export default function App() {
               className="tap-target"
               style={{
                 background: "none", border: "none", cursor: "pointer",
-                fontSize: 12, color: "#8E8E93", textDecoration: "underline",
+                fontSize: "0.75rem", color: "#8E8E93", textDecoration: "underline",
                 padding: 4,
               }}
             >
@@ -4951,7 +4970,7 @@ export default function App() {
                 className="tap-target"
                 style={{
                   background: "none", border: "none", cursor: "pointer",
-                  fontSize: 12, color: "#8E8E93", textDecoration: "underline",
+                  fontSize: "0.75rem", color: "#8E8E93", textDecoration: "underline",
                   padding: 4, marginRight: 14,
                 }}
               >
@@ -4962,7 +4981,7 @@ export default function App() {
                 className="tap-target"
                 style={{
                   background: "none", border: "none", cursor: "pointer",
-                  fontSize: 12, color: "#C7736C", textDecoration: "underline",
+                  fontSize: "0.75rem", color: "#C7736C", textDecoration: "underline",
                   padding: 4,
                 }}
               >
@@ -5026,14 +5045,14 @@ export default function App() {
             maxWidth: "calc(100vw - 32px)",
           }}
         >
-          <span style={{ fontSize: 13.5, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+          <span style={{ fontSize: "0.84375rem", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
             {t("deletedItem", { name: undoInfo.name })}
           </span>
           <button
             onClick={handleUndo}
             style={{
               border: "none", background: "transparent", color: "#5AC8FA",
-              fontSize: 13.5, fontWeight: 700, cursor: "pointer", padding: 0, flexShrink: 0,
+              fontSize: "0.84375rem", fontWeight: 700, cursor: "pointer", padding: 0, flexShrink: 0,
             }}
           >
             {t("undo")}
@@ -5051,16 +5070,16 @@ export default function App() {
           }}
         >
           <div style={{ background: "#fff", borderRadius: 18, padding: 22, width: "100%", maxWidth: 420, boxShadow: "0 12px 48px rgba(0,0,0,0.2)" }}>
-            <div style={{ fontSize: 17, fontWeight: 700, marginBottom: 10, color: "#FF3B30" }}>
+            <div style={{ fontSize: "1.0625rem", fontWeight: 700, marginBottom: 10, color: "#FF3B30" }}>
               {t("deleteAccountTitle")}
             </div>
-            <p style={{ margin: "0 0 14px", fontSize: 12.5, color: "#3C3C43", lineHeight: 1.55 }}>
+            <p style={{ margin: "0 0 14px", fontSize: "0.78125rem", color: "#3C3C43", lineHeight: 1.55 }}>
               {t("deleteAccountBody")}
             </p>
 
             {/* Typing the word, rather than a single tap, because this is
                 irreversible and there is no backup to restore from. */}
-            <div style={{ fontSize: 11, color: "#6C6C70", marginBottom: 4 }}>
+            <div style={{ fontSize: "0.6875rem", color: "#6C6C70", marginBottom: 4 }}>
               {t("deleteAccountConfirmLabel")}
             </div>
             <input
@@ -5075,13 +5094,13 @@ export default function App() {
               disabled={deleteBusy}
               style={{
                 width: "100%", boxSizing: "border-box", padding: "10px 12px",
-                borderRadius: 10, border: "1.5px solid #E5E5EA", fontSize: 13,
+                borderRadius: 10, border: "1.5px solid #E5E5EA", fontSize: "0.8125rem",
                 outline: "none", marginBottom: 12, fontFamily: "inherit",
               }}
             />
 
             {deleteError && (
-              <p style={{ margin: "0 0 12px", fontSize: 12, color: "#FF3B30" }}>
+              <p style={{ margin: "0 0 12px", fontSize: "0.75rem", color: "#FF3B30" }}>
                 {t("deleteAccountFailed")}: {deleteError}
               </p>
             )}
@@ -5092,7 +5111,7 @@ export default function App() {
                 disabled={deleteBusy}
                 style={{
                   padding: "9px 16px", borderRadius: 10, border: "1.5px solid #E5E5EA",
-                  background: "#fff", color: "#3C3C43", fontSize: 13, fontWeight: 600,
+                  background: "#fff", color: "#3C3C43", fontSize: "0.8125rem", fontWeight: 600,
                   cursor: deleteBusy ? "default" : "pointer",
                 }}
               >
@@ -5105,7 +5124,7 @@ export default function App() {
                   padding: "9px 16px", borderRadius: 10, border: "none",
                   background: deleteConfirmText.trim() === t("deleteAccountConfirmWord") && !deleteBusy ? "#FF3B30" : "#E5E5EA",
                   color: deleteConfirmText.trim() === t("deleteAccountConfirmWord") && !deleteBusy ? "#fff" : "#8E8E93",
-                  fontSize: 13, fontWeight: 600,
+                  fontSize: "0.8125rem", fontWeight: 600,
                   cursor: deleteConfirmText.trim() === t("deleteAccountConfirmWord") && !deleteBusy ? "pointer" : "default",
                 }}
               >
@@ -5125,15 +5144,15 @@ export default function App() {
           }}
         >
           <div style={{ background: "#fff", borderRadius: 18, padding: 22, width: "100%", maxWidth: 430, boxShadow: "0 12px 48px rgba(0,0,0,0.2)" }}>
-            <div style={{ fontSize: 17, fontWeight: 700, marginBottom: 10 }}>
+            <div style={{ fontSize: "1.0625rem", fontWeight: 700, marginBottom: 10 }}>
               {t("curConvertTitle", { to: curConvertAsk.to })}
             </div>
-            <p style={{ margin: "0 0 12px", fontSize: 12.5, color: "#3C3C43", lineHeight: 1.55 }}>
+            <p style={{ margin: "0 0 12px", fontSize: "0.78125rem", color: "#3C3C43", lineHeight: 1.55 }}>
               {t("curConvertBody", { from: curConvertAsk.from, to: curConvertAsk.to })}
             </p>
             {/* A concrete before/after removes the ambiguity about which way the
                 rate is applied. */}
-            <p style={{ margin: "0 0 16px", fontSize: 12, color: "#6C6C70", background: "#F7F7FA", borderRadius: 8, padding: "8px 10px" }}>
+            <p style={{ margin: "0 0 16px", fontSize: "0.75rem", color: "#6C6C70", background: "#F7F7FA", borderRadius: 8, padding: "8px 10px" }}>
               {t("curConvertExample", {
                 before: makeMoney(curConvertAsk.from)(1000),
                 after: makeMoney(curConvertAsk.to)(convertAmount(1000, curConvertAsk.from, curConvertAsk.to)),
@@ -5144,7 +5163,7 @@ export default function App() {
                 onClick={() => confirmCurrencyConvert(false)}
                 style={{
                   padding: "9px 14px", borderRadius: 10, border: "1.5px solid #E5E5EA",
-                  background: "#fff", color: "#3C3C43", fontSize: 13, fontWeight: 600, cursor: "pointer",
+                  background: "#fff", color: "#3C3C43", fontSize: "0.8125rem", fontWeight: 600, cursor: "pointer",
                 }}
               >
                 {t("curConvertKeep")}
@@ -5153,7 +5172,7 @@ export default function App() {
                 onClick={() => confirmCurrencyConvert(true)}
                 style={{
                   padding: "9px 14px", borderRadius: 10, border: "none",
-                  background: "#007AFF", color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer",
+                  background: "#007AFF", color: "#fff", fontSize: "0.8125rem", fontWeight: 600, cursor: "pointer",
                 }}
               >
                 {t("curConvertDo")}
@@ -5174,24 +5193,24 @@ export default function App() {
         >
           <div style={{ background: "#fff", borderRadius: 18, padding: 22, width: "100%", maxWidth: 420, boxShadow: "0 12px 48px rgba(0,0,0,0.2)" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
-              <span style={{ fontSize: 17, fontWeight: 700 }}>{t("importTitle")}</span>
+              <span style={{ fontSize: "1.0625rem", fontWeight: 700 }}>{t("importTitle")}</span>
               <button
                 onClick={() => setShowImport(false)}
                 aria-label={t("close")}
-                style={{ border: "none", background: "#F2F2F7", borderRadius: "50%", width: 28, height: 28, cursor: "pointer", fontSize: 15, color: "#3C3C43" }}
+                style={{ border: "none", background: "#F2F2F7", borderRadius: "50%", width: "1.75rem", height: "1.75rem", cursor: "pointer", fontSize: "0.9375rem", color: "#3C3C43" }}
               >
                 ×
               </button>
             </div>
 
-            <p style={{ margin: "0 0 14px", fontSize: 12.5, color: "#6C6C70", lineHeight: 1.5 }}>{t("importIntro")}</p>
+            <p style={{ margin: "0 0 14px", fontSize: "0.78125rem", color: "#6C6C70", lineHeight: 1.5 }}>{t("importIntro")}</p>
 
             {/* Showing the current id makes the mismatch self-diagnosable —
                 without it there is no way to tell which account you are in. */}
             <div style={{ background: "#F7F7FA", borderRadius: 10, padding: "9px 11px", marginBottom: 14 }}>
-              <div style={{ fontSize: 10.5, color: "#8E8E93", marginBottom: 3, textTransform: "uppercase", letterSpacing: "0.4px" }}>{t("importWhereIsId")}</div>
+              <div style={{ fontSize: "0.65625rem", color: "#8E8E93", marginBottom: 3, textTransform: "uppercase", letterSpacing: "0.4px" }}>{t("importWhereIsId")}</div>
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <code style={{ fontSize: 11.5, color: "#3C3C43", wordBreak: "break-all", flex: 1 }}>{auth?.userId}</code>
+                <code style={{ fontSize: "0.71875rem", color: "#3C3C43", wordBreak: "break-all", flex: 1 }}>{auth?.userId}</code>
                 <button
                   aria-label={t("copyId")}
                   onClick={() => {
@@ -5203,7 +5222,7 @@ export default function App() {
                   style={{
                     border: "none", background: copiedId ? "#E8F8EC" : "#E5E5EA",
                     color: copiedId ? "#1E8E3E" : "#3C3C43", borderRadius: 7,
-                    padding: "4px 9px", fontSize: 11, fontWeight: 600, cursor: "pointer", whiteSpace: "nowrap",
+                    padding: "4px 9px", fontSize: "0.6875rem", fontWeight: 600, cursor: "pointer", whiteSpace: "nowrap",
                   }}
                 >
                   {copiedId ? `✓ ${t("copied")}` : "⧉"}
@@ -5223,18 +5242,18 @@ export default function App() {
               placeholder={t("importPlaceholder")}
               style={{
                 width: "100%", boxSizing: "border-box", padding: "10px 12px",
-                borderRadius: 10, border: "1.5px solid #E5E5EA", fontSize: 13,
+                borderRadius: 10, border: "1.5px solid #E5E5EA", fontSize: "0.8125rem",
                 outline: "none", marginBottom: 8, fontFamily: "inherit",
               }}
             />
 
-            <p style={{ margin: "0 0 12px", fontSize: 11, color: "#8E8E93" }}>⚠️ {t("importOverwriteWarn")}</p>
+            <p style={{ margin: "0 0 12px", fontSize: "0.6875rem", color: "#8E8E93" }}>⚠️ {t("importOverwriteWarn")}</p>
 
             {importError && (
-              <p style={{ margin: "0 0 12px", fontSize: 12, color: "#FF3B30" }}>{importError}</p>
+              <p style={{ margin: "0 0 12px", fontSize: "0.75rem", color: "#FF3B30" }}>{importError}</p>
             )}
             {importSuccess && (
-              <p style={{ margin: "0 0 12px", fontSize: 12, color: "#1E8E3E", fontWeight: 600 }}>✓ {t("importDone")}</p>
+              <p style={{ margin: "0 0 12px", fontSize: "0.75rem", color: "#1E8E3E", fontWeight: 600 }}>✓ {t("importDone")}</p>
             )}
 
             <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
@@ -5243,7 +5262,7 @@ export default function App() {
                 disabled={importLoading}
                 style={{
                   padding: "9px 16px", borderRadius: 10, border: "1.5px solid #E5E5EA",
-                  background: "#fff", color: "#3C3C43", fontSize: 13, fontWeight: 600,
+                  background: "#fff", color: "#3C3C43", fontSize: "0.8125rem", fontWeight: 600,
                   cursor: importLoading ? "default" : "pointer",
                 }}
               >
@@ -5256,7 +5275,7 @@ export default function App() {
                   padding: "9px 16px", borderRadius: 10, border: "none",
                   background: importInput.trim() && !importLoading ? "#007AFF" : "#E5E5EA",
                   color: importInput.trim() && !importLoading ? "#fff" : "#8E8E93",
-                  fontSize: 13, fontWeight: 600,
+                  fontSize: "0.8125rem", fontWeight: 600,
                   cursor: importInput.trim() && !importLoading ? "pointer" : "default",
                 }}
               >

@@ -1,4 +1,5 @@
 import { Capacitor } from "@capacitor/core";
+import { applyDynamicType } from "./dynamicType";
 
 export const isNative = Capacitor.isNativePlatform();
 
@@ -26,6 +27,15 @@ export async function initNative() {
   // Lets the stylesheet tell the app shell apart from the web build, for the
   // handful of behaviours that should differ between them.
   document.documentElement.classList.add("native");
+
+  // Text follows the system size. Re-measured on resume because the setting is
+  // changed in Settings, which means leaving the app and coming back — the one
+  // moment it is guaranteed to have moved under us.
+  applyDynamicType();
+  try {
+    const { App: CapacitorApp } = await import("@capacitor/app");
+    await CapacitorApp.addListener("resume", () => applyDynamicType());
+  } catch { /* the size measured at launch stands */ }
 
   // WKWebView zooms the page in when a field whose font is under 16px takes
   // focus, and there is no gesture to undo it inside an app shell — the user

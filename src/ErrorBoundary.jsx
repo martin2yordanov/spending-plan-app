@@ -77,9 +77,9 @@ export default class ErrorBoundary extends Component {
           color: "#1C1C1E",
         }}
       >
-        <div style={{ fontSize: 40, lineHeight: 1 }}>😵‍💫</div>
-        <div style={{ fontSize: 18, fontWeight: 700 }}>{copy.title}</div>
-        <div style={{ fontSize: 13.5, color: "#6C6C70", lineHeight: 1.55, maxWidth: 300 }}>
+        <div style={{ fontSize: "2.5rem", lineHeight: 1 }}>😵‍💫</div>
+        <div style={{ fontSize: "1.125rem", fontWeight: 700 }}>{copy.title}</div>
+        <div style={{ fontSize: "0.84375rem", color: "#6C6C70", lineHeight: 1.55, maxWidth: 300 }}>
           {copy.body}
         </div>
         <button
@@ -92,7 +92,7 @@ export default class ErrorBoundary extends Component {
             cursor: "pointer",
             background: "#007AFF",
             color: "#fff",
-            fontSize: 14,
+            fontSize: "0.875rem",
             fontWeight: 600,
           }}
         >
@@ -101,13 +101,13 @@ export default class ErrorBoundary extends Component {
         {/* Collapsed, because the message means nothing to most people, but
             present so a bug report can carry something useful. */}
         <details style={{ marginTop: 8, maxWidth: 320, width: "100%" }}>
-          <summary style={{ fontSize: 12, color: "#8E8E93", cursor: "pointer" }}>
+          <summary style={{ fontSize: "0.75rem", color: "#8E8E93", cursor: "pointer" }}>
             {copy.details}
           </summary>
           <pre
             style={{
               marginTop: 8,
-              fontSize: 11,
+              fontSize: "0.6875rem",
               color: "#6C6C70",
               textAlign: "left",
               whiteSpace: "pre-wrap",

@@ -100,15 +100,15 @@ export default function AppLock({ children }) {
       justifyContent: "center", gap: 18, padding: 24, zIndex: 9999,
     }}>
       <img src="/money-bag.png" alt="" aria-hidden="true" style={{ height: 84, width: "auto" }} />
-      <div style={{ fontSize: 17, fontWeight: 700, color: "#3B2E20" }}>{copy.title}</div>
-      <div style={{ fontSize: 13, color: "#6B5A45", textAlign: "center", maxWidth: 260 }}>
+      <div style={{ fontSize: "1.0625rem", fontWeight: 700, color: "#3B2E20" }}>{copy.title}</div>
+      <div style={{ fontSize: "0.8125rem", color: "#6B5A45", textAlign: "center", maxWidth: 260 }}>
         {failed ? copy.failed : copy.unlocking}
       </div>
       <button
         onClick={attempt}
         style={{
           padding: "11px 22px", borderRadius: 12, border: "none", cursor: "pointer",
-          background: "#3B2E20", color: "#fff", fontSize: 14, fontWeight: 600,
+          background: "#3B2E20", color: "#fff", fontSize: "0.875rem", fontWeight: 600,
         }}
       >
         {copy.unlock}

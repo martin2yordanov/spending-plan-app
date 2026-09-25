@@ -180,12 +180,14 @@ test, which is why they are not here.
   requested once there is actually a reminder to schedule, so a first launch
   no longer asks for notifications it has no use for.
 
-- **Text does not follow Dynamic Type.** A WKWebView does not scale web
-  content to the system text size, and every size in this app is a fixed
-  pixel value, so somebody who has turned text up sees it at the same size as
-  everybody else. Fixing it properly means moving the type scale off pixels,
-  which is a change to every inline style in `App.jsx`. Not a rejection
-  criterion, but it is the app's largest remaining accessibility gap.
+- **Dynamic Type is capped at 2x.** Text follows the system size
+  (`src/dynamicType.js` measures `font: -apple-system-body`, which is the only
+  hook a WKWebView gives the web, and scales the root against it). Spacing and
+  the containers are still fixed pixels, so the scale is clamped: every tab was
+  driven at an iPhone SE width and is free of horizontal overflow through 2.0,
+  and starts spilling at 2.5. That covers the whole standard range and the
+  first two accessibility steps; AX3 and above stop growing. Going further
+  means moving the spacing off pixels too.
 
 - **The web build has no service worker.** The native app bundles its assets,
   so it opens with no connection; the web app caches the *plan* offline but
